@@ -6,12 +6,13 @@ from bs4 import BeautifulSoup
 from spellchecker import SpellChecker
 
 # 1. Page Configuration
-st.set_page_config(page_title="Link Warden Pro | Zendesk Integrity Tool", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="Link Warden Pro | Zendesk Content Integrity", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
 # 2. UI Styling
 st.markdown("""
     <style>
+    /* Main Action Button */
     .stButton>button { 
         background-color: #007bff; 
         color: white; 
@@ -21,60 +22,105 @@ st.markdown("""
         height: 3.5em;
         text-transform: uppercase;
         letter-spacing: 1px;
+        border: none;
+        transition: 0.3s;
     }
-    [data-testid="stMetricValue"] {
-        font-size: 2.2rem;
-        color: #007bff;
+    .stButton>button:hover {
+        background-color: #0056b3;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
-    .hero-text {
-        font-size: 1.2rem;
-        color: #444;
-        background: #f0f7ff;
+    /* Value Props */
+    .value-prop-box {
+        background-color: #f0f7ff;
         padding: 20px;
         border-radius: 10px;
-        border-left: 5px solid #007bff;
-        margin-bottom: 25px;
+        border: 1px solid #d0e3ff;
+        height: 100%;
     }
+    /* Hero Section */
+    .hero-header {
+        font-size: 2.8rem;
+        font-weight: 800;
+        margin-bottom: 5px;
+        color: #1e293b;
+    }
+    /* Platform Badge */
+    .platform-badge {
+        display: inline-block;
+        background-color: #e2e8f0;
+        color: #475569;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+    }
+    /* Comparison Table Styling */
+    .comp-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 25px 0;
+        font-size: 0.95rem;
+        background-color: white;
+    }
+    .comp-table th, .comp-table td {
+        padding: 15px;
+        border: 1px solid #eee;
+        text-align: center;
+    }
+    .comp-table th { background-color: #f8f9fa; color: #444; }
+    .highlight { background-color: #e7f3ff; font-weight: bold; border: 2px solid #007bff !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR (Persistent Controls) ---
 with st.sidebar:
-    st.header("🔑 Secure Connection")
+    st.header("🔑 Connection Settings")
+    st.info("🎯 **Target Platform:** Zendesk Guide")
+    
     subdomain = st.text_input("Zendesk Subdomain", placeholder="acme-support")
     email = st.text_input("Admin Email")
     token = st.text_input("API Token", type="password")
     
     st.divider()
-    st.header("⚙️ Audit Intelligence")
-    ignore_list = st.text_area("Brand Keywords to Ignore", 
-                               help="Add names, acronyms, or jargon unique to your brand.",
-                               placeholder="Zendesk\nSaaS\nOmnichannel").split('\n')
+    st.header("⚙️ Audit Configuration")
+    ignore_list = st.text_area("Exclusion List", 
+                               help="Add brand names, product codes, or jargon to skip.",
+                               placeholder="Zendesk\nSaaS").split('\n')
     
     st.divider()
-    st.info("🛡️ **Enterprise Security:** We use HTTPS encryption and zero-data retention. Your credentials are never stored.")
+    st.write("🛰️ **Integration Roadmap**")
+    st.caption("✅ Zendesk Guide (Active)")
+    st.caption("⏳ Salesforce Service Cloud (Planned)")
+    st.caption("⏳ HubSpot Knowledge Base (Planned)")
+    
+    st.divider()
+    st.caption("Link Warden Pro v2.2")
+    st.info("🛡️ **Enterprise Security:** Stateless processing ensures your credentials and data are never stored.")
 
-# --- 4. NAVIGATION TABS ---
-tab1, tab2, tab3 = st.tabs(["🚀 Launch Audit", "🛡️ Why Integrity Matters", "💎 Pro Features"])
+# --- 4. HERO & ROI SECTION ---
+st.markdown('<div class="hero-header">🛡️ Link Warden Pro</div>', unsafe_allow_html=True)
+st.markdown('<div class="platform-badge">🧩 NATIVE ZENDESK INTEGRATION</div>', unsafe_allow_html=True)
+st.markdown("### The High-Efficiency Integrity Suite for Zendesk Content Teams")
 
-# --- TAB 1: THE AUDIT TOOL ---
+col_v1, col_v2, col_v3 = st.columns(3)
+with col_v1:
+    st.markdown('<div class="value-prop-box"><b>📉 Deflect Tickets</b><br>Broken links frustrate users and drive avoidable tickets. Fix the journey, lower the volume.</div>', unsafe_allow_html=True)
+with col_v2:
+    st.markdown('<div class="value-prop-box"><b>🤝 Build Authority</b><br>Typos and 404s signal neglected documentation. Maintain a world-class brand image.</div>', unsafe_allow_html=True)
+with col_v3:
+    st.markdown('<div class="value-prop-box"><b>🚀 SEO Health</b><br>Google penalizes dead internal structures. Keep your Help Center discoverable and healthy.</div>', unsafe_allow_html=True)
+
+st.divider()
+
+# --- 5. TABS ---
+tab1, tab2 = st.tabs(["🚀 Audit Engine", "💎 Licensing & Comparison"])
+
 with tab1:
-    st.title("🛡️ Link Warden Pro")
-    
-    st.markdown("""
-    <div class="hero-text">
-    <b>Stop losing customers to 404s.</b> Broken links and typos signal a lack of attention to detail. 
-    Link Warden Pro performs a deep-tissue scan of your Zendesk Help Center to ensure your 
-    Knowledge Base remains a reliable, world-class resource.
-    </div>
-    """, unsafe_allow_html=True)
-    
     def audit_content(html_body, ignore, sub):
         soup = BeautifulSoup(html_body, 'html.parser')
         links = [a.get('href') for a in soup.find_all('a') if a.get('href') and a.get('href').startswith('http')]
-        
-        broken_internal = []
-        broken_external = []
+        broken_internal, broken_external = [], []
         
         for url in links:
             try:
@@ -86,9 +132,9 @@ with tab1:
                         broken_external.append(f"{url} ({res.status_code})")
             except:
                 if f"{sub}.zendesk.com" in url:
-                    broken_internal.append(f"{url} (Offline)")
+                    broken_internal.append(f"{url} (Timeout)")
                 else:
-                    broken_external.append(f"{url} (Offline)")
+                    broken_external.append(f"{url} (Timeout)")
         
         text = soup.get_text()
         words = spell.split_words(text)
@@ -97,9 +143,9 @@ with tab1:
         
         return broken_internal, broken_external, typos
 
-    if st.button("🚀 Start Deep Tissue Scan"):
+    if st.button("🚀 Initialize System-Wide Audit"):
         if not all([subdomain, email, token]):
-            st.warning("⚠️ Action Required: Please provide your Zendesk credentials in the sidebar to initiate the audit.")
+            st.warning("⚠️ Connection Required: Provide your Zendesk API credentials in the sidebar to begin.")
         else:
             api_url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json"
             auth = (f"{email}/token", token)
@@ -115,9 +161,8 @@ with tab1:
                     status_text = st.empty()
 
                     for i, art in enumerate(articles):
-                        percent_complete = (i + 1) / len(articles)
-                        progress_bar.progress(percent_complete)
-                        status_text.text(f"🔍 Analyzing: {art['title']}")
+                        progress_bar.progress((i + 1) / len(articles))
+                        status_text.text(f"Auditing Article {i+1} of {len(articles)}: {art['title']}")
                         
                         b_int, b_ext, typos = audit_content(art['body'], ignore_list, subdomain)
                         
@@ -125,12 +170,12 @@ with tab1:
                             report_list.append({
                                 "Article Title": art['title'],
                                 "Zendesk URL": art['html_url'],
-                                "Internal 404s": len(b_int),
-                                "External 404s": len(b_ext),
-                                "Spelling Errors": len(typos),
-                                "Dead Internal Links": ", ".join(b_int),
-                                "Dead External Links": ", ".join(b_ext),
-                                "Misspelled Words": ", ".join(typos)
+                                "Internal Failures": len(b_int),
+                                "External Failures": len(b_ext),
+                                "QA Typo Risks": len(typos),
+                                "Broken Internal Details": ", ".join(b_int),
+                                "Broken External Details": ", ".join(b_ext),
+                                "Typo Details": ", ".join(typos)
                             })
                     
                     status_text.empty()
@@ -138,99 +183,100 @@ with tab1:
                     
                     if report_list:
                         df = pd.DataFrame(report_list)
-                        st.subheader("📊 Audit Performance Summary")
+                        st.subheader("📊 Executive Audit Summary")
                         
                         c1, c2, c3, c4 = st.columns(4)
-                        c1.metric("Articles Audited", len(articles))
-                        c2.metric("Internal Failures", df['Internal 404s'].sum(), delta_color="inverse")
-                        c3.metric("External Failures", df['External 404s'].sum(), delta_color="inverse")
-                        c4.metric("Typo Risks", df['Spelling Errors'].sum(), delta_color="inverse")
+                        c1.metric("Scanned", len(articles))
+                        c2.metric("Internal Failures", df['Internal Failures'].sum())
+                        c3.metric("External Failures", df['External Failures'].sum())
+                        c4.metric("QA Typo Risks", df['QA Typo Risks'].sum())
                         
-                        st.success(f"✅ Audit completed in {duration}s. We found {len(report_list)} articles that require immediate attention.")
+                        st.success(f"✅ Audit Complete in {duration}s. {len(report_list)} articles require integrity updates.")
                         
-                        # --- THE VALUE DRIVE ---
-                        st.info(f"💡 **Time Saved:** Manually checking these {len(articles)} articles would have taken roughly **{round((len(articles)*5)/60, 1)} hours**. Link Warden Pro finished it in seconds.")
+                        hours_saved = round((len(articles)*5)/60, 1)
+                        st.info(f"⏱️ **Efficiency Gain:** This automated audit saved approximately **{hours_saved} hours** of manual review.")
 
                         st.divider()
-                        st.write("### 📝 Detailed Findings")
+                        st.write("### 📝 Full Diagnostic Log")
                         st.dataframe(df, use_container_width=True)
 
                         st.divider()
-                        st.subheader("📥 Export Your Professional Report")
-                        st.write("Generate a comprehensive CSV to share with your content team or developers.")
+                        st.subheader("📥 Export Remediation Data")
+                        st.write("Download the comprehensive CSV to distribute to your content team.")
                         csv = df.to_csv(index=False).encode('utf-8')
                         st.download_button(
-                            label="📥 DOWNLOAD AUDIT REPORT (CSV)",
+                            label="📥 DOWNLOAD DETAILED REPORT (CSV)",
                             data=csv,
                             file_name=f"LinkWarden_Audit_{subdomain}.csv",
                             mime="text/csv"
                         )
                     else:
-                        st.success(f"🌟 Perfect Integrity! All {len(articles)} articles are healthy.")
+                        st.success(f"🌟 Perfect Integrity! All {len(articles)} articles passed the diagnostic.")
                 else:
-                    st.error(f"❌ Connection Failed: Zendesk returned a {response.status_code} error. Please check your API token permissions.")
+                    st.error(f"❌ API Error {response.status_code}. Verify your Zendesk subdomain and token permissions.")
             except Exception as e:
-                st.error(f"❌ System Error: {e}")
+                st.error(f"❌ Diagnostic Failure: {e}")
 
-# --- TAB 2: MARKETING / VALUE PROPOSITION ---
 with tab2:
-    st.title("Why Knowledge Base Integrity Matters")
+    st.title("Strategic Value & Licensing")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("📉 Reduce Ticket Deflection")
-        st.write("""
-        When a customer clicks a broken link in your Help Center, they don't keep searching—they open a ticket. 
-        Maintaining 100% link integrity is the fastest way to reduce support overhead.
-        """)
-        
-        st.subheader("🤝 Build Brand Authority")
-        st.write("""
-        Typos and 'Page Not Found' errors erode trust. A polished Knowledge Base signals to 
-        customers that your product is reliable and your documentation is current.
-        """)
-
-    with col2:
-        st.subheader("🔍 Improve SEO Ranking")
-        st.write("""
-        Search engines penalize sites with high bounce rates caused by broken links. 
-        Link Warden helps keep your Help Center at the top of Google results.
-        """)
-
-# --- TAB 3: PRO PRICING ---
-with tab3:
-    st.title("Professional Audit Passes")
-    st.write("Expert-grade auditing without the enterprise price tag.")
+    st.markdown("""
+    <table class="comp-table">
+        <thead>
+            <tr>
+                <th>Audit Metric</th>
+                <th>Manual Content Audit</th>
+                <th>SaaS Subscription Tools</th>
+                <th class="highlight">Link Warden Pro</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><b>Setup Time</b></td>
+                <td>Days/Weeks</td>
+                <td>15-30 Minutes</td>
+                <td class="highlight">Instant</td>
+            </tr>
+            <tr>
+                <td><b>Cost Structure</b></td>
+                <td>High Labor Cost</td>
+                <td>$300 - $1,200 / Year</td>
+                <td class="highlight">$25 (One-Time)</td>
+            </tr>
+            <tr>
+                <td><b>Platform Focus</b></td>
+                <td>General</td>
+                <td>General Website</td>
+                <td class="highlight">Zendesk Specialized</td>
+            </tr>
+            <tr>
+                <td><b>Data Privacy</b></td>
+                <td>Manual Handling</td>
+                <td>Stored Externally</td>
+                <td class="highlight">Stateless / Secure</td>
+            </tr>
+        </tbody>
+    </table>
+    """, unsafe_allow_html=True)
     
-    # Marketing-heavy pricing cards
     col_a, col_b = st.columns(2)
     with col_a:
         st.markdown("""
-        <div class="pricing-card">
-        <h3>Standard Scan</h3>
-        <p>Perfect for small teams.</p>
-        <h2 style="color:#007bff;">FREE</h2>
-        <ul style="text-align:left;">
-            <li>Full Article Scan</li>
-            <li>On-screen results</li>
-            <li>Classified failures</li>
-        </ul>
+        <div style="text-align:center; padding:30px; border:1px solid #ddd; border-radius:12px; height:100%;">
+            <h3>Standard Engine</h3>
+            <h2 style="color:#666;">FREE</h2>
+            <p>Unlimited on-screen audits<br>Zendesk native diagnostic</p>
+            <p style="font-size:0.8rem; color:#999;">No export functionality</p>
         </div>
         """, unsafe_allow_html=True)
-        st.button("Current Version", disabled=True)
-
+        
     with col_b:
         st.markdown("""
-        <div class="pricing-card">
-        <h3>Pro Report Access</h3>
-        <p>The standard for Zendesk Admins.</p>
-        <h2 style="color:#007bff;">$19 <span style="font-size:12px; color:#666;">/ one-time</span></h2>
-        <ul style="text-align:left;">
-            <li><b>Downloadable CSV Report</b></li>
-            <li>Internal vs External classification</li>
-            <li>Time-saving 'Value Summary'</li>
-            <li>Typo suggestion engine</li>
-        </ul>
+        <div style="text-align:center; padding:30px; border:1px solid #007bff; border-radius:12px; background-color:#f0f7ff; height:100%;">
+            <h3>Professional Pass</h3>
+            <h2 style="color:#007bff;">$25</h2>
+            <p><b>Full CSV Export Unlocked</b><br>Internal vs External Failures<br>Full Typo Log</p>
+            <p style="font-size:0.8rem; color:#007bff;">Instant download access</p>
         </div>
         """, unsafe_allow_html=True)
-        st.link_button("🚀 GET PRO ACCESS", "https://buy.stripe.com/your_link")
+        st.link_button("🚀 GET PROFESSIONAL EXPORT ACCESS", "https://buy.stripe.com/your_link")
