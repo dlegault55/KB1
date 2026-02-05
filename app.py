@@ -54,10 +54,9 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (COLLAPSIBLE TUNING) ---
+# --- 3. SIDEBAR ---
 with st.sidebar:
     st.markdown("<h1 style='color:#38BDF8; margin-bottom: 0;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
-    
     with st.expander("🚀 QUICK START GUIDE", expanded=True):
         st.markdown("""<div style="font-size: 0.85rem;">1. Subdomain: 'acme'<br>2. Admin Email<br>3. API Token</div>""", unsafe_allow_html=True)
     
@@ -109,6 +108,8 @@ col_con, col_tip = st.columns([1.5, 1])
 console_ui = col_con.empty()
 tips_ui = col_tip.empty()
 
+# Success & Download Area
+finish_ui = st.empty()
 dl_area = st.empty()
 
 # --- 5. LOGIC & EXECUTION ---
@@ -129,45 +130,48 @@ if st.button("🚀 RUN DEEP SCAN"):
             r = requests.get(url, auth=auth)
             articles = r.json().get('articles', [])
             
-            for i, art in enumerate(articles):
-                body = art.get('body', '') or ''
-                soup = BeautifulSoup(body, 'html.parser')
-                text = soup.get_text().lower()
-                
-                # Audits
-                upd = datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ')
-                is_stale = (datetime.now() - upd > timedelta(days=365)) if do_stale else False
-                typos = len([w for w in spell.unknown(spell.split_words(text)) if w not in ignore_list and len(w) > 2]) if do_typo else 0
-                keys = sum(1 for w in restricted_words if w in text)
-                alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')]) if do_alt else 0
-                
-                # CAPTURING THE URL HERE
-                results.append({
-                    "Title": art['title'], 
-                    "URL": art['html_url'],  # Restored
-                    "Stale": is_stale, 
-                    "Typos": typos, 
-                    "Keywords": keys, 
-                    "Alt Missing": alt_miss
-                })
-                
-                # Live Updates
-                met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
-                met_alt.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Alt Missing'] for d in results)}</span><span class='m-lab'>Alt Missing</span></div>", unsafe_allow_html=True)
-                met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results)}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
-                met_key.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Keywords'] for d in results)}</span><span class='m-lab'>Keywords</span></div>", unsafe_allow_html=True)
-                met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale'])}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
+            if articles:
+                for i, art in enumerate(articles):
+                    body = art.get('body', '') or ''
+                    soup = BeautifulSoup(body, 'html.parser')
+                    text = soup.get_text().lower()
+                    
+                    # Audits
+                    upd = datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ')
+                    is_stale = (datetime.now() - upd > timedelta(days=365)) if do_stale else False
+                    typos = len([w for w in spell.unknown(spell.split_words(text)) if w not in ignore_list and len(w) > 2]) if do_typo else 0
+                    keys = sum(1 for w in restricted_words if w in text)
+                    alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')]) if do_alt else 0
+                    
+                    results.append({"Title": art['title'], "URL": art['html_url'], "Stale": is_stale, "Typos": typos, "Keywords": keys, "Alt Missing": alt_miss})
+                    
+                    # Live Updates
+                    met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
+                    met_alt.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Alt Missing'] for d in results)}</span><span class='m-lab'>Alt Missing</span></div>", unsafe_allow_html=True)
+                    met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results)}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
+                    met_key.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Keywords'] for d in results)}</span><span class='m-lab'>Keywords</span></div>", unsafe_allow_html=True)
+                    met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale'])}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
 
-                status = "🚩" if (is_stale or typos > 0 or keys > 0 or alt_miss > 0) else "✅"
-                logs.insert(0, f"{status} {art['title'][:45]}...")
-                console_ui.markdown(f"<div class='console-box'>{'<br>'.join(logs[:14])}</div>", unsafe_allow_html=True)
-                
-                if i % 12 == 0:
-                    tips_ui.markdown(f"<div class='tip-card'>{random.choice(tips)}</div>", unsafe_allow_html=True)
+                    status = "🚩" if (is_stale or typos > 0 or keys > 0 or alt_miss > 0) else "✅"
+                    logs.insert(0, f"{status} {art['title'][:45]}...")
+                    console_ui.markdown(f"<div class='console-box'>{'<br>'.join(logs[:14])}</div>", unsafe_allow_html=True)
+                    
+                    if i % 12 == 0:
+                        tips_ui.markdown(f"<div class='tip-card'>{random.choice(tips)}</div>", unsafe_allow_html=True)
 
-            # Show Download
-            df = pd.DataFrame(results)
-            dl_area.download_button("📥 DOWNLOAD AUDIT REPORT (CSV)", df.to_csv(index=False), "zenaudit_report.csv", "text/csv")
-            
+                # --- THE FINALE ---
+                st.balloons()
+                st.snow()
+                logs.insert(0, "✨ SCAN COMPLETE — REPORT READY BELOW ✨")
+                console_ui.markdown(f"<div class='console-box'>{'<br>'.join(logs[:15])}</div>", unsafe_allow_html=True)
+                
+                # Success Banner
+                finish_ui.success(f"🎉 **Audit Complete!** Processed {len(results)} articles. Your report is ready for download.")
+                
+                df = pd.DataFrame(results)
+                dl_area.download_button("📥 DOWNLOAD AUDIT REPORT (CSV)", df.to_csv(index=False), "zenaudit_report.csv", "text/csv")
+            else:
+                st.warning("No articles found in this subdomain.")
+                
         except Exception as e:
             st.error(f"Audit Error: {e}")
