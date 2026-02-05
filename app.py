@@ -10,121 +10,60 @@ st.set_page_config(page_title="Link Warden Pro", page_icon="🛡️", layout="wi
 # Initialize Spellchecker
 spell = SpellChecker()
 
-# 2. Simplified UI Styling (Focus on visibility)
+# 2. UI Styling
 st.markdown("""
     <style>
-    /* Professional Blue Button */
-    .stButton>button { 
-        background-color: #007bff; 
-        color: white; 
-        border-radius: 8px; 
-        font-weight: bold; 
-        width: 100%;
-        height: 3em;
-    }
-    /* Make metrics stand out slightly */
-    [data-testid="stMetricValue"] {
-        font-size: 2.5rem;
-        color: #007bff;
-    }
+    .stButton>button { background-color: #007bff; color: white; border-radius: 8px; font-weight: bold; width: 100%; height: 3em; }
+    [data-testid="stMetricValue"] { font-size: 2.2rem; color: #007bff; }
+    .faq-text { color: #444; line-height: 1.6; }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. Header
-st.title("🛡️ Knowledge Base Audit Pro")
-st.write("Detect broken links and spelling errors in your Zendesk Help Center.")
+# 3. Create Tabs
+tab1, tab2 = st.tabs(["🚀 Audit Tool", "📄 Privacy & FAQ"])
 
-# 4. Sidebar for Credentials
-with st.sidebar:
-    st.header("Zendesk Connection")
-    subdomain = st.text_input("Subdomain", placeholder="e.g. acme-help")
-    email = st.text_input("Admin Email")
-    token = st.text_input("API Token", type="password")
-    st.divider()
-    st.info("The report will include article titles, URLs, and specific issues found.")
-
-# 5. The Audit Engine
-def audit_content(html_body):
-    soup = BeautifulSoup(html_body, 'html.parser')
+# --- TAB 1: THE AUDIT TOOL ---
+with tab1:
+    st.title("🛡️ Knowledge Base Audit Pro")
     
-    # Check Links
-    links = [a.get('href') for a in soup.find_all('a') if a.get('href') and a.get('href').startswith('http')]
-    broken = []
-    for url in links:
-        try:
-            res = requests.head(url, timeout=3, allow_redirects=True)
-            if res.status_code >= 400:
-                broken.append(f"{url} ({res.status_code})")
-        except:
-            broken.append(f"{url} (Timeout/Failed)")
+    # Run Button and Main Logic
+    if st.button("🚀 Run Full Audit"):
+        # ... (Paste all your existing "if not all([subdomain...)" logic here)
+        pass 
 
-    # Check Typos
-    text = soup.get_text()
-    words = spell.split_words(text)
-    # Ignore brand names (Capitalized) and short strings
-    typos = [word for word in spell.unknown(words) if not word.istitle() and len(word) > 2]
+# --- TAB 2: PRIVACY & FAQ ---
+with tab2:
+    st.title("Privacy & Security FAQ")
     
-    return broken, typos
+    with st.expander("🔐 Why do I need to provide an API Token?", expanded=True):
+        st.markdown("""
+        The API Token acts as a secure 'backdoor' to your Knowledge Base. 
+        - **Speed:** It allows the app to fetch all articles in one request rather than scraping pages slowly.
+        - **Accuracy:** It accesses the raw HTML code where broken links often hide.
+        - **Permission:** It identifies you as an authorized admin, preventing Zendesk from blocking the request.
+        """)
 
-# 6. Execution & Results
-if st.button("🚀 Run Full Audit"):
-    if not all([subdomain, email, token]):
-        st.error("Please provide all connection details in the sidebar.")
-    else:
-        api_url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json"
-        auth = (f"{email}/token", token)
-        
-        with st.spinner("Analyzing Knowledge Base..."):
-            try:
-                response = requests.get(api_url, auth=auth)
-                if response.status_code == 200:
-                    articles = response.json().get('articles', [])
-                    report_list = []
+    with st.expander("🕵️ Is my data being stored?"):
+        st.write("""
+        **No.** This app is built with a 'Zero-Retention' policy.
+        - Your **Email** and **Token** are held only in your browser's temporary session memory.
+        - Once you refresh the page or close the tab, all credentials are wiped.
+        - We do not use a database; your data never leaves the Streamlit/GitHub secure ecosystem.
+        """)
 
-                    for art in articles:
-                        dead_links, typos = audit_content(art['body'])
-                        
-                        if dead_links or typos:
-                            report_list.append({
-                                "Article Title": art['title'],
-                                "Zendesk URL": art['html_url'],
-                                "Broken Links Found": int(len(dead_links)),
-                                "Typos Found": int(len(typos)),
-                                "Link Details": ", ".join(dead_links),
-                                "Typo Details": ", ".join(typos)
-                            })
-                    
-                    if report_list:
-                        df = pd.DataFrame(report_list)
-                        
-                        # --- THE FIX FOR THE WHITE BOXES ---
-                        st.subheader("Executive Summary")
-                        col1, col2 = st.columns(2)
-                        
-                        # Calculate totals clearly
-                        total_articles_flagged = len(report_list)
-                        total_issues = int(df['Broken Links Found'].sum() + df['Typos Found'].sum())
-                        
-                        col1.metric(label="Articles with Issues", value=total_articles_flagged)
-                        col2.metric(label="Total Errors Found", value=total_issues)
-                        
-                        st.divider()
+    with st.expander("🛠️ How do I create a Zendesk API Token?"):
+        st.markdown("""
+        1. Log in to your **Zendesk Admin Center**.
+        2. Go to **Apps and Integrations** > **APIs** > **Zendesk API**.
+        3. Enable **Token Access**.
+        4. Click **Add API Token**, copy it, and paste it here. 
+        *Tip: We recommend naming it 'Link Warden' so you know what it's for!*
+        """)
 
-                        # Display Data Table
-                        st.subheader("Detailed Audit Log")
-                        st.dataframe(df, use_container_width=True)
-
-                        # Download Button
-                        csv = df.to_csv(index=False).encode('utf-8')
-                        st.download_button(
-                            label="📥 Download Audit Report (CSV)",
-                            data=csv,
-                            file_name=f"{subdomain}_kb_audit.csv",
-                            mime="text/csv",
-                        )
-                    else:
-                        st.success("No issues found! Your Knowledge Base is clean.")
-                else:
-                    st.error(f"Zendesk API Error: {response.status_code}. Verify your credentials.")
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
+    with st.expander("📊 What does the report include?"):
+        st.write("""
+        The CSV export includes:
+        - Article Title and Direct URL.
+        - Count of broken links and potential typos.
+        - The specific 'Dead' URLs and misspelled words found.
+        """)
