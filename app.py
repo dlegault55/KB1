@@ -1,81 +1,90 @@
 import streamlit as st
 import requests
+import pandas as pd
 from bs4 import BeautifulSoup
 from spellchecker import SpellChecker
+from io import BytesIO
 
-# 1. Page Config & Setup
-st.set_page_config(page_title="Link Warden", page_icon="🛡️")
+# 1. Page Config
+st.set_page_config(page_title="Link Warden Pro", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-st.title("🛡️ Link Warden & Typo Guard")
-st.markdown("Scan your Zendesk Knowledge Base for broken links and spelling errors.")
+# Custom CSS for a cleaner look
+st.markdown("""
+    <style>
+    .reportview-container { background: #f0f2f6; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
+    </style>
+    """, unsafe_allow_index=True)
 
-# 2. Sidebar for Credentials
+st.title("🛡️ Knowledge Base Audit Pro")
+st.write("Professional-grade link and typo auditing for Zendesk.")
+
+# --- SIDEBAR ---
 with st.sidebar:
-    st.header("Zendesk Connection")
-    subdomain = st.text_input("Subdomain", placeholder="e.g. 'companyhelp'")
-    email = st.text_input("Admin Email")
+    st.header("Settings")
+    subdomain = st.text_input("Subdomain")
+    email = st.text_input("Email")
     token = st.text_input("API Token", type="password")
-    st.info("Your token is processed securely via HTTPS and is not stored.")
+    st.divider()
+    st.caption("v1.1 - Added CSV Export")
 
-# 3. Core Logic Functions
-def audit_content(html_body):
+# --- ENGINE ---
+def audit_article(html_body):
     soup = BeautifulSoup(html_body, 'html.parser')
-    
-    # Check Links
-    links = [a.get('href') for a in soup.find_all('a') if a.get('href')]
-    broken = []
-    for url in links:
-        try:
-            res = requests.head(url, timeout=3, allow_redirects=True)
-            if res.status_code >= 400:
-                broken.append(f"{url} (Status: {res.status_code})")
-        except:
-            broken.append(f"{url} (Failed to connect)")
-
-    # Check Typos
+    # Link check
+    links = [a.get('href') for a in soup.find_all('a') if a.get('href') and a.get('href').startswith('http')]
+    broken = [url for url in links if requests.head(url, timeout=3).status_code >= 400]
+    # Typo check
     text = soup.get_text()
     words = spell.split_words(text)
-    # Ignore capitalized words to avoid flagging brand names/proper nouns
-    typos = [word for word in spell.unknown(words) if not word.istitle()]
-    
+    typos = [word for word in spell.unknown(words) if not word.istitle() and len(word) > 2]
     return broken, typos
 
-# 4. The Action Button
+# --- MAIN LOGIC ---
 if st.button("🚀 Run Full Audit"):
     if not all([subdomain, email, token]):
-        st.error("Missing credentials! Check the sidebar.")
+        st.error("Credentials missing.")
     else:
-        api_url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json"
         auth = (f"{email}/token", token)
+        api_url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json"
         
-        with st.spinner("Scanning articles... this may take a minute..."):
-            try:
-                response = requests.get(api_url, auth=auth)
-                if response.status_code == 200:
-                    articles = response.json().get('articles', [])
+        with st.spinner("Analyzing articles..."):
+            res = requests.get(api_url, auth=auth)
+            if res.status_code == 200:
+                articles = res.json().get('articles', [])
+                report_data = []
+
+                for art in articles:
+                    dead, typos = audit_article(art['body'])
+                    if dead or typos:
+                        report_data.append({
+                            "Article Title": art['title'],
+                            "URL": art['html_url'],
+                            "Broken Links": ", ".join(dead),
+                            "Potential Typos": ", ".join(typos)
+                        })
+
+                if report_data:
+                    # Create DataFrame for UI and Export
+                    df = pd.DataFrame(report_data)
                     
-                    # Create Summary Metrics
-                    total_links = 0
-                    total_typos = 0
-                    
-                    for art in articles:
-                        dead_links, typos = audit_content(art['body'])
-                        if dead_links or typos:
-                            with st.expander(f"📄 {art['title']}"):
-                                if dead_links:
-                                    st.error("Broken Links found:")
-                                    for link in dead_links:
-                                        st.write(f"- {link}")
-                                    total_links += len(dead_links)
-                                if typos:
-                                    st.warning(f"Potential Typos: {', '.join(typos)}")
-                                    total_typos += len(typos)
-                    
-                    st.divider()
-                    st.success("Audit Complete!")
-                    st.metric("Total Issues Found", total_links + total_typos)
+                    # UI: Metrics
+                    c1, c2 = st.columns(2)
+                    c1.metric("Issues Found", len(report_data))
+                    c2.metric("Articles Clean", len(articles) - len(report_data))
+
+                    # UI: Data Table
+                    st.subheader("Issue Log")
+                    st.dataframe(df, use_container_width=True)
+
+                    # --- EXPORT BUTTON ---
+                    csv = df.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Download Audit Report (CSV)",
+                        data=csv,
+                        file_name=f"{subdomain}_kb_audit.csv",
+                        mime="text/csv",
+                    )
                 else:
-                    st.error(f"Zendesk API Error: {response.status_code}")
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
+                    st.success("Your Knowledge Base is perfect!")
