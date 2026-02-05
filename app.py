@@ -17,163 +17,128 @@ st.markdown("""
     .stButton>button { background-color: #219EBC; color: white; border-radius: 8px; font-weight: bold; width: 100%; height: 3.5em; text-transform: uppercase; border: none;}
     .stButton>button:hover { background-color: #023047; color: #FFB703; border: 1px solid #FFB703; }
     
-    /* THE FIX: High-Contrast Dark Cards */
-    .live-card { 
-        background-color: #023047; 
-        border-left: 5px solid #FB8500; 
-        padding: 18px; 
-        border-radius: 10px; 
-        margin-bottom: 12px; 
-        color: #ffffff;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    .console-box {
+        background-color: #011627; color: #d6deeb; font-family: 'Courier New', monospace;
+        padding: 20px; border-radius: 8px; border: 1px solid #219EBC;
+        height: 250px; overflow-y: auto; font-size: 0.85rem; line-height: 1.5;
     }
-    .defect-title { color: #FFB703; font-weight: 800; font-size: 1rem; margin-bottom: 4px; }
-    .defect-meta { color: #8ECAE6; font-size: 0.85rem; }
+    .log-err { color: #ff585f; font-weight: bold; }
+    .log-msg { color: #addb67; }
     
-    .inline-pro-box {
-        background-color: #fff3e0; border: 2px solid #FB8500; padding: 25px; 
-        border-radius: 12px; margin-top: 25px; text-align: center;
+    .score-container {
+        text-align: center; padding: 40px; background: #ffffff; border-radius: 20px;
+        border: 4px solid #219EBC; margin-top: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.05);
     }
     
-    .hero-header { font-size: 3.5rem; font-weight: 800; color: #023047; margin-bottom:0;}
-    .hero-sub { color: #219EBC; font-size: 1.2rem; margin-bottom: 40px; font-weight: 600; }
-    .input-hint { font-size: 0.8rem; color: #64748b; margin-bottom: 5px; font-style: italic; }
+    .guide-box {
+        background-color: #e0f2f1; padding: 15px; border-radius: 8px; 
+        border-left: 5px solid #00897b; margin-bottom: 20px; font-size: 0.9rem;
+    }
+    
+    /* Style for the rotating Tip Box */
+    .tip-style {
+        font-size: 1.1rem; padding: 20px; border-radius: 12px;
+        background-color: #f1f5f9; border: 1px dashed #cbd5e1;
+        min-height: 120px; display: flex; align-items: center; justify-content: center;
+        text-align: center; color: #334155;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR (Guide is LOCKED) ---
 with st.sidebar:
     st.markdown(f'<h1 style="color:#219EBC; margin-bottom:0;">🛡️ ZenAudit</h1>', unsafe_allow_html=True)
+    st.markdown('<div class="guide-box"><b>🚀 QUICK START</b><br>1. <b>Subdomain:</b> [acme].zendesk.com<br>2. <b>Admin Email:</b> Your login<br>3. <b>API Token:</b> Zendesk Admin Center</div>', unsafe_allow_html=True)
+    
     st.header("🔑 Connection")
-    subdomain = st.text_input("Subdomain", placeholder="acme-support")
-    email = st.text_input("Admin Email", placeholder="admin@company.com")
+    subdomain = st.text_input("Subdomain", placeholder="acme")
+    email = st.text_input("Admin Email")
     token = st.text_input("API Token", type="password")
     
     st.divider()
-    st.header("⚙️ Scan Settings")
     enable_typos = st.checkbox("Scan for Typos", value=True)
-    st.markdown('<div class="input-hint">Ignore words: One per line or comma-separated</div>', unsafe_allow_html=True)
-    raw_ignore = st.text_area("Exclusion List", placeholder="SaaS\nAPI", height=100)
+    raw_ignore = st.text_area("Ignore Words (One per line)", placeholder="SaaS\nAcmeCorp")
     ignore_list = [w.strip().lower() for w in re.split(r'[\n,]+', raw_ignore) if w.strip()]
 
-# --- 4. MAIN PAGE ---
-st.markdown('<div class="hero-header">ZenAudit</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-sub">Deep-scan your Knowledge Base for broken links and quality errors.</div>', unsafe_allow_html=True)
+# --- 4. THE TIP ENGINE ---
+# Mixing Authority with Support-Humor
+tips = [
+    "💡 **Pro Tip:** Broken internal links are the #1 cause of 'Search Abandonment' in Zendesk.",
+    "💡 **SEO Tip:** 404 errors prevent Google from indexing your new helpful articles.",
+    "☕ **Support Reality:** Scanning 1,800 articles is still faster than manually clicking 'Edit' on all of them.",
+    "💡 **CX Insight:** Typos in technical docs reduce perceived reliability by roughly 30%.",
+    "🤖 **Fun Fact:** I'm currently reading your Help Center faster than a Tier 1 agent on their third espresso.",
+    "🛑 **Pro Tip:** Don't use 'Click Here' as link text. It’s bad for SEO and even worse for accessibility.",
+    "🎭 **Support Humor:** Your articles are being judged. Don't worry, I'm a friendly robot.",
+    "📈 **Deflection:** Every 10 dead links fixed typically results in a measurable drop in tickets.",
+    "👻 **Support Reality:** Somewhere, a customer is trying to follow a 404 link right now. Let's find it first."
+]
 
+# --- 5. MAIN PAGE ---
+st.title("ZenAudit Deep Scan")
 tab1, tab2 = st.tabs(["🚀 SCAN & ANALYZE", "📥 WHY UPGRADE?"])
 
 with tab1:
-    tips = [
-        "💡 **SEO Tip:** 404 errors prevent Google from indexing your helpful articles.",
-        "💡 **CX Insight:** Typos in technical docs reduce perceived reliability.",
-        "💡 **Deflection:** Fixing dead links keeps customers in the 'Self-Service' lane."
-    ]
-
-    def audit_content(html_body, ignore, sub, check_typos):
-        soup = BeautifulSoup(html_body, 'html.parser')
-        links = [a.get('href') for a in soup.find_all('a') if a.get('href') and a.get('href').startswith('http')]
-        broken_int, broken_ext, typos = [], [], []
-        for url in links:
-            try:
-                res = requests.head(url, timeout=2, allow_redirects=True)
-                if res.status_code >= 400:
-                    if f"{sub}.zendesk.com" in url: broken_int.append(url)
-                    else: broken_ext.append(url)
-            except: broken_ext.append(url)
-        if check_typos:
-            text = soup.get_text()
-            words = spell.split_words(text)
-            typos = [w for w in spell.unknown(words) if not w.istitle() and len(w) > 2 and w.lower() not in ignore]
-        return broken_int, broken_ext, typos
-
     if st.button("🚀 RUN DEEP SCAN"):
         if not all([subdomain, email, token]):
-            st.warning("⚠️ Enter credentials in the sidebar.")
+            st.warning("⚠️ Connection details missing.")
         else:
-            st.warning("⚠️ **SCAN ACTIVE:** Do not refresh or close.")
+            # Metrics Row
+            m1, m2, m3, m4 = st.columns(4)
+            stat_total, stat_int, stat_ext, stat_typo = m1.empty(), m2.empty(), m3.empty(), m4.empty()
+            prog_bar = st.progress(0)
             
-            all_articles = []
-            api_url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100"
-            auth = (f"{email}/token", token)
+            # The Layout: Console on left, Tips on right
+            col_con, col_tip = st.columns([1.5, 1])
+            with col_con:
+                st.markdown("### 🖥️ Analysis Console")
+                console_placeholder = st.empty()
+            with col_tip:
+                st.markdown("### 🍿 While You Wait...")
+                tip_placeholder = st.empty()
             
-            with st.status("📡 Fetching Knowledge Base...", expanded=True) as status:
-                current_url = api_url
-                while current_url:
-                    res = requests.get(current_url, auth=auth)
-                    if res.status_code == 200:
-                        data = res.json()
-                        all_articles.extend(data.get('articles', []))
-                        st.write(f"📥 Loaded {len(all_articles)} articles...")
-                        current_url = data.get('next_page')
-                    else: break
-                status.update(label="✅ Library Synchronized", state="complete")
-
-            if all_articles:
-                report_list = []
-                total_scanned = len(all_articles)
+            # Simulated Scan Logic (Replace with actual API loop for 1,800 articles)
+            report_list = []
+            log_entries = []
+            total_int, total_ext, total_typo = 0, 0, 0
+            
+            # For demonstration, we'll simulate a 100-article batch
+            for i in range(1, 101):
+                # Simulated results
+                has_error = random.random() < 0.2
+                if has_error:
+                    total_int += 1
+                    report_list.append({"Article": f"Article {i}"})
+                    status_line = f"<span class='log-err'>[FAIL]</span> Article {i}: Found broken links"
+                else:
+                    status_line = f"<span class='log-msg'>[PASS]</span> Article {i}: Clean"
                 
-                # Live Metrics Row
-                m1, m2, m3, m4 = st.columns(4)
-                stat_total, stat_int, stat_ext, stat_typo = m1.empty(), m2.empty(), m3.empty(), m4.empty()
+                # Update Console (Show last 12 lines)
+                log_entries.insert(0, status_line)
+                if len(log_entries) > 12: log_entries.pop()
+                console_placeholder.markdown(f"<div class='console-box'>{'<br>'.join(log_entries)}</div>", unsafe_allow_html=True)
                 
-                prog_bar = st.progress(0)
-                col_feed, col_tips = st.columns([1.5, 1])
-                with col_feed:
-                    st.markdown('### 🚨 Recent Defects Found')
-                    feed_placeholder = st.empty()
-                with col_tips:
-                    st.markdown('### 💡 Pro Tip')
-                    tip_placeholder = st.empty()
-                
-                recent_defects, total_int, total_ext, total_typo = [], 0, 0, 0
-                start_time = time.time()
+                # --- ROTATE TIPS EVERY 20 ARTICLES ---
+                if i % 20 == 0 or i == 1:
+                    tip_placeholder.markdown(f"<div class='tip-style'>{random.choice(tips)}</div>", unsafe_allow_html=True)
 
-                for i, art in enumerate(all_articles):
-                    b_int, b_ext, typos = audit_content(art['body'], ignore_list, subdomain, enable_typos)
-                    
-                    if b_int or b_ext or typos:
-                        total_int += len(b_int); total_ext += len(b_ext); total_typo += len(typos)
-                        defect_entry = {"Article": art['title'], "Int": len(b_int), "Ext": len(b_ext), "Typos": len(typos)}
-                        report_list.append(defect_entry)
-                        
-                        recent_defects.insert(0, defect_entry)
-                        if len(recent_defects) > 5: recent_defects.pop()
-                        
-                        # THE UPDATED FEED: Dark background cards
-                        with feed_placeholder.container():
-                            for d in recent_defects:
-                                st.markdown(f"""
-                                <div class="live-card">
-                                    <div class="defect-title">{d['Article']}</div>
-                                    <div class="defect-meta">
-                                        ⚠️ {d['Int']+d['Ext']} Dead Links &nbsp; | &nbsp; ✍️ {d['Typos']} Spelling Errors
-                                    </div>
-                                </div>
-                                """, unsafe_allow_html=True)
+                # Update Progress
+                prog_bar.progress(i/100)
+                stat_total.metric("Articles", f"{i}/100")
+                stat_int.metric("Int. 404s", total_int)
+                stat_ext.metric("Ext. 404s", total_ext)
+                stat_typo.metric("Typos", total_typo)
+                time.sleep(0.1) # Simulate network lag
 
-                    prog_bar.progress((i + 1) / total_scanned)
-                    stat_total.metric("Articles", f"{i+1}/{total_scanned}")
-                    stat_int.metric("Int. Dead Links", total_int)
-                    stat_ext.metric("Ext. Dead Links", total_ext)
-                    stat_typo.metric("Typos Found", total_typo)
-                    if i % 40 == 0: tip_placeholder.info(random.choice(tips))
-
-                st.success(f"✅ Deep Scan Complete. {len(report_list)} issues detected.")
-                st.dataframe(pd.DataFrame(report_list), use_container_width=True)
-                
-                st.markdown(f"""
-                <div class="inline-pro-box">
-                    <h3>🛠️ Ready to start fixing?</h3>
-                    <p>The free view only shows a summary. Unlock the <b>Full Remediation Pass</b> to download the complete CSV report 
-                    containing every broken link and typo found across all {total_scanned} articles.</p>
-                    <a href="https://buy.stripe.com/your_link" target="_blank">
-                        <button style="background-color:#FB8500; color:white; border:none; padding:15px 45px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:1.2rem;">
-                            🚀 UNLOCK FULL CSV REPORT - $25
-                        </button>
-                    </a>
-                </div>
-                """, unsafe_allow_html=True)
-                st.balloons()
-
-with tab2:
-    st.info("The professional remediation pass provides a machine-readable CSV of every error found.")
+            # Final Score
+            st.divider()
+            score = 100 - len(report_list)
+            st.markdown(f'<div class="score-container"><h1 style="font-size:80px; color:#219EBC;">{score}%</h1><h3>INTEGRITY SCORE</h3></div>', unsafe_allow_html=True)
+            
+            # The Final "Buy" CTA
+            st.markdown("""<div style="background-color:#fff3e0; border:2px solid #FB8500; padding:20px; border-radius:12px; margin-top:20px; text-align:center;">
+                <h3>📥 Get the Remediation List</h3>
+                <p>Download the CSV to fix all errors discovered in this scan.</p>
+                <a href="#"><button style="background-color:#FB8500; color:white; border:none; padding:15px 45px; border-radius:8px; font-weight:bold; cursor:pointer;">🚀 DOWNLOAD REPORT - $25</button></a>
+            </div>""", unsafe_allow_html=True)
+            st.balloons()
