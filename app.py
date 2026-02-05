@@ -10,12 +10,23 @@ st.set_page_config(page_title="Link Warden Pro", page_icon="🛡️", layout="wi
 # Initialize Spellchecker
 spell = SpellChecker()
 
-# 2. UI Styling (Fixed the error here)
+# 2. Simplified UI Styling (Focus on visibility)
 st.markdown("""
     <style>
-    .main { background-color: #f8f9fa; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .stButton>button { background-color: #007bff; color: white; border-radius: 8px; font-weight: bold; }
+    /* Professional Blue Button */
+    .stButton>button { 
+        background-color: #007bff; 
+        color: white; 
+        border-radius: 8px; 
+        font-weight: bold; 
+        width: 100%;
+        height: 3em;
+    }
+    /* Make metrics stand out slightly */
+    [data-testid="stMetricValue"] {
+        font-size: 2.5rem;
+        color: #007bff;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -41,7 +52,6 @@ def audit_content(html_body):
     broken = []
     for url in links:
         try:
-            # Using a quick HEAD request to check link health
             res = requests.head(url, timeout=3, allow_redirects=True)
             if res.status_code >= 400:
                 broken.append(f"{url} ({res.status_code})")
@@ -78,18 +88,27 @@ if st.button("🚀 Run Full Audit"):
                             report_list.append({
                                 "Article Title": art['title'],
                                 "Zendesk URL": art['html_url'],
-                                "Broken Links Found": len(dead_links),
-                                "Typos Found": len(typos),
+                                "Broken Links Found": int(len(dead_links)),
+                                "Typos Found": int(len(typos)),
                                 "Link Details": ", ".join(dead_links),
                                 "Typo Details": ", ".join(typos)
                             })
                     
                     if report_list:
-                        # Display Summary Metrics
                         df = pd.DataFrame(report_list)
+                        
+                        # --- THE FIX FOR THE WHITE BOXES ---
+                        st.subheader("Executive Summary")
                         col1, col2 = st.columns(2)
-                        col1.metric("Articles with Issues", len(report_list))
-                        col2.metric("Total Issues", df['Broken Links Found'].sum() + df['Typos Found'].sum())
+                        
+                        # Calculate totals clearly
+                        total_articles_flagged = len(report_list)
+                        total_issues = int(df['Broken Links Found'].sum() + df['Typos Found'].sum())
+                        
+                        col1.metric(label="Articles with Issues", value=total_articles_flagged)
+                        col2.metric(label="Total Errors Found", value=total_issues)
+                        
+                        st.divider()
 
                         # Display Data Table
                         st.subheader("Detailed Audit Log")
