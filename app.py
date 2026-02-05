@@ -11,7 +11,7 @@ import random
 st.set_page_config(page_title="ZenAudit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. MASTER CSS
+# 2. MASTER CSS (Locked Spacing & Layout)
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
@@ -55,11 +55,21 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (HELPERS RESTORED) ---
+# --- 3. SIDEBAR (IMPROVED QUICK START) ---
 with st.sidebar:
     st.markdown("<h1 style='color:#38BDF8; margin-bottom: 0;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
+    
     with st.expander("🚀 QUICK START GUIDE", expanded=True):
-        st.markdown("""<div style="font-size: 0.85rem;">1. Subdomain: 'acme'<br>2. Admin Email<br>3. API Token</div>""", unsafe_allow_html=True)
+        st.markdown("""
+        <div style="background-color: #0F172A; padding: 15px; border-radius: 8px; font-size: 0.85rem; border-left: 3px solid #38BDF8; line-height:1.6;">
+        <b>1. Subdomain</b><br>
+        The prefix of your Zendesk URL (e.g., if it's <i>acme.zendesk.com</i>, enter <b>acme</b>).<br><br>
+        <b>2. Admin Email</b><br>
+        The email address you use to log into your Zendesk Admin account.<br><br>
+        <b>3. API Token</b><br>
+        Go to <b>Admin Center > Apps and Integrations > Zendesk API</b>. Ensure "Token Access" is ON and generate a new secret token.
+        </div>
+        """, unsafe_allow_html=True)
     
     st.header("🔑 Connection")
     subdomain = st.text_input("Subdomain", placeholder="e.g. acme")
@@ -69,7 +79,6 @@ with st.sidebar:
     st.divider()
     st.header("🎯 Tuning")
     with st.expander("⚙️ AUDIT LAYERS", expanded=False):
-        # HELPERS RESTORED HERE
         do_stale = st.checkbox("Stale Content", value=True, help="Flags articles unedited for 365+ days. Outdated info kills trust.")
         do_typo = st.checkbox("Typos", value=True, help="Scans for spelling errors (ignoring your Exclusion List).")
         do_ai = st.checkbox("AI Readiness", value=True, help="Checks structure & length (min 500 chars) to ensure AI Bots can read this.")
