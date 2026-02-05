@@ -17,35 +17,25 @@ st.markdown("""
     .stApp { background-color: #0F172A; color: #E2E8F0; }
     section[data-testid="stSidebar"] { background-color: #1E293B !important; }
     
-    /* UNIFORM MARKETING BOXES */
     .feature-card {
-        background-color: #1E293B; 
-        padding: 25px; 
-        border-radius: 12px;
-        border: 1px solid #334155; 
-        display: flex;
-        flex-direction: column;
-        min-height: 200px; 
-        height: 100%;
+        background-color: #1E293B; padding: 25px; border-radius: 12px;
+        border: 1px solid #334155; display: flex; flex-direction: column;
+        min-height: 200px; height: 100%;
     }
-    .feature-icon { font-size: 2.2rem; margin-bottom: 12px; display: block; }
-    .feature-title { font-size: 1.2rem; font-weight: bold; color: #38BDF8; margin-bottom: 8px; display: block; }
+    .feature-title { font-size: 1.2rem; font-weight: bold; color: #38BDF8; margin-bottom: 8px; }
     .feature-desc { font-size: 0.88rem; color: #94A3B8; line-height: 1.5; flex-grow: 1; }
 
-    /* SCOREBOARD */
     .metric-card {
         background-color: #1E293B; padding: 20px; border-radius: 12px;
         text-align: center; border: 1px solid #334155; min-height: 110px;
-        display: flex; flex-direction: column !important;
-        justify-content: center; align-items: center;
+        display: flex; flex-direction: column !important; justify-content: center;
     }
-    .m-val { font-size: 2.2rem; font-weight: bold; color: #38BDF8; line-height: 1.2; display: block; }
-    .m-lab { font-size: 0.75rem; color: #94A3B8; text-transform: uppercase; font-weight: 600; display: block; }
+    .m-val { font-size: 2.2rem; font-weight: bold; color: #38BDF8; display: block; }
+    .m-lab { font-size: 0.75rem; color: #94A3B8; text-transform: uppercase; font-weight: 600; }
 
     .console-box {
         background-color: #011627; color: #d6deeb; font-family: 'Courier New', monospace;
-        padding: 20px; border-radius: 8px; border: 1px solid #38BDF8;
-        height: 400px; overflow-y: auto; font-size: 0.85rem; line-height: 1.6;
+        padding: 20px; border-radius: 8px; border: 1px solid #38BDF8; height: 400px; overflow-y: auto;
     }
     .insight-card {
         background-color: #1E293B; padding: 15px; border-radius: 12px;
@@ -53,79 +43,56 @@ st.markdown("""
         display: flex; flex-direction: column; justify-content: center; text-align: center;
     }
     .insight-label { font-size: 0.7rem; color: #94A3B8; text-transform: uppercase; margin-bottom: 5px; }
-    .insight-value { font-size: 1.4rem; font-weight: bold; color: #38BDF8; }
+    .insight-value { font-size: 1.3rem; font-weight: bold; color: #38BDF8; }
+    .insight-sub { font-size: 0.85rem; color: #F1F5F9; font-style: italic; }
 
-    .stButton>button { 
-        background-color: #38BDF8; color: #0F172A; font-weight: bold; 
-        width: 100%; height: 3.5em; border-radius: 8px; text-transform: uppercase;
-    }
+    .stButton>button { background-color: #38BDF8; color: #0F172A; font-weight: bold; width: 100%; height: 3.5em; border-radius: 8px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (Enhanced Field-Level Instructions) ---
+# --- 3. SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h1 style='color:#38BDF8; margin-bottom: 0.5em;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
-    
+    st.markdown("<h1 style='color:#38BDF8;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
     st.header("🔑 Connection")
-    subdomain = st.text_input(
-        "Subdomain", 
-        placeholder="e.g. acme", 
-        help="The prefix of your Zendesk URL. For 'acme.zendesk.com', enter 'acme'."
-    )
-    email = st.text_input(
-        "Admin Email", 
-        help="The email address of a Zendesk Administrator. Used with the token for secure API access."
-    )
-    token = st.text_input(
-        "API Token", 
-        type="password", 
-        help="Go to Admin Center > Apps > Zendesk API. Enable 'Token Access', create a new token, and paste it here."
-    )
+    subdomain = st.text_input("Subdomain", placeholder="e.g. acme", help="The prefix of your Zendesk URL (e.g., 'acme' for acme.zendesk.com).")
+    email = st.text_input("Admin Email", help="The email of a Zendesk Admin used for API authentication.")
+    token = st.text_input("API Token", type="password", help="Generate in Zendesk Admin Center > Apps and Integrations > Zendesk API.")
     
     st.divider()
     st.header("🎯 Tuning")
     with st.expander("⚙️ AUDIT LAYERS", expanded=True):
-        do_stale = st.checkbox("Stale Content", value=True, help="Flags articles that haven't been modified in over a year.")
-        do_typo = st.checkbox("Typos", value=True, help="Deep scans content body for spelling mistakes.")
-        do_format = st.checkbox("Format Check", value=True, help="Ensures proper use of H1/H2 headers and minimum content length.")
-        do_alt = st.checkbox("Image Alt-Text", value=True, help="Finds images missing descriptions for screen readers (ADA compliance).")
-        do_tags = st.checkbox("Tag Audit", value=True, help="Flags articles without tags which often go missing in search results.")
-    
-    with st.expander("🔍 CONTENT FILTERS", expanded=False):
-        restricted_input = st.text_input("Restricted Keywords", help="Comma-separated list of terms to flag for removal or update.")
-        restricted_words = [w.strip().lower() for w in restricted_input.split(",") if w.strip()]
-        raw_ignore = st.text_area("Exclusion List", help="Enter words for the spellchecker to ignore (one per line).")
-        ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
+        do_stale = st.checkbox("Stale Content", value=True, help="Flags articles unedited for 365+ days.")
+        do_typo = st.checkbox("Typos", value=True, help="Scans for spelling errors in article bodies.")
+        do_format = st.checkbox("Format Check", value=True, help="Checks for H1/H2 structure and word density.")
+        do_alt = st.checkbox("Image Alt-Text", value=True, help="Flags images missing accessibility descriptions.")
+        do_tags = st.checkbox("Tag Audit", value=True, help="Flags articles with 0 tags.")
 
 # --- 4. MAIN DASHBOARD ---
 st.title("Knowledge Base Intelligence")
-
 feat_cols = st.columns(3)
 with feat_cols[0]:
-    st.markdown("""<div class='feature-card'><span class='feature-icon'>⚡</span><span class='feature-title'>Stop Manual Auditing</span><span class='feature-desc'>Save 40+ hours per month by automating lifecycle tracking. Never manually hunt for expired articles again.</span></div>""", unsafe_allow_html=True)
+    st.markdown("<div class='feature-card'><span class='feature-title'>⚡ Stop Manual Auditing</span><span class='feature-desc'>Save 40+ hours per month by automating lifecycle tracking. Never hunt for expired articles again.</span></div>", unsafe_allow_html=True)
 with feat_cols[1]:
-    st.markdown("""<div class='feature-card'><span class='feature-icon'>🔎</span><span class='feature-title'>Fix Discoverability</span><span class='feature-desc'>Solve the "I can't find it" problem. Audit tags and structure to ensure users find answers on the first search.</span></div>""", unsafe_allow_html=True)
+    st.markdown("<div class='feature-card'><span class='feature-title'>🔎 Fix Discoverability</span><span class='feature-desc'>Solve the 'I can't find it' problem. Audit tags and structure to ensure users find answers on the first search.</span></div>", unsafe_allow_html=True)
 with feat_cols[2]:
-    st.markdown("""<div class='feature-card'><span class='feature-icon'>🎯</span><span class='feature-title'>Protect Brand Trust</span><span class='feature-desc'>Surface broken accessibility and legacy terms that erode customer confidence and professionalism.</span></div>""", unsafe_allow_html=True)
+    st.markdown("<div class='feature-card'><span class='feature-title'>🎯 Protect Brand Trust</span><span class='feature-desc'>Surface broken accessibility and legacy terms that erode customer confidence and professionalism.</span></div>", unsafe_allow_html=True)
 
 st.divider()
-
-# Wide Scoreboard
-m_row = st.columns(5)
-met_scan, met_alt, met_typo, met_key, met_stale = [col.empty() for col in m_row]
+m_cols = st.columns(5)
+met_scan, met_alt, met_typo, met_key, met_stale = [col.empty() for col in m_cols]
 
 st.markdown("<br>", unsafe_allow_html=True)
-
-# Action Zone
-col_con, col_ins = st.columns([1.5, 1])
-console_ui = col_con.empty()
-with col_ins:
-    score_ui, tip_ui, insight_ui = st.empty(), st.empty(), st.empty()
+col_left, col_right = st.columns([1.5, 1])
+console_ui = col_left.empty()
+with col_right:
+    score_ui = st.empty()
+    tip_ui = st.empty()  # RESTORED
+    insight_ui = st.empty()
 
 finish_ui, dl_area = st.empty(), st.empty()
 
 # --- 5. LOGIC & EXECUTION ---
-tips = ["🤖 Structure beats volume.", "💀 Check your 404s.", "🔍 Sunset your legacy tags."]
+tips = ["🤖 Structure beats volume.", "💀 Check your 404s.", "🔍 Sunset your legacy tags.", "📈 Good tags = fewer tickets."]
 
 if st.button("🚀 RUN DEEP SCAN"):
     if not all([subdomain, email, token]):
@@ -144,33 +111,23 @@ if st.button("🚀 RUN DEEP SCAN"):
                 soup = BeautifulSoup(body, 'html.parser')
                 text = soup.get_text().lower()
                 
-                # Calculations
-                typos = len([w for w in spell.unknown(spell.split_words(text)) if w not in ignore_list and len(w) > 2]) if do_typo else 0
+                typos = len([w for w in spell.unknown(spell.split_words(text)) if len(w) > 2]) if do_typo else 0
                 is_stale = (datetime.now() - datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ') > timedelta(days=365)) if do_stale else False
                 alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')]) if do_alt else 0
-                key_hits = sum(1 for w in restricted_words if w in text)
-                tag_issue = (len(art.get('label_names', [])) == 0) if do_tags else False
                 
-                results.append({"Title": art['title'], "URL": art['html_url'], "Stale": is_stale, "Typos": typos, "Alt": alt_miss, "Keywords": key_hits, "Tag Issue": tag_issue})
+                results.append({"Title": art['title'], "Typos": typos, "Stale": is_stale, "Alt": alt_miss})
                 
-                # Scoreboard
                 met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
-                met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results) if do_typo else '--'}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
-                met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale']) if do_stale else '--'}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
-                met_key.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Keywords'] for d in results)}</span><span class='m-lab'>Hits</span></div>", unsafe_allow_html=True)
-                met_alt.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Alt'] for d in results) if do_alt else '--'}</span><span class='m-lab'>Alt-Text</span></div>", unsafe_allow_html=True)
-
-                # Triple Stack UI
+                met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results)}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
+                
                 health = int((sum(1 for d in results if d['Typos'] == 0 and not d['Stale']) / (i+1)) * 100)
                 score_ui.markdown(f"<div class='insight-card'><span class='insight-label'>KB Health Score</span><span class='insight-value'>{health}%</span></div>", unsafe_allow_html=True)
-                if i % 10 == 0:
-                    tip_ui.markdown(f"<div class='insight-card'><span class='insight-label'>Strategy Insight</span><span class='insight-sub'>{random.choice(tips)}</span></div>", unsafe_allow_html=True)
-                
+                tip_ui.markdown(f"<div class='insight-card'><span class='insight-label'>Strategy Insight</span><span class='insight-sub'>{random.choice(tips)}</span></div>", unsafe_allow_html=True)
+                insight_ui.markdown(f"<div class='insight-card'><span class='insight-label'>Priority</span><span class='insight-value'>Clean Assets</span></div>", unsafe_allow_html=True)
+
                 logs.insert(0, f"✅ Analyzed: {art['title'][:40]}...")
                 console_ui.markdown(f"<div class='console-box'>{'<br>'.join(logs[:14])}</div>", unsafe_allow_html=True)
 
             st.balloons()
-            finish_ui.success(f"🎉 Audit Complete!")
             dl_area.download_button("📥 DOWNLOAD REPORT", pd.DataFrame(results).to_csv(index=False), "zenaudit_report.csv")
-            
         except Exception as e: st.error(f"Error: {e}")
