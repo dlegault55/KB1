@@ -22,7 +22,6 @@ st.markdown("""
         border: 1px solid #334155; height: 100%; transition: 0.3s;
     }
     .feature-card:hover { border-color: #38BDF8; }
-    .feature-icon { font-size: 2rem; margin-bottom: 10px; display: block; }
     .feature-title { font-size: 1.1rem; font-weight: bold; color: #38BDF8; margin-bottom: 8px; display: block; }
     .feature-desc { font-size: 0.85rem; color: #94A3B8; line-height: 1.4; }
 
@@ -46,6 +45,8 @@ st.markdown("""
         font-size: 1.1rem; font-style: italic;
     }
 
+    .success-anchor { margin-top: 60px; padding-top: 20px; }
+
     .stButton>button { 
         background-color: #38BDF8; color: #0F172A; font-weight: bold; 
         width: 100%; height: 3.5em; border: none; border-radius: 8px; 
@@ -54,7 +55,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR (HELPERS RESTORED) ---
 with st.sidebar:
     st.markdown("<h1 style='color:#38BDF8; margin-bottom: 0;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
     with st.expander("🚀 QUICK START GUIDE", expanded=True):
@@ -68,16 +69,17 @@ with st.sidebar:
     st.divider()
     st.header("🎯 Tuning")
     with st.expander("⚙️ AUDIT LAYERS", expanded=False):
-        do_stale = st.checkbox("Stale Content", value=True)
-        do_typo = st.checkbox("Typos", value=True)
-        do_ai = st.checkbox("AI Readiness", value=True)
-        do_alt = st.checkbox("Image Alt-Text", value=True)
-        do_tags = st.checkbox("Tag Audit", value=True)
+        # HELPERS RESTORED HERE
+        do_stale = st.checkbox("Stale Content", value=True, help="Flags articles unedited for 365+ days. Outdated info kills trust.")
+        do_typo = st.checkbox("Typos", value=True, help="Scans for spelling errors (ignoring your Exclusion List).")
+        do_ai = st.checkbox("AI Readiness", value=True, help="Checks structure & length (min 500 chars) to ensure AI Bots can read this.")
+        do_alt = st.checkbox("Image Alt-Text", value=True, help="Checks for missing accessibility descriptions and SEO keywords.")
+        do_tags = st.checkbox("Tag Audit", value=True, help="Flags articles with 0 tags, which breaks search and 'Related' widgets.")
     
     with st.expander("🔍 CONTENT FILTERS", expanded=False):
-        restricted_input = st.text_input("Restricted Keywords")
+        restricted_input = st.text_input("Restricted Keywords", help="Comma separated list of legacy brand names or forbidden terms.")
         restricted_words = [w.strip().lower() for w in restricted_input.split(",") if w.strip()]
-        raw_ignore = st.text_area("Exclusion List")
+        raw_ignore = st.text_area("Exclusion List", help="Words for the spellchecker to skip (e.g. your product name).")
         ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
 # --- 4. MAIN DASHBOARD ---
@@ -108,7 +110,7 @@ col_con, col_tip = st.columns([1.5, 1])
 console_ui = col_con.empty()
 tips_ui = col_tip.empty()
 
-# Success & Download Area
+st.markdown("<div class='success-anchor'></div>", unsafe_allow_html=True)
 finish_ui = st.empty()
 dl_area = st.empty()
 
@@ -159,19 +161,17 @@ if st.button("🚀 RUN DEEP SCAN"):
                     if i % 12 == 0:
                         tips_ui.markdown(f"<div class='tip-card'>{random.choice(tips)}</div>", unsafe_allow_html=True)
 
-                # --- THE FINALE ---
                 st.balloons()
                 st.snow()
                 logs.insert(0, "✨ SCAN COMPLETE — REPORT READY BELOW ✨")
                 console_ui.markdown(f"<div class='console-box'>{'<br>'.join(logs[:15])}</div>", unsafe_allow_html=True)
                 
-                # Success Banner
                 finish_ui.success(f"🎉 **Audit Complete!** Processed {len(results)} articles. Your report is ready for download.")
                 
                 df = pd.DataFrame(results)
                 dl_area.download_button("📥 DOWNLOAD AUDIT REPORT (CSV)", df.to_csv(index=False), "zenaudit_report.csv", "text/csv")
             else:
-                st.warning("No articles found in this subdomain.")
+                st.warning("No articles found.")
                 
         except Exception as e:
             st.error(f"Audit Error: {e}")
