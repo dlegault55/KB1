@@ -9,7 +9,7 @@ from spellchecker import SpellChecker
 st.set_page_config(page_title="ZenAudit | Zendesk Content Integrity", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. UI Styling (Palette: #023047, #219EBC, #8ECAE6, #FFB703, #FB8500)
+# 2. UI Styling
 st.markdown("""
     <style>
     .stButton>button { 
@@ -47,12 +47,9 @@ with st.sidebar:
     
     with st.expander("📖 QUICK START GUIDE", expanded=True):
         st.markdown("""
-        1. **Subdomain:** The part before `.zendesk.com`.
+        1. **Subdomain:** The name before `.zendesk.com`.
         2. **Email:** Your admin login email.
-        3. **API Token:** - Go to **Zendesk Admin Center**.
-           - Apps & Integrations > Zendesk API.
-           - Enable **Token Access**.
-           - Generate a new secret token.
+        3. **API Token:** Found in **Zendesk Admin Center > Apps & Integrations > Zendesk API**. Enable **Token Access**.
         """)
 
     st.header("🔑 Connection")
@@ -138,8 +135,7 @@ with tab1:
                     if report_list:
                         df = pd.DataFrame(report_list)
                         total_articles = len(articles)
-                        failed_articles = len(df)
-                        integrity_score = int(((total_articles - failed_articles) / total_articles) * 100)
+                        integrity_score = int(((total_articles - len(df)) / total_articles) * 100)
                         
                         st.subheader("📊 Executive Audit Summary")
                         sc1, sc2, sc3, sc4 = st.columns([1,1,1,1.5])
@@ -164,9 +160,17 @@ with tab1:
 
 with tab2:
     st.markdown('<h2 style="text-align:center; color:#023047;">Strategic Content Governance</h2>', unsafe_allow_html=True)
-    
     col_a, col_b = st.columns(2)
     with col_a:
         st.markdown('<div style="text-align:center; padding:30px; border:2px solid #023047; border-radius:12px; height:100%;"><h3>Starter</h3><h2>FREE</h2><p>Unlimited system scans<br>Live Integrity Scoring<br>On-screen reporting</p></div>', unsafe_allow_html=True)
     with col_b:
-        st.markdown(f"""<div class="pro
+        st.markdown(f"""
+        <div class="pro-card">
+            <h3 style="color:#FB8500;">Professional</h3>
+            <h2 style="color:#023047;">$25</h2>
+            <p><b>Full CSV Export Unlocked</b><br>Bulk Remediation Data<br>Team Distribution Ready</p>
+            <a href="https://buy.stripe.com/your_link" target="_blank">
+                <button style="background-color:#FB8500; color:white; border:none; padding:15px 30px; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🚀 UNLOCK FULL REPORT</button>
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
