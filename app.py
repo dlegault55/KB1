@@ -17,7 +17,7 @@ st.markdown("""
     .stApp { background-color: #0F172A; color: #E2E8F0; }
     section[data-testid="stSidebar"] { background-color: #1E293B !important; }
     
-    /* SIDEBAR COMPACTING */
+    /* SIDEBAR */
     [data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: 0.5rem !important; padding-top: 1rem !important; }
     [data-testid="stSidebar"] h1 { font-size: 1.6rem !important; margin-bottom: 0px !important; }
     
@@ -46,15 +46,31 @@ st.markdown("""
         border-radius: 8px !important; text-transform: uppercase !important; border: none !important;
     }
 
+    /* PREMIUM DOWNLOAD BUTTON (Emerald) */
+    div.stDownloadButton > button {
+        background-color: #10B981 !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 10px 40px !important;
+        width: auto !important;
+        min-width: 200px;
+        display: block;
+        margin: 0 auto; /* Centering */
+        border: none !important;
+        font-weight: 600 !important;
+        transition: 0.3s all ease;
+    }
+    div.stDownloadButton > button:hover {
+        background-color: #059669 !important;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
     .trademark-text { font-size: 0.65rem; color: #475569; margin-top: 20px; line-height: 1.3; }
     
     .console-box {
         background-color: #011627; color: #d6deeb; font-family: 'Courier New', monospace;
         padding: 20px; border-radius: 8px; border: 1px solid #38BDF8; height: 380px; overflow-y: auto;
     }
-    
-    /* DOWNLOAD AREA SPACING */
-    .dl-section { margin-top: 45px; padding: 20px; border-top: 1px solid #334155; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -87,7 +103,6 @@ with st.sidebar:
 # --- 4. MAIN DASHBOARD ---
 st.title("Knowledge Base Intelligence")
 
-# Marketing Row
 feat_cols = st.columns(3)
 for i, (t, d) in enumerate([
     ("⚡ Stop Manual Auditing", "Automate lifecycle tracking and save 40+ hours per month."),
@@ -99,19 +114,17 @@ for i, (t, d) in enumerate([
 
 st.divider()
 
-# Scoreboard
 m_cols = st.columns(5)
 met_scan, met_alt, met_typo, met_key, met_stale = [col.empty() for col in m_cols]
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Console and Insights
 col_left, col_right = st.columns([1.6, 1])
 console_ui = col_left.empty()
 with col_right:
     score_ui, tip_ui, insight_ui = st.empty(), st.empty(), st.empty()
 
-# Download Area (with added spacing)
+# The Spacer
 st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True)
 dl_area = st.empty()
 
@@ -133,7 +146,6 @@ if st.button("🚀 RUN DEEP SCAN"):
                 soup = BeautifulSoup(body, 'html.parser')
                 text = soup.get_text().lower()
                 
-                # Metric calculations
                 typos = len([w for w in spell.unknown(spell.split_words(text)) if w not in ignore_list and len(w) > 2])
                 is_stale = (datetime.now() - datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ') > timedelta(days=365))
                 alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')])
@@ -141,14 +153,12 @@ if st.button("🚀 RUN DEEP SCAN"):
                 
                 results.append({"Title": art['title'], "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "Hits": key_hits})
                 
-                # Update Scoreboard
                 met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
                 met_alt.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Alt'] for d in results)}</span><span class='m-lab'>Alt-Text</span></div>", unsafe_allow_html=True)
                 met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results)}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
                 met_key.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Hits'] for d in results)}</span><span class='m-lab'>Hits</span></div>", unsafe_allow_html=True)
                 met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale'])}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
 
-                # Update Insights
                 score_ui.markdown(f"<div class='metric-card' style='border-color:#38BDF8'><span class='m-lab'>Health Score</span><span class='m-val'>{random.randint(85,99)}%</span></div>", unsafe_allow_html=True)
                 tip_ui.markdown(f"<div class='metric-card'><span class='m-lab'>Strategy Insight</span><p style='font-size:0.8rem; margin:0;'>Consolidate tags.</p></div>", unsafe_allow_html=True)
                 insight_ui.markdown(f"<div class='metric-card'><span class='m-val' style='font-size:1.3rem; color:#F87171;'>Action Required</span><span class='m-lab'>Priority High</span></div>", unsafe_allow_html=True)
@@ -157,5 +167,6 @@ if st.button("🚀 RUN DEEP SCAN"):
                 console_ui.markdown(f"<div class='console-box'>{'<br>'.join(logs[:13])}</div>", unsafe_allow_html=True)
 
             st.balloons()
-            dl_area.download_button("📥 DOWNLOAD AUDIT REPORT", pd.DataFrame(results).to_csv(index=False), "zenaudit_export.csv", use_container_width=True)
+            # CENTERED EMERALD BUTTON
+            dl_area.download_button("📥 DOWNLOAD AUDIT REPORT", pd.DataFrame(results).to_csv(index=False), "zenaudit_export.csv")
         except Exception as e: st.error(f"Error: {e}")
