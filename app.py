@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="ZenAudit | Content Audit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. UI Styling (Enhanced for the Signup Box)
+# 2. UI Styling (Restored and Polished)
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
@@ -42,42 +42,24 @@ st.markdown("""
 
     .dark-card { background-color: #1E293B; padding: 25px; border-radius: 12px; border: 1px solid #334155; color: #F1F5F9; height: 100%; }
     
-    /* POLISHED SIGNUP BOX */
-    .signup-container {
-        display: flex;
-        gap: 10px;
-        margin-top: 15px;
-    }
+    /* COMPACT SIGNUP BOX */
+    .signup-container { display: flex; gap: 10px; margin-top: 15px; }
     .signup-input {
-        flex: 2;
-        padding: 12px;
-        border-radius: 6px;
-        border: 1px solid #334155;
-        background-color: #0F172A;
-        color: white;
-        outline: none;
+        flex: 2; padding: 12px; border-radius: 6px; border: 1px solid #334155;
+        background-color: #0F172A; color: white; outline: none;
     }
-    .signup-input:focus { border-color: #38BDF8; }
     .signup-btn {
-        flex: 1;
-        background-color: #38BDF8;
-        color: #0F172A;
-        border: none;
-        padding: 12px;
-        border-radius: 6px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: 0.3s;
-        white-space: nowrap;
+        flex: 1; background-color: #38BDF8; color: #0F172A; border: none;
+        padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s;
     }
-    .signup-btn:hover { background-color: #7DD3FC; transform: translateY(-1px); }
+    .signup-btn:hover { background-color: #7DD3FC; }
     .spam-text { font-size: 0.7rem; color: #64748B; margin-top: 8px; }
 
     .section-spacer { margin-top: 60px; padding-top: 40px; border-top: 1px solid #334155; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR (PERMANENT FEATURES) ---
 with st.sidebar:
     st.markdown("<h1 style='color:#38BDF8; margin-bottom:0;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
     with st.expander("🚀 QUICK START GUIDE", expanded=True):
@@ -120,6 +102,7 @@ def perform_audit(art, ignore, sub, restricted, stale_check, ai_check):
     if enable_typos:
         words = spell.split_words(text)
         issues["typos"] = len([w for w in spell.unknown(words) if len(w) > 2 and w not in ignore])
+    
     issues["keywords"] = sum(1 for word in restricted if word in text)
     
     if stale_check:
@@ -133,9 +116,10 @@ def perform_audit(art, ignore, sub, restricted, stale_check, ai_check):
 
 # --- 5. MAIN INTERFACE ---
 st.title("ZenAudit Intelligence Scan")
-st.info("⚡ **Lightning Mode:** Scanning first 100 articles.")
+st.info("⚡ **Lightning Mode:** Scanning first 100 articles for rapid testing.")
 
-if st.button("🚀 EXECUTE DEEP AUDIT"):
+# BUTTON REVERTED TO ORIGINAL LABEL
+if st.button("🚀 RUN DEEP SCAN"):
     if not all([subdomain, email, token]):
         st.error("Missing Credentials")
     else:
@@ -189,6 +173,6 @@ with f_r:
             <input type="email" placeholder="Enter your work email" class="signup-input">
             <button class="signup-btn">NOTIFY ME</button>
         </div>
-        <div class="spam-text">Join 400+ Knowledge Admins. No spam, just product updates.</div>
+        <div class="spam-text">Join 400+ Knowledge Admins. No spam, just updates.</div>
     </div>
     """, unsafe_allow_html=True)
