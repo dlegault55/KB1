@@ -11,13 +11,12 @@ import random
 st.set_page_config(page_title="ZenAudit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. MASTER CSS (Showcase Cards & Clean Grid)
+# 2. MASTER CSS
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
     section[data-testid="stSidebar"] { background-color: #1E293B !important; }
     
-    /* Marketing/Feature Cards */
     .feature-card {
         background-color: #1E293B; padding: 25px; border-radius: 12px;
         border: 1px solid #334155; height: 100%; transition: 0.3s;
@@ -27,7 +26,6 @@ st.markdown("""
     .feature-title { font-size: 1.1rem; font-weight: bold; color: #38BDF8; margin-bottom: 8px; display: block; }
     .feature-desc { font-size: 0.85rem; color: #94A3B8; line-height: 1.4; }
 
-    /* Fixed Metric Cards */
     .metric-card {
         background-color: #1E293B; padding: 20px; border-radius: 12px;
         text-align: center; border: 1px solid #334155; height: 110px;
@@ -35,7 +33,6 @@ st.markdown("""
     .m-val { font-size: 1.8rem; font-weight: bold; color: #38BDF8; display: block; }
     .m-lab { font-size: 0.7rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
 
-    /* The Terminal Console */
     .console-box {
         background-color: #011627; color: #d6deeb; font-family: 'Courier New', monospace;
         padding: 20px; border-radius: 8px; border: 1px solid #38BDF8;
@@ -84,22 +81,20 @@ with st.sidebar:
         raw_ignore = st.text_area("Exclusion List")
         ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
-# --- 4. MAIN DASHBOARD & MARKETING ---
+# --- 4. MAIN DASHBOARD ---
 st.title("Knowledge Base Intelligence")
-
-# MARKETING SHOWCASE
 
 feat_cols = st.columns(3)
 with feat_cols[0]:
-    st.markdown("""<div class='feature-card'><span class='feature-icon'>🏺</span><span class='feature-title'>Stale Content Detection</span><span class='feature-desc'>Identify articles that haven't been touched in over a year. Keep your documentation relevant and trustworthy.</span></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='feature-card'><span class='feature-icon'>🏺</span><span class='feature-title'>Stale Content</span><span class='feature-desc'>Identify articles that haven't been touched in over a year.</span></div>""", unsafe_allow_html=True)
 with feat_cols[1]:
-    st.markdown("""<div class='feature-card'><span class='feature-icon'>🤖</span><span class='feature-title'>AI-Ready Indexing</span><span class='feature-desc'>Validate content structure and length to ensure high-accuracy responses from AI Support agents.</span></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='feature-card'><span class='feature-icon'>🤖</span><span class='feature-title'>AI-Ready Indexing</span><span class='feature-desc'>Validate structure for high-accuracy AI Support agents.</span></div>""", unsafe_allow_html=True)
 with feat_cols[2]:
-    st.markdown("""<div class='feature-card'><span class='feature-icon'>🛡️</span><span class='feature-title'>Brand Governance</span><span class='feature-desc'>Scan for legacy branding, restricted keywords, and accessibility gaps like missing image alt-text.</span></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='feature-card'><span class='feature-icon'>🛡️</span><span class='feature-title'>Brand Governance</span><span class='feature-desc'>Scan for legacy branding and accessibility gaps.</span></div>""", unsafe_allow_html=True)
 
 st.divider()
 
-# Scoreboard (Static Placeholders)
+# Scoreboard
 m_row = st.columns(5)
 met_scan = m_row[0].empty()
 met_alt = m_row[1].empty()
@@ -109,7 +104,7 @@ met_stale = m_row[4].empty()
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Action Zone (Console & Tips)
+# Console & Tips
 col_con, col_tip = st.columns([1.5, 1])
 console_ui = col_con.empty()
 tips_ui = col_tip.empty()
@@ -146,7 +141,15 @@ if st.button("🚀 RUN DEEP SCAN"):
                 keys = sum(1 for w in restricted_words if w in text)
                 alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')]) if do_alt else 0
                 
-                results.append({"Title": art['title'], "Stale": is_stale, "Typos": typos, "Keywords": keys, "Alt Missing": alt_miss})
+                # CAPTURING THE URL HERE
+                results.append({
+                    "Title": art['title'], 
+                    "URL": art['html_url'],  # Restored
+                    "Stale": is_stale, 
+                    "Typos": typos, 
+                    "Keywords": keys, 
+                    "Alt Missing": alt_miss
+                })
                 
                 # Live Updates
                 met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
