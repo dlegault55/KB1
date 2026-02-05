@@ -7,180 +7,188 @@ import re
 from datetime import datetime, timedelta
 import random
 
-# 1. Page Configuration
-st.set_page_config(page_title="ZenAudit | Content Audit", page_icon="🛡️", layout="wide")
+# 1. Page Config
+st.set_page_config(page_title="ZenAudit v8.1", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. THE CSS MANIFEST (Spacing & Grid Fix)
+# 2. THE MASTER CSS (Static Layout Control)
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
     section[data-testid="stSidebar"] { background-color: #1E293B !important; }
     
-    /* Global Container Spacing */
-    .block-container { padding-top: 2rem; padding-bottom: 2rem; }
-    
-    /* Metric Cards */
+    /* Fixed Metric Cards */
     .metric-card {
-        background-color: #1E293B; padding: 25px; border-radius: 12px;
-        text-align: center; border: 1px solid #334155;
-        margin-bottom: 15px;
+        background-color: #1E293B; padding: 20px; border-radius: 12px;
+        text-align: center; border: 1px solid #334155; height: 110px;
     }
-    .metric-value { font-size: 2.2rem; font-weight: bold; color: #38BDF8; }
-    .metric-label { font-size: 0.75rem; color: #94A3B8; text-transform: uppercase; margin-top: 5px; }
+    .m-val { font-size: 1.8rem; font-weight: bold; color: #38BDF8; display: block; }
+    .m-lab { font-size: 0.7rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; }
 
-    /* Console & Tips Area */
+    /* The Terminal Console */
     .console-box {
         background-color: #011627; color: #d6deeb; font-family: 'Courier New', monospace;
         padding: 20px; border-radius: 8px; border: 1px solid #38BDF8;
-        height: 380px; overflow-y: auto; font-size: 0.85rem; line-height: 1.5;
+        height: 400px; overflow-y: auto; font-size: 0.85rem; line-height: 1.6;
     }
+    
+    /* The Salty Tip Box */
     .tip-card {
         background-color: #1E293B; padding: 30px; border-radius: 12px;
-        border: 1px solid #334155; color: #F1F5F9; height: 380px;
+        border: 1px solid #334155; height: 400px; color: #F1F5F9;
         display: flex; align-items: center; justify-content: center; text-align: center;
-        font-style: italic; font-size: 1.1rem;
+        font-size: 1.1rem; font-style: italic;
     }
 
-    /* Action Buttons */
-    .stButton>button { 
-        background-color: #38BDF8; color: #0F172A; border-radius: 8px; 
-        font-weight: bold; width: 100%; height: 3.5em; text-transform: uppercase; border: none;
-    }
-    
-    .dark-card { background-color: #1E293B; padding: 25px; border-radius: 12px; border: 1px solid #334155; margin-bottom: 20px; }
-    
-    /* Inline Signup */
-    .signup-container { display: flex; gap: 10px; margin-top: 15px; }
-    .signup-input { flex: 2; padding: 12px; border-radius: 6px; border: 1px solid #334155; background-color: #0F172A; color: white; }
+    /* Fixed Footer Polish */
+    .footer-card { background-color: #1E293B; padding: 25px; border-radius: 12px; border: 1px solid #334155; height: 100%; }
+    .signup-container { display: flex; gap: 8px; margin-top: 15px; }
+    .signup-input { flex: 2; padding: 10px; border-radius: 6px; border: 1px solid #334155; background-color: #0F172A; color: white; outline: none; }
     .signup-btn { flex: 1; background-color: #38BDF8; color: #0F172A; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
     
-    .section-spacer { margin-top: 60px; padding-top: 40px; border-top: 1px solid #334155; }
+    .stButton>button { background-color: #38BDF8; color: #0F172A; font-weight: bold; width: 100%; height: 3.5em; border: none; border-radius: 8px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. AUDIT ENGINE ---
-def run_audit_logic(art, ignore, restricted, stale_check, ai_check):
-    body = art.get('body', '') or ''
-    title = art.get('title', '')
-    soup = BeautifulSoup(body, 'html.parser')
-    text = soup.get_text().lower()
-    
-    issues = {"links": [], "typos": [], "keywords": [], "stale": False, "ai": False}
-    
-    # 1. Links
-    links = [a.get('href') for a in soup.find_all('a') if a.get('href') and a.get('href').startswith('http')]
-    for url in links:
-        try:
-            if requests.head(url, timeout=1).status_code >= 400: issues["links"].append(url)
-        except: issues["links"].append(url)
-    
-    # 2. Typos & Keywords
-    words = spell.split_words(text)
-    issues["typos"] = list(spell.unknown(words)) if enable_typos else []
-    issues["keywords"] = [w for w in restricted if w in text]
-    
-    # 3. Stale
-    if stale_check:
-        upd = datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ')
-        if datetime.now() - upd > timedelta(days=365): issues["stale"] = True
-            
-    # 4. AI Readiness
-    if ai_check:
-        if len(text) < 500 or not soup.find_all('img', alt=True): issues["ai"] = True
-        
-    return issues
-
-# --- 4. SIDEBAR ---
+# --- 3. SIDEBAR (COMMAND CENTER) ---
 with st.sidebar:
-    st.markdown('<h1 style="color:#38BDF8; margin-bottom:0;">🛡️ ZenAudit</h1>', unsafe_allow_html=True)
-    with st.expander("🚀 QUICK START GUIDE", expanded=True):
-        st.markdown("1. Subdomain: [acme]\n2. Admin Email\n3. API Token")
+    st.markdown("<h1 style='color:#38BDF8;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
     
     st.header("🔑 Connection")
-    subdomain = st.text_input("Subdomain")
+    subdomain = st.text_input("Subdomain", placeholder="acme")
     email = st.text_input("Admin Email")
     token = st.text_input("API Token", type="password")
     
     st.divider()
-    st.header("🎯 Tuning")
-    restricted_input = st.text_input("Restricted Keywords")
+    st.header("🎯 Audit Tuning")
+    
+    do_stale = st.checkbox("Stale Content", value=True, help="Flags articles unedited for 365+ days.")
+    do_typo = st.checkbox("Typos", value=True, help="Scans for spelling errors (ignoring exclusions).")
+    do_ai = st.checkbox("AI Readiness", value=True, help="Checks structure & length for better AI Bot ingestion.")
+    do_alt = st.checkbox("Image Alt-Text", value=True, help="Checks for accessibility & SEO image descriptions.")
+    do_tags = st.checkbox("Tag Audit", value=True, help="Flags articles missing search tags.")
+    
+    st.divider()
+    restricted_input = st.text_input("Restricted Keywords", placeholder="OldBrand, Beta")
     restricted_words = [w.strip().lower() for w in restricted_input.split(",") if w.strip()]
     
-    enable_typos = st.checkbox("Scan Typos", value=True)
-    enable_stale = st.checkbox("Detect Stale Content", value=True)
-    enable_ai = st.checkbox("AI Readiness Scan", value=True)
-    
-    ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', st.text_area("Exclusion List")) if w.strip()]
+    raw_ignore = st.text_area("Exclusion List", placeholder="SaaS, API, Acme")
+    ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
-# --- 5. MAIN INTERFACE ---
-st.title("ZenAudit Intelligence Dashboard")
-st.info("⚡ **Lightning Mode:** Auditing the first 100 articles.")
+# --- 4. MAIN DASHBOARD LAYOUT ---
+st.title("Knowledge Base Intelligence Dashboard")
+st.info("⚡ **Scanning Mode:** Top 100 Recent Articles")
+
+# Scoreboard (Static Placeholders)
+m_row = st.columns(5)
+met_scan = m_row[0].empty()
+met_link = m_row[1].empty()
+met_typo = m_row[2].empty()
+met_key = m_row[3].empty()
+met_stale = m_row[4].empty()
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# Action Zone (Console & Tips)
+col_con, col_tip = st.columns([1.5, 1])
+console_ui = col_con.empty()
+tips_ui = col_tip.empty()
+
+# Download Area (Hidden until finish)
+dl_area = st.empty()
+
+# --- 5. THE ENGINE ---
+admin_tips = [
+    "💀 **Admin Truth:** If you don't fix these 404s, your customers will mention it in the CSAT comment.",
+    "🤖 **AI Reality:** Garbage in, Garbage out. Bad articles make for bad AI responses.",
+    "🔍 **Search Bloat:** 1,800 articles? Time for a sunsetting strategy.",
+    "🛠️ **Workflow:** Manual audits are for people with too much time."
+]
 
 if st.button("🚀 RUN DEEP SCAN"):
     if not all([subdomain, email, token]):
-        st.error("Missing Connection Details")
+        st.error("Please fill in connection details in the sidebar.")
     else:
+        # Initializing UI
+        logs = []
+        results = []
+        tips_ui.markdown(f"<div class='tip-card'>{random.choice(admin_tips)}</div>", unsafe_allow_html=True)
+        
+        # API Call
         auth = (f"{email}/token", token)
-        api_url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100"
-        res = requests.get(api_url, auth=auth)
-        articles = res.json().get('articles', [])
-
-        if articles:
-            # Grid Setup
-            m_col1, m_col2, m_col3, m_col4, m_col5 = st.columns(5)
-            st.write("---")
-            c_left, c_right = st.columns([1.5, 1])
+        url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100"
+        
+        try:
+            r = requests.get(url, auth=auth)
+            articles = r.json().get('articles', [])
             
-            console_out = c_left.empty()
-            tips_out = c_right.empty()
-            
-            # Tip Bank
-            tips = ["💀 Fix your 404s or face the CSAT wrath.", "🤖 AI agents hate short, messy articles.", "🥃 Sunset your legacy 'New' tags."]
-            
-            results_data = []
-            log_entries = []
-
             for i, art in enumerate(articles):
-                audit = run_audit_logic(art, ignore_list, restricted_words, enable_stale, enable_ai)
+                # Data Extraction
+                body_html = art.get('body', '') or ''
+                soup = BeautifulSoup(body_html, 'html.parser')
+                text = soup.get_text().lower()
                 
-                # Log Data
-                results_data.append({
-                    "Title": art['title'], "Links": len(audit["links"]), 
-                    "Typos": len(audit["typos"]), "Keywords": len(audit["keywords"]),
-                    "Stale": "Yes" if audit["stale"] else "No"
+                # Logic Processing
+                upd = datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ')
+                stale_flag = (datetime.now() - upd > timedelta(days=365)) if do_stale else False
+                
+                typo_count = 0
+                if do_typo:
+                    words = spell.split_words(text)
+                    typo_count = len([w for w in spell.unknown(words) if w not in ignore_list and len(w) > 2])
+                
+                key_count = sum(1 for w in restricted_words if w in text)
+                alt_missing = len([img for img in soup.find_all('img') if not img.get('alt')]) if do_alt else 0
+                no_tags = (len(art.get('label_names', [])) == 0) if do_tags else False
+                
+                # Save Data
+                results.append({
+                    "Title": art['title'], "URL": art['html_url'], "Typos": typo_count, 
+                    "Keywords": key_count, "Stale": stale_flag, "No Tags": no_tags, "Alt Missing": alt_missing
                 })
                 
-                # Visual Updates
-                status = "🚩" if (audit["links"] or audit["typos"] or audit["keywords"] or audit["stale"]) else "✅"
-                log_entries.insert(0, f"{status} {art['title'][:40]}...")
-                console_out.markdown(f"<div class='console-box'>{'<br>'.join(log_entries[:12])}</div>", unsafe_allow_html=True)
+                # Update Scoreboard
+                met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
+                met_link.markdown(f"<div class='metric-card'><span class='m-val'>{alt_missing}</span><span class='m-lab'>Alt Missing</span></div>", unsafe_allow_html=True)
+                met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results)}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
+                met_key.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Keywords'] for d in results)}</span><span class='m-lab'>Keywords</span></div>", unsafe_allow_html=True)
+                met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale'])}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
+
+                # Update Console
+                flag = "🚩" if (stale_flag or typo_count > 0 or key_count > 0 or no_tags) else "✅"
+                logs.insert(0, f"{flag} {art['title'][:45]}...")
+                console_ui.markdown(f"<div class='console-box'>{'<br>'.join(logs[:14])}</div>", unsafe_allow_html=True)
                 
-                if i % 10 == 0:
-                    tips_out.markdown(f"<div class='tip-card'>{random.choice(tips)}</div>", unsafe_allow_html=True)
+                if i % 12 == 0:
+                    tips_ui.markdown(f"<div class='tip-card'>{random.choice(admin_tips)}</div>", unsafe_allow_html=True)
 
-                # Metrics
-                m_col1.markdown(f"<div class='metric-card'><div class='metric-value'>{i+1}</div><div class='metric-label'>Scanned</div></div>", unsafe_allow_html=True)
-                m_col2.markdown(f"<div class='metric-card'><div class='metric-value'>{sum(d['Links'] for d in results_data)}</div><div class='metric-label'>Broken</div></div>", unsafe_allow_html=True)
-                m_col3.markdown(f"<div class='metric-card'><div class='metric-value'>{sum(d['Typos'] for d in results_data)}</div><div class='metric-label'>Typos</div></div>", unsafe_allow_html=True)
-                m_col4.markdown(f"<div class='metric-card'><div class='metric-label'>{sum(d['Keywords'] for d in results_data)}</div><div class='metric-label'>Keywords</div></div>", unsafe_allow_html=True)
-                m_col5.markdown(f"<div class='metric-card'><div class='metric-value'>{sum(1 for d in results_data if d['Stale'] == 'Yes')}</div><div class='metric-label'>Stale</div></div>", unsafe_allow_html=True)
+            # Final Step: Show Download Button
+            df = pd.DataFrame(results)
+            dl_area.download_button("📥 DOWNLOAD AUDIT REPORT (CSV)", df.to_csv(index=False), f"audit_{subdomain}.csv", "text/csv")
+            
+        except Exception as e:
+            st.error(f"Audit Interrupted: Check your subdomain or credentials. {e}")
 
-            # --- DOWNLOAD BUTTON ---
-            st.write("---")
-            csv = pd.DataFrame(results_data).to_csv(index=False).encode('utf-8')
-            st.download_button("📥 DOWNLOAD AUDIT REPORT (CSV)", data=csv, file_name="zenaudit.csv", mime="text/csv")
+# --- 6. FOOTER (PLAN) ---
+st.markdown("<div class='section-spacer'></div>", unsafe_allow_html=True)
 
-# --- 6. FOOTER ---
-st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
+st.markdown("### 🧠 Platform Intelligence")
 
-e1, e2, e3 = st.columns(3)
-with e1: st.markdown('<div class="dark-card"><b>🏺 Stale Content</b><br>Outdated for 365+ days.</div>', unsafe_allow_html=True)
-with e2: st.markdown('<div class="dark-card"><b>🗣️ Restricted Keywords</b><br>Detect legacy terms.</div>', unsafe_allow_html=True)
-with e3: st.markdown('<div class="dark-card"><b>🤖 AI Readiness</b><br>Formatted for indexing.</div>', unsafe_allow_html=True)
+f_row = st.columns(3)
+with f_row[0]: st.markdown("<div class='footer-card'><b>🏺 Stale Content</b><br><span style='font-size:0.8rem; color:#94A3B8;'>Flags articles unedited for 1+ year. Keep info fresh.</span></div>", unsafe_allow_html=True)
+with f_row[1]: st.markdown("<div class='footer-card'><b>🗣️ Restricted Keywords</b><br><span style='font-size:0.8rem; color:#94A3B8;'>Detect legacy branding or forbidden terms instantly.</span></div>", unsafe_allow_html=True)
+with f_row[2]: st.markdown("<div class='footer-card'><b>🤖 AI Readiness</b><br><span style='font-size:0.8rem; color:#94A3B8;'>Validates length & structure for AI Bot ingestion.</span></div>", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
-f1, f2 = st.columns(2)
-with f1: st.markdown('<div class="dark-card"><b>🗺️ Roadmap</b><br>Zendesk (Live)</div>', unsafe_allow_html=True)
-with f2:
-    st.markdown('<div class="dark-card"><b>📩 Get Updates</b><div class="signup-container"><input type="email" placeholder="work@email.com" class="signup-input"><button class="signup-btn">NOTIFY</button></div></div>', unsafe_allow_html=True)
+b_row = st.columns(2)
+with b_row[0]: st.markdown("<div class='footer-card'><b>🗺️ Roadmap</b><br><span style='font-size:0.8rem; color:#94A3B8;'>✅ Zendesk (Live)<br>⬜ Salesforce (Q3 2026)</span></div>", unsafe_allow_html=True)
+with b_row[1]: 
+    st.markdown("""
+    <div class='footer-card'>
+        <b>📩 Get Updates</b>
+        <div class='signup-container'>
+            <input class='signup-input' placeholder='work@email.com'>
+            <button class='signup-btn'>NOTIFY ME</button>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
