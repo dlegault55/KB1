@@ -3,88 +3,109 @@ import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 from spellchecker import SpellChecker
-from io import BytesIO
 
-# 1. Page Config
+# 1. Page Configuration
 st.set_page_config(page_title="Link Warden Pro", page_icon="🛡️", layout="wide")
+
+# Initialize Spellchecker
 spell = SpellChecker()
 
-# Custom CSS for a cleaner look
+# 2. UI Styling (Fixed the error here)
 st.markdown("""
     <style>
-    .reportview-container { background: #f0f2f6; }
-    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
+    .main { background-color: #f8f9fa; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .stButton>button { background-color: #007bff; color: white; border-radius: 8px; font-weight: bold; }
     </style>
-    """, unsafe_allow_index=True)
+    """, unsafe_allow_html=True)
 
+# 3. Header
 st.title("🛡️ Knowledge Base Audit Pro")
-st.write("Professional-grade link and typo auditing for Zendesk.")
+st.write("Detect broken links and spelling errors in your Zendesk Help Center.")
 
-# --- SIDEBAR ---
+# 4. Sidebar for Credentials
 with st.sidebar:
-    st.header("Settings")
-    subdomain = st.text_input("Subdomain")
-    email = st.text_input("Email")
+    st.header("Zendesk Connection")
+    subdomain = st.text_input("Subdomain", placeholder="e.g. acme-help")
+    email = st.text_input("Admin Email")
     token = st.text_input("API Token", type="password")
     st.divider()
-    st.caption("v1.1 - Added CSV Export")
+    st.info("The report will include article titles, URLs, and specific issues found.")
 
-# --- ENGINE ---
-def audit_article(html_body):
+# 5. The Audit Engine
+def audit_content(html_body):
     soup = BeautifulSoup(html_body, 'html.parser')
-    # Link check
+    
+    # Check Links
     links = [a.get('href') for a in soup.find_all('a') if a.get('href') and a.get('href').startswith('http')]
-    broken = [url for url in links if requests.head(url, timeout=3).status_code >= 400]
-    # Typo check
+    broken = []
+    for url in links:
+        try:
+            # Using a quick HEAD request to check link health
+            res = requests.head(url, timeout=3, allow_redirects=True)
+            if res.status_code >= 400:
+                broken.append(f"{url} ({res.status_code})")
+        except:
+            broken.append(f"{url} (Timeout/Failed)")
+
+    # Check Typos
     text = soup.get_text()
     words = spell.split_words(text)
+    # Ignore brand names (Capitalized) and short strings
     typos = [word for word in spell.unknown(words) if not word.istitle() and len(word) > 2]
+    
     return broken, typos
 
-# --- MAIN LOGIC ---
+# 6. Execution & Results
 if st.button("🚀 Run Full Audit"):
     if not all([subdomain, email, token]):
-        st.error("Credentials missing.")
+        st.error("Please provide all connection details in the sidebar.")
     else:
-        auth = (f"{email}/token", token)
         api_url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json"
+        auth = (f"{email}/token", token)
         
-        with st.spinner("Analyzing articles..."):
-            res = requests.get(api_url, auth=auth)
-            if res.status_code == 200:
-                articles = res.json().get('articles', [])
-                report_data = []
+        with st.spinner("Analyzing Knowledge Base..."):
+            try:
+                response = requests.get(api_url, auth=auth)
+                if response.status_code == 200:
+                    articles = response.json().get('articles', [])
+                    report_list = []
 
-                for art in articles:
-                    dead, typos = audit_article(art['body'])
-                    if dead or typos:
-                        report_data.append({
-                            "Article Title": art['title'],
-                            "URL": art['html_url'],
-                            "Broken Links": ", ".join(dead),
-                            "Potential Typos": ", ".join(typos)
-                        })
-
-                if report_data:
-                    # Create DataFrame for UI and Export
-                    df = pd.DataFrame(report_data)
+                    for art in articles:
+                        dead_links, typos = audit_content(art['body'])
+                        
+                        if dead_links or typos:
+                            report_list.append({
+                                "Article Title": art['title'],
+                                "Zendesk URL": art['html_url'],
+                                "Broken Links Found": len(dead_links),
+                                "Typos Found": len(typos),
+                                "Link Details": ", ".join(dead_links),
+                                "Typo Details": ", ".join(typos)
+                            })
                     
-                    # UI: Metrics
-                    c1, c2 = st.columns(2)
-                    c1.metric("Issues Found", len(report_data))
-                    c2.metric("Articles Clean", len(articles) - len(report_data))
+                    if report_list:
+                        # Display Summary Metrics
+                        df = pd.DataFrame(report_list)
+                        col1, col2 = st.columns(2)
+                        col1.metric("Articles with Issues", len(report_list))
+                        col2.metric("Total Issues", df['Broken Links Found'].sum() + df['Typos Found'].sum())
 
-                    # UI: Data Table
-                    st.subheader("Issue Log")
-                    st.dataframe(df, use_container_width=True)
+                        # Display Data Table
+                        st.subheader("Detailed Audit Log")
+                        st.dataframe(df, use_container_width=True)
 
-                    # --- EXPORT BUTTON ---
-                    csv = df.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="📥 Download Audit Report (CSV)",
-                        data=csv,
-                        file_name=f"{subdomain}_kb_audit.csv",
-                        mime="text/csv",
-                    )
+                        # Download Button
+                        csv = df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="📥 Download Audit Report (CSV)",
+                            data=csv,
+                            file_name=f"{subdomain}_kb_audit.csv",
+                            mime="text/csv",
+                        )
+                    else:
+                        st.success("No issues found! Your Knowledge Base is clean.")
                 else:
-                    st.success("Your Knowledge Base is perfect!")
+                    st.error(f"Zendesk API Error: {response.status_code}. Verify your credentials.")
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
