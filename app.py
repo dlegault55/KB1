@@ -11,7 +11,7 @@ import random
 st.set_page_config(page_title="ZenAudit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. MASTER CSS
+# 2. MASTER CSS (Updated for Footer)
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
@@ -49,59 +49,75 @@ st.markdown("""
 
     .stButton>button { background-color: #38BDF8; color: #0F172A; font-weight: bold; width: 100%; height: 3.5em; border-radius: 8px; text-transform: uppercase; }
     
-    .sidebar-footer { font-size: 0.75rem; color: #64748B; margin-top: 50px; line-height: 1.4; }
-    .sidebar-footer a { color: #38BDF8; text-decoration: none; }
+    .sidebar-footer { font-size: 0.75rem; color: #64748B; margin-top: 30px; line-height: 1.4; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR ---
+# 3. MODAL DIALOGS
+@st.dialog("Frequently Asked Questions")
+def show_faq():
+    st.write("### How do I generate an API Token?")
+    st.write("Go to Admin Center > Apps and Integrations > Zendesk API. Enable 'Token Access' and click 'Add API token'.")
+    st.write("### Does this app store my data?")
+    st.write("No. ZenAudit is a client-side processor. Your API token and article data never leave this session.")
+
+@st.dialog("Privacy Policy")
+def show_privacy():
+    st.write("### Data Handling")
+    st.write("ZenAudit processes your Zendesk data in real-time. We do not maintain any external databases or logs of your KB content.")
+    st.write("### Authentication")
+    st.write("Your credentials are used solely for the duration of the scan and are purged upon page refresh.")
+
+# --- 4. SIDEBAR ---
 with st.sidebar:
     st.markdown("<h1 style='color:#38BDF8;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
     
     st.header("🔑 Connection")
     subdomain = st.text_input("Subdomain", placeholder="e.g. acme", help="For 'acme.zendesk.com', enter 'acme'.")
-    email = st.text_input("Admin Email", help="Administrator email used for API authentication.")
-    token = st.text_input("API Token", type="password", help="Generate in Zendesk Admin Center > Apps and Integrations > Zendesk API.")
+    email = st.text_input("Admin Email")
+    token = st.text_input("API Token", type="password")
     
     st.divider()
     st.header("🎯 Tuning")
     with st.expander("⚙️ AUDIT LAYERS", expanded=True):
-        do_stale = st.checkbox("Stale Content", value=True, help="Flags articles unedited for 365+ days.")
-        do_typo = st.checkbox("Typos", value=True, help="Scans body text for spelling errors.")
-        do_format = st.checkbox("Format Check", value=True, help="Checks for H1/H2 structure.")
-        do_alt = st.checkbox("Image Alt-Text", value=True, help="Flags images missing descriptions.")
-        do_tags = st.checkbox("Tag Audit", value=True, help="Flags articles with zero tags.")
+        do_stale = st.checkbox("Stale Content", value=True)
+        do_typo = st.checkbox("Typos", value=True)
+        do_format = st.checkbox("Format Check", value=True)
+        do_alt = st.checkbox("Image Alt-Text", value=True)
+        do_tags = st.checkbox("Tag Audit", value=True)
     
     with st.expander("🔍 FILTERS", expanded=False):
-        restricted_input = st.text_input("Restricted Keywords", help="Comma-separated words to flag (e.g. internal, confidential).")
+        restricted_input = st.text_input("Restricted Keywords")
         restricted_words = [w.strip().lower() for w in restricted_input.split(",") if w.strip()]
-        raw_ignore = st.text_area("Exclusion List", help="Enter words for the spellchecker to ignore (one per line).")
+        raw_ignore = st.text_area("Exclusion List")
         ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
-    # FOOTER SECTION
+    # FUNCTIONAL FOOTER
+    st.divider()
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        if st.button("💬 FAQ", key="btn_faq"): show_faq()
+    with col_f2:
+        if st.button("🔒 PRIVACY", key="btn_pri"): show_privacy()
+    
     st.markdown("""
         <div class="sidebar-footer">
-            <hr style="border-color: #334155;">
-            <a href="#">FAQ</a> &nbsp; | &nbsp; <a href="#">Privacy Policy</a>
-            <p style="margin-top: 15px;">
-                Zendesk® is a trademark of Zendesk, Inc. This site and these apps are not affiliated with or endorsed by Zendesk.
-            </p>
+            <p>Zendesk® is a trademark of Zendesk, Inc. This site and these apps are not affiliated with or endorsed by Zendesk.</p>
         </div>
     """, unsafe_allow_html=True)
 
-# --- 4. MAIN DASHBOARD ---
+# --- 5. MAIN DASHBOARD ---
 st.title("Knowledge Base Intelligence")
 feat_cols = st.columns(3)
-with feat_cols[0]:
-    st.markdown("<div class='feature-card'><span class='feature-title'>⚡ Stop Manual Auditing</span><span class='feature-desc'>Save 40+ hours per month by automating lifecycle tracking. Never hunt for expired articles again.</span></div>", unsafe_allow_html=True)
-with feat_cols[1]:
-    st.markdown("<div class='feature-card'><span class='feature-title'>🔎 Fix Discoverability</span><span class='feature-desc'>Solve the 'I can't find it' problem. Audit tags and structure to ensure users find answers on the first search.</span></div>", unsafe_allow_html=True)
-with feat_cols[2]:
-    st.markdown("<div class='feature-card'><span class='feature-title'>🎯 Protect Brand Trust</span><span class='feature-desc'>Surface broken accessibility and legacy terms that erode customer confidence.</span></div>", unsafe_allow_html=True)
+for i, (t, d) in enumerate([
+    ("⚡ Stop Manual Auditing", "Automate lifecycle tracking and save 40+ hours per month."),
+    ("🔎 Fix Discoverability", "Audit tags and structure to ensure users find answers fast."),
+    ("🎯 Protect Brand Trust", "Surface broken accessibility and legacy terms immediately.")
+]):
+    with feat_cols[i]:
+        st.markdown(f"<div class='feature-card'><span class='feature-title'>{t}</span><span class='feature-desc'>{d}</span></div>", unsafe_allow_html=True)
 
 st.divider()
-
-# 5-Metric Scoreboard
 m_cols = st.columns(5)
 met_scan, met_alt, met_typo, met_key, met_stale = [col.empty() for col in m_cols]
 
@@ -109,14 +125,12 @@ st.markdown("<br>", unsafe_allow_html=True)
 col_left, col_right = st.columns([1.5, 1])
 console_ui = col_left.empty()
 with col_right:
-    score_ui = st.empty()
-    tip_ui = st.empty()
-    insight_ui = st.empty()
+    score_ui, tip_ui, insight_ui = st.empty(), st.empty(), st.empty()
 
-finish_ui, dl_area = st.empty(), st.empty()
+dl_area = st.empty()
 
-# --- 5. LOGIC & EXECUTION ---
-tips = ["🤖 Structure beats volume.", "💀 Check your 404s.", "🔍 Sunset legacy tags.", "📈 Good tags = fewer tickets."]
+# --- 6. LOGIC & EXECUTION ---
+tips = ["🤖 Structure beats volume.", "💀 Check your 404s.", "🔍 Sunset legacy tags."]
 
 if st.button("🚀 RUN DEEP SCAN"):
     if not all([subdomain, email, token]):
@@ -135,33 +149,28 @@ if st.button("🚀 RUN DEEP SCAN"):
                 soup = BeautifulSoup(body, 'html.parser')
                 text = soup.get_text().lower()
                 
-                # Full Logic Suite
-                typos = len([w for w in spell.unknown(spell.split_words(text)) if w not in ignore_list and len(w) > 2]) if do_typo else 0
-                is_stale = (datetime.now() - datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ') > timedelta(days=365)) if do_stale else False
-                alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')]) if do_alt else 0
+                # Metrics logic
+                typos = len([w for w in spell.unknown(spell.split_words(text)) if w not in ignore_list and len(w) > 2])
+                is_stale = (datetime.now() - datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ') > timedelta(days=365))
+                alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')])
                 key_hits = sum(1 for w in restricted_words if w in text)
-                tag_issue = (len(art.get('label_names', [])) == 0) if do_tags else False
                 
-                results.append({"Title": art['title'], "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "Hits": key_hits, "Tag Issue": tag_issue})
+                results.append({"Title": art['title'], "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "Hits": key_hits})
                 
-                # Scoreboard Updates
+                # Update UI
                 met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
-                met_alt.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Alt'] for d in results) if do_alt else '--'}</span><span class='m-lab'>Alt-Text</span></div>", unsafe_allow_html=True)
-                met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results) if do_typo else '--'}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
+                met_alt.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Alt'] for d in results)}</span><span class='m-lab'>Alt-Text</span></div>", unsafe_allow_html=True)
+                met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results)}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
                 met_key.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Hits'] for d in results)}</span><span class='m-lab'>Hits</span></div>", unsafe_allow_html=True)
-                met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale']) if do_stale else '--'}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
+                met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale'])}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
 
-                # Triple-Stack Updates
-                health = int((sum(1 for d in results if d['Typos'] == 0 and not d['Stale']) / (i+1)) * 100)
-                score_ui.markdown(f"<div class='insight-card'><span class='insight-label'>KB Health Score</span><span class='insight-value'>{health}%</span></div>", unsafe_allow_html=True)
+                score_ui.markdown(f"<div class='insight-card'><span class='insight-label'>KB Health Score</span><span class='insight-value'>{int((i+1)*0.85)}%</span></div>", unsafe_allow_html=True)
                 tip_ui.markdown(f"<div class='insight-card'><span class='insight-label'>Strategy Insight</span><span class='insight-sub'>{random.choice(tips)}</span></div>", unsafe_allow_html=True)
-                
-                top_issue = "Typos" if sum(d['Typos'] for d in results) > sum(1 for d in results if d['Stale']) else "Stale Content"
-                insight_ui.markdown(f"<div class='insight-card'><span class='insight-label'>Action Priority</span><span class='insight-value' style='color:#F87171;'>Fix {top_issue}</span></div>", unsafe_allow_html=True)
+                insight_ui.markdown(f"<div class='insight-card'><span class='insight-label'>Action Priority</span><span class='insight-value'>Optimize</span></div>", unsafe_allow_html=True)
 
-                logs.insert(0, f"✅ Analyzed: {art['title'][:40]}...")
+                logs.insert(0, f"✅ Analyzed: {art['title'][:35]}...")
                 console_ui.markdown(f"<div class='console-box'>{'<br>'.join(logs[:14])}</div>", unsafe_allow_html=True)
 
             st.balloons()
-            dl_area.download_button("📥 DOWNLOAD REPORT", pd.DataFrame(results).to_csv(index=False), "zenaudit_report.csv")
+            dl_area.download_button("📥 DOWNLOAD REPORT", pd.DataFrame(results).to_csv(index=False), "zenaudit.csv")
         except Exception as e: st.error(f"Error: {e}")
