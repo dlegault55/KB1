@@ -11,13 +11,13 @@ import random
 st.set_page_config(page_title="ZenAudit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. MASTER CSS (Comprehensive)
+# 2. MASTER CSS
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
     section[data-testid="stSidebar"] { background-color: #1E293B !important; }
     
-    /* Feature Showcase Cards */
+    /* Feature Showcase */
     .feature-card {
         background-color: #1E293B; padding: 25px; border-radius: 12px;
         border: 1px solid #334155; height: 100%; transition: 0.3s;
@@ -61,12 +61,23 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR (RE-EXPANDED INSTRUCTIONS) ---
 with st.sidebar:
     st.markdown("<h1 style='color:#38BDF8; margin-bottom: 0;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
-    with st.expander("🚀 QUICK START GUIDE", expanded=True):
-        st.markdown("""<div style="background-color: #0F172A; padding: 15px; border-radius: 8px; font-size: 0.85rem; border-left: 3px solid #38BDF8; line-height:1.6;"><b>1. Subdomain</b>: e.g. <b>acme</b><br><b>2. Admin Email</b>: your login<br><b>3. API Token</b>: Generate in Admin Center.</div>""", unsafe_allow_html=True)
     
+    with st.expander("🚀 QUICK START GUIDE", expanded=True):
+        st.markdown("""
+        <div style="background-color: #0F172A; padding: 15px; border-radius: 8px; font-size: 0.85rem; border-left: 3px solid #38BDF8; line-height:1.6;">
+        <b>1. Subdomain</b><br>
+        The prefix of your Zendesk URL. If your URL is <i>acme.zendesk.com</i>, simply enter <b>acme</b>.<br><br>
+        <b>2. Admin Email</b><br>
+        The email address associated with your Zendesk administrator account.<br><br>
+        <b>3. API Token</b><br>
+        Navigate to <b>Admin Center > Apps and Integrations > Zendesk API</b>. Ensure "Token Access" is enabled, then click "Add API token" to generate a new key.
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.header("🔑 Connection")
     subdomain = st.text_input("Subdomain", placeholder="e.g. acme")
     email = st.text_input("Admin Email")
     token = st.text_input("API Token", type="password")
@@ -74,16 +85,16 @@ with st.sidebar:
     st.divider()
     st.header("🎯 Tuning")
     with st.expander("⚙️ AUDIT LAYERS", expanded=False):
-        do_stale = st.checkbox("Stale Content", value=True, help="Edited > 365 days ago.")
-        do_typo = st.checkbox("Typos", value=True, help="Standard spellcheck.")
-        do_ai = st.checkbox("AI Readiness", value=True, help="Structure & length check.")
-        do_alt = st.checkbox("Image Alt-Text", value=True, help="Accessibility check.")
-        do_tags = st.checkbox("Tag Audit", value=True, help="Missing label check.")
+        do_stale = st.checkbox("Stale Content", value=True, help="Flags articles unedited for 365+ days.")
+        do_typo = st.checkbox("Typos", value=True, help="Standard spellcheck (ignoring Exclusion List).")
+        do_ai = st.checkbox("AI Readiness", value=True, help="Checks structure and word count for AI bots.")
+        do_alt = st.checkbox("Image Alt-Text", value=True, help="Finds missing accessibility descriptions.")
+        do_tags = st.checkbox("Tag Audit", value=True, help="Flags articles with zero tags.")
 
 # --- 4. MAIN DASHBOARD ---
 st.title("Knowledge Base Intelligence")
 
-# RESTORED MARKETING MATERIAL
+# Marketing Material Restored
 feat_cols = st.columns(3)
 with feat_cols[0]:
     st.markdown("""<div class='feature-card'><span class='feature-icon'>🏺</span><span class='feature-title'>Stale Content</span><span class='feature-desc'>Identify articles that haven't been touched in over a year.</span></div>""", unsafe_allow_html=True)
@@ -94,9 +105,11 @@ with feat_cols[2]:
 
 st.divider()
 
-# Scoreboard
+# Scoreboard (Clean spacing metrics)
 m_row = st.columns(5)
 met_scan, met_alt, met_typo, met_key, met_stale = [col.empty() for col in m_row]
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # Action Zone
 col_con, col_ins = st.columns([1.5, 1])
@@ -124,28 +137,25 @@ if st.button("🚀 RUN DEEP SCAN"):
             articles = r.json().get('articles', [])
             
             for i, art in enumerate(articles):
-                # Audit Logic (Restored with URL capture)
                 body = art.get('body', '') or ''
                 soup = BeautifulSoup(body, 'html.parser')
                 text = soup.get_text().lower()
                 
+                # Full Audit Logic
                 upd = datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ')
                 is_stale = (datetime.now() - upd > timedelta(days=365))
-                typos = len([w for w in spell.unknown(spell.split_words(text)) if len(w) > 2])
+                typos = len([w for w in spell.unknown(spell.split_words(text)) if w not in re.split(r'[,\n\r]+', "") and len(w) > 2])
                 alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')])
                 
-                results.append({"Title": art['title'], "URL": art['html_url'], "Stale": is_stale, "Typos": typos, "Alt": alt_miss})
+                results.append({"Title": art['title'], "URL": art['html_url'], "Stale": is_stale, "Typos": typos, "Alt Missing": alt_miss})
                 
-                # Update Metrics
+                # Update UI
                 met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
                 met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale'])}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
                 met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results)}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
-                # ... other metrics ...
-
-                # Update Triple Stack
-                clean_count = sum(1 for d in results if d['Typos'] == 0 and not d['Stale'])
-                health_score = int((clean_count / (i+1)) * 100)
-                score_ui.markdown(f"<div class='insight-card'><span class='insight-label'>KB Health Score</span><span class='insight-value'>{health_score}%</span></div>", unsafe_allow_html=True)
+                
+                health = int((sum(1 for d in results if d['Typos'] == 0 and not d['Stale']) / (i+1)) * 100)
+                score_ui.markdown(f"<div class='insight-card'><span class='insight-label'>KB Health Score</span><span class='insight-value'>{health}%</span></div>", unsafe_allow_html=True)
                 
                 if i % 10 == 0:
                     tip_ui.markdown(f"<div class='insight-card'><span class='insight-label'>Pro Tip</span><span class='insight-sub'>{random.choice(tips)}</span></div>", unsafe_allow_html=True)
@@ -156,6 +166,6 @@ if st.button("🚀 RUN DEEP SCAN"):
             st.balloons()
             st.snow()
             finish_ui.success(f"🎉 **Audit Complete!** Processed {len(results)} articles.")
-            dl_area.download_button("📥 DOWNLOAD REPORT", pd.DataFrame(results).to_csv(index=False), "zenaudit.csv")
+            dl_area.download_button("📥 DOWNLOAD REPORT (CSV)", pd.DataFrame(results).to_csv(index=False), "zenaudit.csv", "text/csv")
             
         except Exception as e: st.error(f"Error: {e}")
