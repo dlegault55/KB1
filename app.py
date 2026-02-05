@@ -11,7 +11,7 @@ import re
 st.set_page_config(page_title="ZenAudit | Content Audit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. UI Styling - FIXED TABLE ALIGNMENT & SIGNUP BOX
+# 2. UI Styling
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
@@ -51,16 +51,14 @@ st.markdown("""
     }
     .upgrade-header { color: #38BDF8; font-size: 1.3rem; font-weight: bold; margin-bottom: 15px; }
     
-    /* Fixed Roadmap Table Alignment */
     .roadmap-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
     .roadmap-table td { 
-        padding: 15px 10px; /* Added horizontal padding */
+        padding: 15px 15px; 
         border-bottom: 1px solid #334155; 
         font-size: 0.9rem; 
     }
     .roadmap-table tr:last-child td { border-bottom: none; }
     
-    /* Signup Box Styling */
     .signup-input {
         width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #334155;
         background-color: #0F172A; color: white; margin-bottom: 15px;
@@ -74,9 +72,6 @@ with st.sidebar:
     
     with st.expander("🚀 QUICK START GUIDE", expanded=True):
         st.markdown("""<div class="guide-content"><b>1. Subdomain:</b> [acme]<br><b>2. Admin Email:</b> login@company.com<br><b>3. API Token:</b> Admin Center > Apps > Zendesk API > Enable Token Access.</div>""", unsafe_allow_html=True)
-
-    with st.expander("🔒 PRIVACY & FAQ", expanded=False):
-        st.markdown("""<div class="privacy-content"><b>Privacy:</b> Credentials processed in-session. HTTPS secured. Data is wiped upon tab close.</div>""", unsafe_allow_html=True)
 
     st.header("🔑 Connection")
     subdomain = st.text_input("Subdomain", placeholder="e.g. acme")
@@ -95,9 +90,9 @@ tips = [
     "📈 **SEO Burn:** Google de-ranks stale documentation. Keep it fresh.",
     "🏺 **Digital Museum:** 1,800 articles? Time for a content sunsetting strategy.",
     "🔍 **Search Bloat:** Too many articles dilute search relevance for your customers.",
-    "🛑 **Internal Links:** Linking to 'Draft' or 'Private' content creates a dead end for users.",
-    "🥃 **Guerilla Tip:** Stop using 'New' in titles. It makes your KB look dated after 3 months.",
-    "🛠️ **Workflow:** Manual audits are for people with too much time. Let the machine find the rot."
+    "🛑 **Internal Links:** Linking to 'Draft' or 'Private' content creates a dead end.",
+    "🥃 **Guerilla Tip:** Stop using 'New' in titles. It makes your KB look dated instantly.",
+    "🛠️ **Workflow:** Manual audits are for people with too much time."
 ]
 
 def audit_content(html_body, ignore, sub, check_typos):
@@ -129,7 +124,7 @@ if st.button("🚀 RUN DEEP SCAN"):
         auth = (f"{email}/token", token)
         api_url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100"
         
-        with st.status("📡 Fetching headers...", expanded=True) as status:
+        with st.status("📡 Fetching library...", expanded=True) as status:
             while api_url:
                 res = requests.get(api_url, auth=auth)
                 if res.status_code != 200: break
@@ -139,9 +134,10 @@ if st.button("🚀 RUN DEEP SCAN"):
             status.update(label="✅ Ready", state="complete")
 
         if all_articles:
-            c1, c2, c3, c4 = st.columns(4)
-            m1, m2, m3, m4 = c1.empty(), c2.empty(), c3.empty(), c4.empty()
+            c_m1, c_m2, c_m3, c_m4 = st.columns(4)
+            m1, m2, m3, m4 = c_m1.empty(), c_m2.empty(), c_m3.empty(), c_m4.empty()
             prog_bar = st.progress(0)
+            
             col_con, col_tip = st.columns([1.5, 1])
             console_placeholder = col_con.empty()
             tip_placeholder = col_tip.empty()
@@ -165,4 +161,45 @@ if st.button("🚀 RUN DEEP SCAN"):
                 prog_bar.progress((i + 1) / total_count)
                 m1.markdown(f"<div class='metric-card'><div class='metric-label'>Scanned</div><div class='metric-value'>{i+1}</div></div>", unsafe_allow_html=True)
                 m2.markdown(f"<div class='metric-card'><div class='metric-label'>Int. 404</div><div class='metric-value'>{total_int}</div></div>", unsafe_allow_html=True)
-                m3.markdown(f"<div class='metric-card'><div class='metric-label'>Ext. 404</div><div class='metric-value'>{total_ext}</div></div>", unsafe_allow_html=
+                m3.markdown(f"<div class='metric-card'><div class='metric-label'>Ext. 404</div><div class='metric-value'>{total_ext}</div></div>", unsafe_allow_html=True)
+                m4.markdown(f"<div class='metric-card'><div class='metric-label'>Typos</div><div class='metric-value'>{total_typo}</div></div>", unsafe_allow_html=True)
+
+            st.success("✅ Deep Scan Complete.")
+            st.balloons()
+
+# --- 6. FOOTER ---
+st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
+st.markdown("### 🛠️ Coverage Details")
+st.markdown("""
+<div class="dark-card" style="margin-bottom: 30px;">
+    <div style="display: flex; gap: 40px;">
+        <div style="flex: 1;"><b>🔗 Internal 404s</b><br><span style="color: #94A3B8; font-size: 0.9rem;">Links pointing to deleted or restricted articles in your subdomain.</span></div>
+        <div style="flex: 1;"><b>🌍 External 404s</b><br><span style="color: #94A3B8; font-size: 0.9rem;">Verification of third-party links to prevent Search Abandonment.</span></div>
+        <div style="flex: 1;"><b>✍️ Typo Detection</b><br><span style="color: #94A3B8; font-size: 0.9rem;">Scans bodies for spelling errors that hurt brand trust.</span></div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+f_left, f_right = st.columns(2)
+with f_left:
+    st.markdown("""
+    <div class="dark-card">
+        <div class="upgrade-header">🗺️ Platform Roadmap</div>
+        <table class="roadmap-table">
+            <tr><td><span style="color: #38BDF8;">✅</span> <b>Zendesk Guide</b></td><td style="text-align:right; color: #38BDF8; font-weight:bold;">LIVE</td></tr>
+            <tr><td>⬜ Salesforce Knowledge</td><td style="text-align:right; color: #94A3B8;">Q3 2026</td></tr>
+            <tr><td>⬜ Intercom Articles</td><td style="text-align:right; color: #94A3B8;">Q4 2026</td></tr>
+            <tr><td>⬜ Notion / Public Docs</td><td style="text-align:right; color: #94A3B8;">Backlog</td></tr>
+        </table>
+    </div>
+    """, unsafe_allow_html=True)
+
+with f_right:
+    st.markdown("""
+    <div class="dark-card">
+        <div class="upgrade-header">📩 Get Product Updates</div>
+        <p style="font-size: 0.9rem; color: #94A3B8; margin-bottom: 20px;">Be the first to know when we launch <b>Salesforce</b> support and the <b>Full Remediation Report</b>.</p>
+        <input type="email" placeholder="email@company.com" class="signup-input">
+        <button style="background-color:#38BDF8; color:#0F172A; border:none; padding:12px; border-radius:6px; font-weight:bold; width:100%; cursor:pointer;">NOTIFY ME</button>
+    </div>
+    """, unsafe_allow_html=True)
