@@ -8,7 +8,7 @@ import random
 import re
 
 # 1. Page Configuration
-st.set_page_config(page_title="ZenAudit | Editorial Audit", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="ZenAudit | Content Audit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
 # 2. UI Styling
@@ -17,7 +17,6 @@ st.markdown("""
     .stButton>button { background-color: #219EBC; color: white; border-radius: 8px; font-weight: bold; width: 100%; height: 3.5em; text-transform: uppercase; border: none;}
     .stButton>button:hover { background-color: #023047; color: #FFB703; border: 1px solid #FFB703; }
     
-    /* Dark Contrast Expander Content */
     .guide-content {
         background-color: #023047; padding: 20px; border-radius: 8px; color: #ffffff;
         border-left: 5px solid #FFB703; font-size: 0.85rem; line-height: 1.6;
@@ -28,14 +27,13 @@ st.markdown("""
         border-left: 5px solid #219EBC; font-size: 0.8rem; line-height: 1.4;
     }
 
-    /* The Editorial Console */
     .console-box {
         background-color: #011627; color: #d6deeb; font-family: 'Courier New', monospace;
         padding: 20px; border-radius: 8px; border: 1px solid #219EBC;
         height: 320px; overflow-y: auto; font-size: 0.85rem;
     }
-    .log-err { color: #F28482; font-weight: bold; } /* Soft Red/Coral */
-    .log-msg { color: #8ECAE6; } /* Sky Blue */
+    .log-err { color: #F28482; font-weight: bold; } 
+    .log-msg { color: #8ECAE6; } 
     
     .tip-style {
         font-size: 1.05rem; padding: 25px; border-radius: 15px;
@@ -44,33 +42,33 @@ st.markdown("""
         text-align: center; color: #023047; font-weight: 600;
         box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
+
+    .upgrade-card {
+        background-color: #f8fafc; padding: 30px; border-radius: 15px;
+        border: 1px solid #e2e8f0; margin-bottom: 20px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (GUIDE & PRIVACY RESTORED) ---
+# --- 3. SIDEBAR ---
 with st.sidebar:
     st.markdown(f'<h1 style="color:#219EBC; margin-bottom:0;">🛡️ ZenAudit</h1>', unsafe_allow_html=True)
     
-    # 1. Quick Start
-    with st.expander("🚀 QUICK START GUIDE", expanded=False):
+    with st.expander("🚀 QUICK START GUIDE", expanded=True):
         st.markdown("""
         <div class="guide-content">
-            <b>1. Subdomain:</b> [acme]<br>
-            <b>2. Admin Email:</b> login@company.com<br>
+            <b>1. Subdomain:</b> [acme] from acme.zendesk.com<br>
+            <b>2. Admin Email:</b> Your login email<br>
             <b>3. API Token:</b> Admin Center > Apps > Zendesk API > Enable Token Access.
         </div>
         """, unsafe_allow_html=True)
 
-    # 2. RESTORED FAQ & PRIVACY
     with st.expander("🔒 PRIVACY & FAQ", expanded=False):
         st.markdown("""
         <div class="privacy-content">
-            <b>Does this store my data?</b><br>
-            No. This tool runs in your browser's session. Your API token and article content are never stored on a database.<br><br>
-            <b>Is it safe?</b><br>
-            We use HTTPS for all Zendesk API calls. Once you close the tab, the connection data is wiped.<br><br>
-            <b>Rate Limits?</b><br>
-            We fetch 100 articles per request to stay within Zendesk's API limits.
+            <b>Does this store my data?</b> No. It runs in your browser session.<br>
+            <b>Is it safe?</b> Yes, uses HTTPS and wipes data on tab close.<br>
+            <b>Rate Limits?</b> Fetches 100 articles per request to be safe.
         </div>
         """, unsafe_allow_html=True)
 
@@ -81,10 +79,12 @@ with st.sidebar:
     
     st.divider()
     enable_typos = st.checkbox("Scan for Typos", value=True)
-    raw_ignore = st.text_area("Exclusion List", height=80)
-    ignore_list = [w.strip().lower() for w in re.split(r'[\n,]+', raw_ignore) if w.strip()]
+    
+    st.markdown("**Exclusion List**")
+    raw_ignore = st.text_area("Words to ignore (Comma or New Line)", height=100, placeholder="SaaS, Acme, API")
+    ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
-# --- 4. THE SALTY ADMIN INSIGHTS ---
+# --- 4. DATA LOGIC & TIPS ---
 tips = [
     "💀 **Admin Truth:** If you don't fix these 404s, your customers will mention it in the CSAT comment.",
     "⚠️ **SEO Reality:** Google doesn't care how 'helpful' your article is if the first link 404s.",
@@ -92,8 +92,8 @@ tips = [
     "🛠️ **Workflow:** 1,800 articles? You don't have a Knowledge Base, you have a digital museum.",
     "🛑 **Accessibility:** If your link text is 'Click here,' you're failing customers with screen readers.",
     "📉 **Stats:** 70% of 'Search Fails' are actually customers finding the article but hitting a dead link.",
-    "🕵️ **Deep Cut:** Zendesk search index is only as good as your meta-tags. Fix the source, fix the search.",
-    "⚡ **Speed:** Manual audits are for people with too much time. Let the machine find the rot."
+    "🕵️ **Deep Cut:** Zendesk search index is only as good as your meta-tags.",
+    "⚡ **Speed:** Manual audits are for people with too much time."
 ]
 
 def audit_content(html_body, ignore, sub, check_typos):
@@ -115,11 +115,11 @@ def audit_content(html_body, ignore, sub, check_typos):
     return broken_int, broken_ext, typos
 
 # --- 5. MAIN PAGE ---
-st.title("Knowledge Base Editorial Audit")
+st.title("ZenAudit Deep Scan")
 tab1, tab2 = st.tabs(["🚀 SCAN & ANALYZE", "📥 WHY UPGRADE?"])
 
 with tab1:
-    if st.button("🚀 BEGIN EDITORIAL REVIEW"):
+    if st.button("🚀 RUN DEEP SCAN"): 
         if not all([subdomain, email, token]):
             st.error("⚠️ Credentials missing. Check the Sidebar.")
         else:
@@ -178,5 +178,44 @@ with tab1:
                     stat_ext.metric("Ext. 404s", total_ext)
                     stat_typo.metric("Typos", total_typo)
 
-                st.success(f"Review Complete. {len(report_list)} articles require revision.")
+                st.success(f"Scan Complete. {len(report_list)} articles require revision.")
                 st.balloons()
+
+with tab2:
+    st.markdown("## Editorial Audit vs. Full Remediation")
+    col_left, col_right = st.columns(2)
+    
+    with col_left:
+        st.markdown("""
+        <div class="upgrade-card">
+            <h3>🆓 The Free Scan</h3>
+            <p>Perfect for a quick health check of your library.</p>
+            <ul>
+                <li>Live article-by-article log</li>
+                <li>Real-time counter of 404s and typos</li>
+                <li>Syncs up to 1,800+ articles via API</li>
+                <li><b>No exportable data</b></li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    with col_right:
+        st.markdown("""
+        <div class="upgrade-card" style="border: 2px solid #219EBC;">
+            <h3>📥 The Remediation Report ($25)</h3>
+            <p>Actionable data to actually fix the issues.</p>
+            <ul>
+                <li><b>CSV Export:</b> Article Title + Exact URL of the broken link.</li>
+                <li><b>Error Types:</b> Classified by Internal vs External 404s.</li>
+                <li><b>Typo Mapping:</b> List of misspelled words per article.</li>
+                <li><b>Bulk Actions:</b> Ready for import into Jira or spreadsheets.</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="text-align:center; padding:20px;">
+        <p><i>The free scan helps you see the problem. The report helps you solve it.</i></p>
+        <button style="background-color:#FB8500; color:white; border:none; padding:15px 45px; border-radius:8px; font-weight:bold; cursor:pointer; width:auto;">GET FULL REPORT - $25</button>
+    </div>
+    """, unsafe_allow_html=True)
