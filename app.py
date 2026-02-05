@@ -35,7 +35,8 @@ st.markdown("""
 
     .console-box {
         background-color: #011627; color: #d6deeb; font-family: 'Courier New', monospace;
-        padding: 20px; border-radius: 8px; border: 1px solid #38BDF8; height: 400px; overflow-y: auto; padding: 15px;
+        padding: 20px; border-radius: 8px; border: 1px solid #38BDF8; height: 400px; 
+        overflow-y: auto; padding: 15px; font-size: 0.85rem;
     }
     .insight-card {
         background-color: #1E293B; padding: 15px; border-radius: 12px;
@@ -50,14 +51,14 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (COMPREHENSIVE) ---
+# --- 3. SIDEBAR ---
 with st.sidebar:
     st.markdown("<h1 style='color:#38BDF8;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
     
     st.header("🔑 Connection")
     subdomain = st.text_input("Subdomain", placeholder="e.g. acme", help="For 'acme.zendesk.com', enter 'acme'.")
     email = st.text_input("Admin Email", help="Administrator email used for API authentication.")
-    token = st.text_input("API Token", type="password", help="Enable 'Token Access' in Zendesk Admin Center > API to generate.")
+    token = st.text_input("API Token", type="password", help="Generate in Zendesk Admin Center > Apps and Integrations > Zendesk API.")
     
     st.divider()
     st.header("🎯 Tuning")
@@ -68,10 +69,10 @@ with st.sidebar:
         do_alt = st.checkbox("Image Alt-Text", value=True, help="Flags images missing descriptions.")
         do_tags = st.checkbox("Tag Audit", value=True, help="Flags articles with zero tags.")
     
-    with st.expander("🔍 FILTERS (RESTORED)", expanded=False):
+    with st.expander("🔍 FILTERS", expanded=False):
         restricted_input = st.text_input("Restricted Keywords", help="Comma-separated words to flag (e.g. internal, confidential).")
         restricted_words = [w.strip().lower() for w in restricted_input.split(",") if w.strip()]
-        raw_ignore = st.text_area("Exclusion List", help="Words for spellchecker to skip (one per line).")
+        raw_ignore = st.text_area("Exclusion List", help="Enter words for the spellchecker to ignore (one per line).")
         ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
 # --- 4. MAIN DASHBOARD ---
