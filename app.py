@@ -8,22 +8,32 @@ from datetime import datetime, timedelta
 import random
 
 # 1. Page Config
-st.set_page_config(page_title="ZenAudit v8.1", page_icon="🛡️", layout="wide")
+st.set_page_config(page_title="ZenAudit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. THE MASTER CSS (Static Layout Control)
+# 2. MASTER CSS (Showcase Cards & Clean Grid)
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
     section[data-testid="stSidebar"] { background-color: #1E293B !important; }
     
+    /* Marketing/Feature Cards */
+    .feature-card {
+        background-color: #1E293B; padding: 25px; border-radius: 12px;
+        border: 1px solid #334155; height: 100%; transition: 0.3s;
+    }
+    .feature-card:hover { border-color: #38BDF8; }
+    .feature-icon { font-size: 2rem; margin-bottom: 10px; display: block; }
+    .feature-title { font-size: 1.1rem; font-weight: bold; color: #38BDF8; margin-bottom: 8px; display: block; }
+    .feature-desc { font-size: 0.85rem; color: #94A3B8; line-height: 1.4; }
+
     /* Fixed Metric Cards */
     .metric-card {
         background-color: #1E293B; padding: 20px; border-radius: 12px;
         text-align: center; border: 1px solid #334155; height: 110px;
     }
     .m-val { font-size: 1.8rem; font-weight: bold; color: #38BDF8; display: block; }
-    .m-lab { font-size: 0.7rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; }
+    .m-lab { font-size: 0.7rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
 
     /* The Terminal Console */
     .console-box {
@@ -32,7 +42,6 @@ st.markdown("""
         height: 400px; overflow-y: auto; font-size: 0.85rem; line-height: 1.6;
     }
     
-    /* The Salty Tip Box */
     .tip-card {
         background-color: #1E293B; padding: 30px; border-radius: 12px;
         border: 1px solid #334155; height: 400px; color: #F1F5F9;
@@ -40,49 +49,60 @@ st.markdown("""
         font-size: 1.1rem; font-style: italic;
     }
 
-    /* Fixed Footer Polish */
-    .footer-card { background-color: #1E293B; padding: 25px; border-radius: 12px; border: 1px solid #334155; height: 100%; }
-    .signup-container { display: flex; gap: 8px; margin-top: 15px; }
-    .signup-input { flex: 2; padding: 10px; border-radius: 6px; border: 1px solid #334155; background-color: #0F172A; color: white; outline: none; }
-    .signup-btn { flex: 1; background-color: #38BDF8; color: #0F172A; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-    
-    .stButton>button { background-color: #38BDF8; color: #0F172A; font-weight: bold; width: 100%; height: 3.5em; border: none; border-radius: 8px; }
+    .stButton>button { 
+        background-color: #38BDF8; color: #0F172A; font-weight: bold; 
+        width: 100%; height: 3.5em; border: none; border-radius: 8px; 
+        text-transform: uppercase;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (COMMAND CENTER) ---
+# --- 3. SIDEBAR (COLLAPSIBLE TUNING) ---
 with st.sidebar:
-    st.markdown("<h1 style='color:#38BDF8;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:#38BDF8; margin-bottom: 0;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
+    
+    with st.expander("🚀 QUICK START GUIDE", expanded=True):
+        st.markdown("""<div style="font-size: 0.85rem;">1. Subdomain: 'acme'<br>2. Admin Email<br>3. API Token</div>""", unsafe_allow_html=True)
     
     st.header("🔑 Connection")
-    subdomain = st.text_input("Subdomain", placeholder="acme")
+    subdomain = st.text_input("Subdomain", placeholder="e.g. acme")
     email = st.text_input("Admin Email")
     token = st.text_input("API Token", type="password")
     
     st.divider()
-    st.header("🎯 Audit Tuning")
+    st.header("🎯 Tuning")
+    with st.expander("⚙️ AUDIT LAYERS", expanded=False):
+        do_stale = st.checkbox("Stale Content", value=True)
+        do_typo = st.checkbox("Typos", value=True)
+        do_ai = st.checkbox("AI Readiness", value=True)
+        do_alt = st.checkbox("Image Alt-Text", value=True)
+        do_tags = st.checkbox("Tag Audit", value=True)
     
-    do_stale = st.checkbox("Stale Content", value=True, help="Flags articles unedited for 365+ days.")
-    do_typo = st.checkbox("Typos", value=True, help="Scans for spelling errors (ignoring exclusions).")
-    do_ai = st.checkbox("AI Readiness", value=True, help="Checks structure & length for better AI Bot ingestion.")
-    do_alt = st.checkbox("Image Alt-Text", value=True, help="Checks for accessibility & SEO image descriptions.")
-    do_tags = st.checkbox("Tag Audit", value=True, help="Flags articles missing search tags.")
-    
-    st.divider()
-    restricted_input = st.text_input("Restricted Keywords", placeholder="OldBrand, Beta")
-    restricted_words = [w.strip().lower() for w in restricted_input.split(",") if w.strip()]
-    
-    raw_ignore = st.text_area("Exclusion List", placeholder="SaaS, API, Acme")
-    ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
+    with st.expander("🔍 CONTENT FILTERS", expanded=False):
+        restricted_input = st.text_input("Restricted Keywords")
+        restricted_words = [w.strip().lower() for w in restricted_input.split(",") if w.strip()]
+        raw_ignore = st.text_area("Exclusion List")
+        ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
-# --- 4. MAIN DASHBOARD LAYOUT ---
-st.title("Knowledge Base Intelligence Dashboard")
-st.info("⚡ **Scanning Mode:** Top 100 Recent Articles")
+# --- 4. MAIN DASHBOARD & MARKETING ---
+st.title("Knowledge Base Intelligence")
+
+# MARKETING SHOWCASE
+
+feat_cols = st.columns(3)
+with feat_cols[0]:
+    st.markdown("""<div class='feature-card'><span class='feature-icon'>🏺</span><span class='feature-title'>Stale Content Detection</span><span class='feature-desc'>Identify articles that haven't been touched in over a year. Keep your documentation relevant and trustworthy.</span></div>""", unsafe_allow_html=True)
+with feat_cols[1]:
+    st.markdown("""<div class='feature-card'><span class='feature-icon'>🤖</span><span class='feature-title'>AI-Ready Indexing</span><span class='feature-desc'>Validate content structure and length to ensure high-accuracy responses from AI Support agents.</span></div>""", unsafe_allow_html=True)
+with feat_cols[2]:
+    st.markdown("""<div class='feature-card'><span class='feature-icon'>🛡️</span><span class='feature-title'>Brand Governance</span><span class='feature-desc'>Scan for legacy branding, restricted keywords, and accessibility gaps like missing image alt-text.</span></div>""", unsafe_allow_html=True)
+
+st.divider()
 
 # Scoreboard (Static Placeholders)
 m_row = st.columns(5)
 met_scan = m_row[0].empty()
-met_link = m_row[1].empty()
+met_alt = m_row[1].empty()
 met_typo = m_row[2].empty()
 met_key = m_row[3].empty()
 met_stale = m_row[4].empty()
@@ -94,27 +114,19 @@ col_con, col_tip = st.columns([1.5, 1])
 console_ui = col_con.empty()
 tips_ui = col_tip.empty()
 
-# Download Area (Hidden until finish)
 dl_area = st.empty()
 
-# --- 5. THE ENGINE ---
-admin_tips = [
-    "💀 **Admin Truth:** If you don't fix these 404s, your customers will mention it in the CSAT comment.",
-    "🤖 **AI Reality:** Garbage in, Garbage out. Bad articles make for bad AI responses.",
-    "🔍 **Search Bloat:** 1,800 articles? Time for a sunsetting strategy.",
-    "🛠️ **Workflow:** Manual audits are for people with too much time."
-]
+# --- 5. LOGIC & EXECUTION ---
+tips = ["💀 Check your 404s.", "🤖 AI hates messy HTML.", "🔍 Sunset your legacy tags."]
 
 if st.button("🚀 RUN DEEP SCAN"):
     if not all([subdomain, email, token]):
-        st.error("Please fill in connection details in the sidebar.")
+        st.error("⚠️ Connection details missing.")
     else:
-        # Initializing UI
-        logs = []
         results = []
-        tips_ui.markdown(f"<div class='tip-card'>{random.choice(admin_tips)}</div>", unsafe_allow_html=True)
+        logs = []
+        tips_ui.markdown(f"<div class='tip-card'>{random.choice(tips)}</div>", unsafe_allow_html=True)
         
-        # API Call
         auth = (f"{email}/token", token)
         url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100"
         
@@ -123,72 +135,36 @@ if st.button("🚀 RUN DEEP SCAN"):
             articles = r.json().get('articles', [])
             
             for i, art in enumerate(articles):
-                # Data Extraction
-                body_html = art.get('body', '') or ''
-                soup = BeautifulSoup(body_html, 'html.parser')
+                body = art.get('body', '') or ''
+                soup = BeautifulSoup(body, 'html.parser')
                 text = soup.get_text().lower()
                 
-                # Logic Processing
+                # Audits
                 upd = datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ')
-                stale_flag = (datetime.now() - upd > timedelta(days=365)) if do_stale else False
+                is_stale = (datetime.now() - upd > timedelta(days=365)) if do_stale else False
+                typos = len([w for w in spell.unknown(spell.split_words(text)) if w not in ignore_list and len(w) > 2]) if do_typo else 0
+                keys = sum(1 for w in restricted_words if w in text)
+                alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')]) if do_alt else 0
                 
-                typo_count = 0
-                if do_typo:
-                    words = spell.split_words(text)
-                    typo_count = len([w for w in spell.unknown(words) if w not in ignore_list and len(w) > 2])
+                results.append({"Title": art['title'], "Stale": is_stale, "Typos": typos, "Keywords": keys, "Alt Missing": alt_miss})
                 
-                key_count = sum(1 for w in restricted_words if w in text)
-                alt_missing = len([img for img in soup.find_all('img') if not img.get('alt')]) if do_alt else 0
-                no_tags = (len(art.get('label_names', [])) == 0) if do_tags else False
-                
-                # Save Data
-                results.append({
-                    "Title": art['title'], "URL": art['html_url'], "Typos": typo_count, 
-                    "Keywords": key_count, "Stale": stale_flag, "No Tags": no_tags, "Alt Missing": alt_missing
-                })
-                
-                # Update Scoreboard
+                # Live Updates
                 met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
-                met_link.markdown(f"<div class='metric-card'><span class='m-val'>{alt_missing}</span><span class='m-lab'>Alt Missing</span></div>", unsafe_allow_html=True)
+                met_alt.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Alt Missing'] for d in results)}</span><span class='m-lab'>Alt Missing</span></div>", unsafe_allow_html=True)
                 met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results)}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
                 met_key.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Keywords'] for d in results)}</span><span class='m-lab'>Keywords</span></div>", unsafe_allow_html=True)
                 met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale'])}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
 
-                # Update Console
-                flag = "🚩" if (stale_flag or typo_count > 0 or key_count > 0 or no_tags) else "✅"
-                logs.insert(0, f"{flag} {art['title'][:45]}...")
+                status = "🚩" if (is_stale or typos > 0 or keys > 0 or alt_miss > 0) else "✅"
+                logs.insert(0, f"{status} {art['title'][:45]}...")
                 console_ui.markdown(f"<div class='console-box'>{'<br>'.join(logs[:14])}</div>", unsafe_allow_html=True)
                 
                 if i % 12 == 0:
-                    tips_ui.markdown(f"<div class='tip-card'>{random.choice(admin_tips)}</div>", unsafe_allow_html=True)
+                    tips_ui.markdown(f"<div class='tip-card'>{random.choice(tips)}</div>", unsafe_allow_html=True)
 
-            # Final Step: Show Download Button
+            # Show Download
             df = pd.DataFrame(results)
-            dl_area.download_button("📥 DOWNLOAD AUDIT REPORT (CSV)", df.to_csv(index=False), f"audit_{subdomain}.csv", "text/csv")
+            dl_area.download_button("📥 DOWNLOAD AUDIT REPORT (CSV)", df.to_csv(index=False), "zenaudit_report.csv", "text/csv")
             
         except Exception as e:
-            st.error(f"Audit Interrupted: Check your subdomain or credentials. {e}")
-
-# --- 6. FOOTER (PLAN) ---
-st.markdown("<div class='section-spacer'></div>", unsafe_allow_html=True)
-
-st.markdown("### 🧠 Platform Intelligence")
-
-f_row = st.columns(3)
-with f_row[0]: st.markdown("<div class='footer-card'><b>🏺 Stale Content</b><br><span style='font-size:0.8rem; color:#94A3B8;'>Flags articles unedited for 1+ year. Keep info fresh.</span></div>", unsafe_allow_html=True)
-with f_row[1]: st.markdown("<div class='footer-card'><b>🗣️ Restricted Keywords</b><br><span style='font-size:0.8rem; color:#94A3B8;'>Detect legacy branding or forbidden terms instantly.</span></div>", unsafe_allow_html=True)
-with f_row[2]: st.markdown("<div class='footer-card'><b>🤖 AI Readiness</b><br><span style='font-size:0.8rem; color:#94A3B8;'>Validates length & structure for AI Bot ingestion.</span></div>", unsafe_allow_html=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-b_row = st.columns(2)
-with b_row[0]: st.markdown("<div class='footer-card'><b>🗺️ Roadmap</b><br><span style='font-size:0.8rem; color:#94A3B8;'>✅ Zendesk (Live)<br>⬜ Salesforce (Q3 2026)</span></div>", unsafe_allow_html=True)
-with b_row[1]: 
-    st.markdown("""
-    <div class='footer-card'>
-        <b>📩 Get Updates</b>
-        <div class='signup-container'>
-            <input class='signup-input' placeholder='work@email.com'>
-            <button class='signup-btn'>NOTIFY ME</button>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+            st.error(f"Audit Error: {e}")
