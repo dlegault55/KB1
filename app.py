@@ -11,26 +11,23 @@ import re
 st.set_page_config(page_title="ZenAudit | Content Audit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. UI Styling - STRICT DARK MODE / NO WHITE BOXES
+# 2. UI Styling
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
     section[data-testid="stSidebar"] { background-color: #1E293B !important; }
 
-    /* Button Styling */
     .stButton>button { 
         background-color: #38BDF8; color: #0F172A; border-radius: 8px; 
         font-weight: bold; width: 100%; height: 3.5em; text-transform: uppercase; border: none;
     }
     .stButton>button:hover { background-color: #0EA5E9; color: white; }
     
-    /* Sidebar Boxes */
     .guide-content, .privacy-content {
-        background-color: #1E293B; padding: 20px; border-radius: 8px; color: #ffffff;
+        background-color: #0F172A; padding: 20px; border-radius: 8px; color: #ffffff;
         border-left: 5px solid #38BDF8; font-size: 0.85rem; line-height: 1.6; margin-bottom: 10px;
     }
 
-    /* The Dark Console */
     .console-box {
         background-color: #011627; color: #d6deeb; font-family: 'Courier New', monospace;
         padding: 20px; border-radius: 8px; border: 1px solid #38BDF8;
@@ -39,20 +36,27 @@ st.markdown("""
     .log-err { color: #F87171; font-weight: bold; } 
     .log-msg { color: #38BDF8; } 
     
-    /* Custom Dark Metrics */
+    .metric-container { margin-bottom: 30px; }
     .metric-card {
-        background-color: #1E293B; padding: 15px; border-radius: 10px;
-        text-align: center; border: 1px solid #334155;
+        background-color: #1E293B; padding: 20px; border-radius: 10px;
+        text-align: center; border: 1px solid #334155; margin: 0 5px;
     }
-    .metric-value { font-size: 1.8rem; font-weight: bold; color: #38BDF8; }
-    .metric-label { font-size: 0.8rem; color: #94A3B8; text-transform: uppercase; }
+    .metric-value { font-size: 2rem; font-weight: bold; color: #38BDF8; }
+    .metric-label { font-size: 0.85rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; }
 
-    /* Marketing/Upgrade Cards */
+    .section-spacer { margin-top: 80px; padding-top: 40px; border-top: 1px solid #334155; }
+    
     .dark-card {
         background-color: #1E293B; padding: 25px; border-radius: 12px;
-        border: 1px solid #334155; color: #F1F5F9; margin-bottom: 20px; height: 100%;
+        border: 1px solid #334155; color: #F1F5F9; height: 100%;
     }
-    .upgrade-header { color: #38BDF8; font-size: 1.4rem; font-weight: bold; margin-bottom: 15px; }
+    .upgrade-header { color: #38BDF8; font-size: 1.3rem; font-weight: bold; margin-bottom: 15px; }
+    
+    .roadmap-table { width: 100%; margin-top: 10px; }
+    .roadmap-table td { padding: 12px 0; border-bottom: 1px solid #334155; font-size: 0.9rem; }
+    
+    /* Purchase block "waiting" state - hidden but wired */
+    .purchase-hidden { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -64,7 +68,7 @@ with st.sidebar:
         st.markdown("""<div class="guide-content"><b>1. Subdomain:</b> [acme]<br><b>2. Admin Email:</b> login@company.com<br><b>3. API Token:</b> Admin Center > Apps > Zendesk API > Enable Token Access.</div>""", unsafe_allow_html=True)
 
     with st.expander("🔒 PRIVACY & FAQ", expanded=False):
-        st.markdown("""<div class="privacy-content"><b>Data Policy:</b> Session-only processing. API calls use HTTPS. Credentials are never stored.</div>""", unsafe_allow_html=True)
+        st.markdown("""<div class="privacy-content"><b>Data Policy:</b> Session-only processing. API calls use HTTPS. Credentials are never stored. Data is wiped when the tab closes.</div>""", unsafe_allow_html=True)
 
     st.header("🔑 Connection")
     subdomain = st.text_input("Subdomain", placeholder="e.g. acme")
@@ -76,12 +80,18 @@ with st.sidebar:
     raw_ignore = st.text_area("Exclusion List", height=100, placeholder="SaaS, Acme, API")
     ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
-# --- 4. CORE LOGIC ---
+# --- 4. DATA LOGIC & TIPS ---
 tips = [
     "💀 **Admin Truth:** If you don't fix these 404s, your customers will mention it in the CSAT comment.",
+    "🤖 **AI Reality:** If your articles are trash, your AI Agent will just be a very fast, very confident liar.",
+    "📈 **SEO Burn:** Google hates 'stale' content. If an article hasn't been updated since 2022, it's basically invisible.",
+    "🏺 **Digital Museum:** 1,800 articles? You don't have a Knowledge Base, you have a digital museum.",
+    "🔍 **Search Bloat:** Every bad article makes your 'Search Results' 1% more useless.",
+    "🛑 **Internal Links:** Linking to a 'Private' article from a 'Public' one is a great way to frustrate users.",
+    "🕵️ **Hidden Debt:** Broken images are just as bad as broken links.",
+    "📉 **The 80/20 Rule:** 80% of your traffic goes to 20 articles.",
     "🥃 **Guerilla Tip:** Stop using 'New' in article titles. It stays 'New' for three years.",
-    "🛠️ **Workflow:** 1,800 articles? You don't have a Knowledge Base, you have a digital museum.",
-    "📉 **Stats:** 70% of 'Search Fails' are actually customers hitting a dead link."
+    "🛠️ **Workflow:** Manual audits are for people with too much time. Let the machine find the rot."
 ]
 
 def audit_content(html_body, ignore, sub, check_typos):
@@ -102,10 +112,9 @@ def audit_content(html_body, ignore, sub, check_typos):
         typos = [w for w in spell.unknown(words) if not w.istitle() and len(w) > 2 and w.lower() not in ignore]
     return broken_int, broken_ext, typos
 
-# --- 5. MAIN PAGE LAYOUT ---
+# --- 5. MAIN SCAN INTERFACE ---
 st.title("ZenAudit Deep Scan")
 
-# Scan Controls
 if st.button("🚀 RUN DEEP SCAN"): 
     if not all([subdomain, email, token]):
         st.error("⚠️ Credentials missing. Check the Sidebar.")
@@ -125,9 +134,11 @@ if st.button("🚀 RUN DEEP SCAN"):
             status.update(label="✅ Ready to Scan", state="complete")
 
         if all_articles:
-            # Custom Metric Row
+            st.markdown('<div class="metric-container">', unsafe_allow_html=True)
             c1, c2, c3, c4 = st.columns(4)
             m1, m2, m3, m4 = c1.empty(), c2.empty(), c3.empty(), c4.empty()
+            st.markdown('</div>', unsafe_allow_html=True)
+            
             prog_bar = st.progress(0)
             
             col_con, col_tip = st.columns([1.5, 1])
@@ -144,8 +155,8 @@ if st.button("🚀 RUN DEEP SCAN"):
 
             for i, art in enumerate(all_articles):
                 b_int, b_ext, typos = audit_content(art.get('body', ''), ignore_list, subdomain, enable_typos)
-                
                 total_int += len(b_int); total_ext += len(b_ext); total_typo += len(typos)
+                
                 status_line = f"<span class='log-err'>[REVISE]</span>" if (b_int or b_ext or typos) else f"<span class='log-msg'>[VERIFIED]</span>"
                 log_entries.insert(0, f"{status_line} {art['title'][:40]}...")
                 
@@ -164,31 +175,59 @@ if st.button("🚀 RUN DEEP SCAN"):
             st.success("✅ Deep Scan Complete.")
             st.balloons()
 
-# --- 6. INTEGRATED MARKETING & UPGRADE SECTION ---
-st.divider()
+# --- 6. FOOTER: COVERAGE & ROADMAP ---
+st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
 
-col_val, col_up = st.columns([1.2, 1])
+st.markdown("### 🛠️ Coverage Details")
+st.markdown("""
+<div class="dark-card" style="margin-bottom: 30px;">
+    <div style="display: flex; gap: 40px;">
+        <div style="flex: 1;">
+            <b>🔗 Internal 404s</b><br>
+            <span style="color: #94A3B8; font-size: 0.9rem;">Links pointing to deleted or restricted articles in your subdomain.</span>
+        </div>
+        <div style="flex: 1;">
+            <b>🌍 External 404s</b><br>
+            <span style="color: #94A3B8; font-size: 0.9rem;">Verification of third-party links to prevent Search Abandonment.</span>
+        </div>
+        <div style="flex: 1;">
+            <b>✍️ Typo Detection</b><br>
+            <span style="color: #94A3B8; font-size: 0.9rem;">Scans article bodies for spelling errors that hurt brand trust.</span>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-with col_val:
-    st.markdown("### 🛠️ Coverage Details")
+# Layout for Roadmap (and hidden Purchase block)
+col_left, col_right = st.columns(2)
+
+with col_left:
     st.markdown("""
     <div class="dark-card">
-        <b>🔗 Internal 404s:</b> Links pointing to deleted or restricted articles in your subdomain.<br><br>
-        <b>🌍 External 404s:</b> Verification of third-party links to prevent Search Abandonment.<br><br>
-        <b>✍️ Typo Detection:</b> Scans article bodies for spelling errors that hurt brand trust.
+        <div class="upgrade-header">🗺️ Platform Roadmap</div>
+        <table class="roadmap-table">
+            <tr><td><span style="color: #38BDF8;">✅</span> <b>Zendesk Guide</b></td><td style="text-align:right; color: #38BDF8;"><b>LIVE</b></td></tr>
+            <tr><td>⬜ Salesforce Knowledge</td><td style="text-align:right; color: #94A3B8;">Q3 '26</td></tr>
+            <tr><td>⬜ Intercom Articles</td><td style="text-align:right; color: #94A3B8;">Q4 '26</td></tr>
+            <tr><td>⬜ Notion / Public Docs</td><td style="text-align:right; color: #94A3B8;">Backlog</td></tr>
+        </table>
     </div>
     """, unsafe_allow_html=True)
 
-with col_up:
-    st.markdown("### 📥 Remediation Report")
+with col_right:
+    # --- PURCHASE BLOCK WIRING (HIDDEN) ---
+    # To enable: remove 'display: none;' from .purchase-hidden in CSS or change class to 'dark-card'
     st.markdown("""
-    <div class="dark-card" style="border-color: #38BDF8;">
-        <div class="upgrade-header">Export Results for $25</div>
-        <ul>
-            <li><b>CSV Map:</b> Exact URLs of every broken link found.</li>
-            <li><b>Article IDs:</b> Match errors to your Zendesk articles instantly.</li>
-            <li><b>Typo List:</b> Specific misspelled words per article.</li>
-        </ul>
-        <button style="background-color:#38BDF8; color:#0F172A; border:none; padding:12px; border-radius:5px; font-weight:bold; width:100%; cursor:pointer; margin-top:10px;">PURCHASE FULL CSV REPORT</button>
+    <div class="purchase-hidden">
+        <div class="upgrade-header">📥 Remediation Report ($25)</div>
+        <p style="font-size: 0.9rem;">CSV Export with Exact URLs and Article IDs.</p>
+        <button style="background-color:#38BDF8; color:#0F172A; border:none; padding:12px; border-radius:5px; font-weight:bold; width:100%; cursor:pointer;">PURCHASE REPORT</button>
+    </div>
+    <div class="dark-card">
+        <div class="upgrade-header">💡 Why ZenAudit?</div>
+        <p style="font-size: 0.9rem; color: #94A3B8;">
+            High-performance content teams use ZenAudit to automate the "grunt work" of quality assurance. 
+            Keep your Knowledge Base lean, accurate, and ready for AI integration.
+        </p>
     </div>
     """, unsafe_allow_html=True)
