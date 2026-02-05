@@ -9,7 +9,7 @@ from spellchecker import SpellChecker
 st.set_page_config(page_title="ZenAudit | Zendesk Content Integrity", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. UI Styling (Palette: #023047, #219EBC, #8ECAE6, #FFB703, #FB8500)
+# 2. UI Styling
 st.markdown("""
     <style>
     .stButton>button { 
@@ -26,10 +26,15 @@ st.markdown("""
     .hero-header { font-size: 3.5rem; font-weight: 800; color: #023047; margin-bottom:0;}
     .hero-sub { color: #219EBC; font-size: 1.2rem; margin-bottom: 40px; font-weight: 600; }
     
+    .score-container {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;
+    }
+    
     .score-circle {
         background-color: #023047; color: #FFB703; border-radius: 50%;
-        width: 120px; height: 120px; line-height: 120px; font-size: 32px;
-        font-weight: bold; margin: 0 auto; text-align: center; border: 4px solid #FB8500;
+        width: 110px; height: 110px; line-height: 110px; font-size: 32px;
+        font-weight: bold; text-align: center; border: 4px solid #FB8500;
+        margin-bottom: 5px;
     }
     
     .pro-card {
@@ -50,7 +55,7 @@ with st.sidebar:
         st.markdown("""
         1. **Subdomain:** The part before `.zendesk.com`.
         2. **Email:** Your admin login email.
-        3. **API Token:** Found in **Zendesk Admin Center > Apps & Integrations > Zendesk API**. Enable **Token Access**.
+        3. **API Token:** In **Admin Center > Apps & Integrations > Zendesk API**.
         """)
 
     st.header("🔑 Connection")
@@ -135,37 +140,47 @@ with tab1:
                     
                     if report_list:
                         df = pd.DataFrame(report_list)
-                        total_articles = len(articles)
-                        integrity_score = int(((total_articles - len(df)) / total_articles) * 100)
+                        total_scanned = len(articles)
+                        defective_articles = len(df)
+                        integrity_score = int(((total_scanned - defective_articles) / total_scanned) * 100)
                         
                         st.subheader("📊 Executive Audit Summary")
-                        sc1, sc2, sc3, sc4 = st.columns([1,1,1,1.5])
+                        
+                        # Added Total Scanned and Alignement Fix
+                        sc0, sc1, sc2, sc3, sc4 = st.columns([1,1,1,1,1.5])
+                        sc0.metric("Total Articles", total_scanned)
                         sc1.metric("Internal Failures", df['Int Failures'].sum())
                         sc2.metric("External Failures", df['Ext Failures'].sum())
                         sc3.metric("QA Typos", df['Typos'].sum())
-                        with sc4:
-                            st.markdown(f'<div class="score-circle">{integrity_score}%</div>', unsafe_allow_html=True)
-                            st.caption("<center>Overall Integrity Score</center>", unsafe_allow_html=True)
                         
-                        # --- SCORE INTERPRETATION & BENCHMARKS ---
+                        with sc4:
+                            st.markdown(f"""
+                            <div class="score-container">
+                                <div class="score-circle">{integrity_score}%</div>
+                                <div style="font-size: 0.8rem; color: #64748b; font-weight:bold;">INTEGRITY SCORE</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
                         st.divider()
                         c_left, c_right = st.columns([2, 1])
-                        
                         with c_left:
+                            st.markdown(f"### How your score is generated")
+                            st.write(f"Your score is based on **defect density**. Out of every 100 articles scanned, **{100 - integrity_score}** contain at least one broken link or spelling error.")
+                            
                             if integrity_score < 70:
-                                st.error(f"🚨 **Critical Level Support Debt:** Your score of {integrity_score}% indicates that broken journeys are likely driving significant manual ticket volume. Immediate remediation is recommended.")
+                                st.error(f"🚨 **Critical Level:** A defect rate of {100-integrity_score}% indicates severe 'Support Debt'. Fixing these issues is the fastest way to reduce inbound tickets.")
                             elif integrity_score < 90:
-                                st.warning(f"⚠️ **Maintenance Warning:** A score of {integrity_score}% shows 'content drift.' Your brand authority is at risk due to unmaintained links.")
+                                st.warning(f"⚠️ **Maintenance Warning:** A defect rate of {100-integrity_score}% shows content drift. Aim for under 10 defects per 100 articles.")
                             else:
-                                st.success(f"🌟 **Elite Content Integrity:** Your {integrity_score}% score is in the top tier of Zendesk Help Centers. You are maximizing ticket deflection.")
+                                st.success(f"🌟 **Elite Level:** Your defect rate is impressively low. Your content is a reliable self-service engine.")
                         
                         with c_right:
                             st.markdown("""
                             **Benchmark Scale:**
-                            * **95%+** : 🏆 Elite
-                            * **85%-94%** : ✅ Healthy
-                            * **70%-84%** : ⚠️ Warning
-                            * **<70%** : 🚨 Critical
+                            * **95%+** : 🏆 Elite (Defects < 5)
+                            * **85-94%** : ✅ Healthy (Defects < 15)
+                            * **70-84%** : ⚠️ Warning (Defects < 30)
+                            * **<70%** : 🚨 Critical (Defects 30+)
                             """, unsafe_allow_html=True)
 
                         st.divider()
@@ -176,15 +191,14 @@ with tab1:
                         st.dataframe(df, use_container_width=True)
                         st.download_button("📥 DOWNLOAD AUDIT REPORT ($25)", data=df.to_csv(index=False).encode('utf-8'), file_name=f"ZenAudit_{subdomain}.csv", mime="text/csv")
                     else:
-                        st.success("🌟 100% Content Integrity!")
+                        st.success(f"🌟 100% Content Integrity across {len(articles)} articles!")
                 else: st.error(f"❌ Connection Error {response.status_code}.")
             except Exception as e: st.error(f"❌ Failure: {e}")
 
 with tab2:
-    st.markdown('<h2 style="text-align:center; color:#023047;">Why High-Performance Teams use ZenAudit</h2>', unsafe_allow_html=True)
-    
+    st.markdown('<h2 style="text-align:center; color:#023047;">Strategic Content Governance</h2>', unsafe_allow_html=True)
     col_a, col_b = st.columns(2)
     with col_a:
         st.markdown('<div style="text-align:center; padding:30px; border:2px solid #023047; border-radius:12px; height:100%;"><h3>Starter</h3><h2>FREE</h2><p>Unlimited system scans<br>Live Integrity Scoring<br>Article-level error search</p></div>', unsafe_allow_html=True)
     with col_b:
-        st.markdown(f"""<div class="pro-card"><h3 style="color:#FB8500;">Professional</h3><h2 style="color:#023047;">$25</h2><p><b>Full CSV Export Unlocked</b><br>Bulk Remediation Data<br>Team-Ready Spreadsheet</p><a href="https://buy.stripe.com/your_link" target="_blank"><button style="background-color:#FB8500; color:white; border:none; padding:15px 30px; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🚀 UNLOCK FULL REPORT</button></a></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="pro-card"><h3 style="color:#FB8500;">Professional</h3><h2 style="color:#023047;">$25</h2><p><b>Full CSV Export Unlocked</b><br>Bulk Remediation Data<br>Team Distribution Ready</p><a href="https://buy.stripe.com/your_link" target="_blank"><button style="background-color:#FB8500; color:white; border:none; padding:15px 30px; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🚀 UNLOCK FULL REPORT</button></a></div>""", unsafe_allow_html=True)
