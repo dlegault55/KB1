@@ -12,12 +12,6 @@ spell = SpellChecker()
 # 2. UI Styling with Custom Palette
 st.markdown("""
     <style>
-    /* Main Background & Text */
-    .main {
-        background-color: #ffffff;
-    }
-    
-    /* Audit Button - Blue-Green */
     .stButton>button { 
         background-color: #219EBC; 
         color: white; 
@@ -29,12 +23,7 @@ st.markdown("""
         letter-spacing: 1px;
         border: none;
     }
-    .stButton>button:hover {
-        background-color: #023047;
-        color: #FFB703;
-    }
-
-    /* Value Props - Sky Blue Background */
+    .stButton>button:hover { background-color: #023047; color: #FFB703; }
     .value-prop-box {
         background-color: #8ECAE6;
         padding: 20px;
@@ -43,15 +32,7 @@ st.markdown("""
         text-align: center;
         color: #023047;
     }
-    
-    /* Hero Header - Deep Navy */
-    .hero-header {
-        font-size: 3rem;
-        font-weight: 800;
-        color: #023047;
-    }
-
-    /* Pricing Card - Orange Focus */
+    .hero-header { font-size: 3rem; font-weight: 800; color: #023047; }
     .pro-card {
         text-align: center;
         padding: 30px;
@@ -59,57 +40,42 @@ st.markdown("""
         border-radius: 15px;
         background-color: #fcfcfc;
     }
-    
-    /* Metric Styling */
-    [data-testid="stMetricValue"] {
-        color: #023047;
-        font-weight: bold;
-    }
-
-    /* Comparison Table */
-    .comp-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 20px 0;
-    }
-    .comp-table th {
-        background-color: #023047;
-        color: #8ECAE6;
-        padding: 12px;
-    }
-    .comp-table td {
-        border: 1px solid #8ECAE6;
-        padding: 10px;
-        text-align: center;
-    }
-    .highlight-cell {
-        background-color: #FFB703;
-        color: #023047;
-        font-weight: bold;
-    }
+    .comp-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    .comp-table th { background-color: #023047; color: #8ECAE6; padding: 12px; }
+    .comp-table td { border: 1px solid #8ECAE6; padding: 10px; text-align: center; }
+    .highlight-cell { background-color: #FFB703; color: #023047; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR (With Instructions & Toggle) ---
 with st.sidebar:
-    st.markdown(f'<h1 style="color:#219EBC;">🛡️ Settings</h1>', unsafe_allow_html=True)
-    st.info("🎯 **Target:** Zendesk Guide")
-    subdomain = st.text_input("Subdomain", placeholder="acme-support")
-    email = st.text_input("Admin Email")
-    token = st.text_input("API Token", type="password")
+    st.markdown(f'<h1 style="color:#219EBC;">🛡️ Link Warden</h1>', unsafe_allow_html=True)
+    
+    with st.expander("📖 Quick Start Guide", expanded=False):
+        st.write("""
+        1. **Subdomain:** The part before '.zendesk.com' in your URL.
+        2. **Email:** Your Zendesk admin login email.
+        3. **API Token:** Go to **Zendesk Admin Center > Apps & Integrations > Zendesk API**. Enable Token Access and create a new secret.
+        """)
+
+    st.header("🔑 Connection")
+    subdomain = st.text_input("Zendesk Subdomain", placeholder="acme-support", help="If your URL is acme-support.zendesk.com, enter 'acme-support'")
+    email = st.text_input("Admin Email", placeholder="admin@acme.com", help="The email you use to log into your Zendesk dashboard.")
+    token = st.text_input("API Token", type="password", help="Ensure 'Token Access' is enabled in your Zendesk API settings.")
     
     st.divider()
-    st.header("⚙️ Configuration")
-    ignore_list = st.text_area("Exclusion List", placeholder="Zendesk\nSaaS").split('\n')
+    st.header("⚙️ Audit Scope")
+    # THE TYPO TOGGLE
+    enable_typos = st.checkbox("Enable Spellcheck (Beta)", value=True, help="Uncheck this to speed up the scan if you only care about broken links.")
+    ignore_list = st.text_area("Exclusion List", placeholder="Zendesk\nSaaS", help="Words to ignore during spellcheck.").split('\n')
     
     st.divider()
-    st.caption("Link Warden Pro v2.4")
+    st.caption("Link Warden Pro v2.5")
 
 # --- 4. MAIN PAGE ---
 st.markdown('<div class="hero-header">🛡️ Link Warden Pro</div>', unsafe_allow_html=True)
 st.markdown("<h4 style='color:#219EBC;'>Zendesk Content Integrity Suite</h4>", unsafe_allow_html=True)
 
-# Value Props Section
 col_v1, col_v2, col_v3 = st.columns(3)
 with col_v1:
     st.markdown("""<div class="value-prop-box"><h2 style='margin:0;'>📉</h2><b>Deflect Tickets</b><br>Fix the self-service path.</div>""", unsafe_allow_html=True)
@@ -124,10 +90,12 @@ st.divider()
 tab1, tab2 = st.tabs(["🚀 AUDIT ENGINE", "💎 PRICING & COMPARISON"])
 
 with tab1:
-    def audit_content(html_body, ignore, sub):
+    def audit_content(html_body, ignore, sub, check_typos):
         soup = BeautifulSoup(html_body, 'html.parser')
         links = [a.get('href') for a in soup.find_all('a') if a.get('href') and a.get('href').startswith('http')]
         broken_int, broken_ext = [], []
+        
+        # Link Audit Logic
         for url in links:
             try:
                 res = requests.head(url, timeout=3, allow_redirects=True)
@@ -137,14 +105,18 @@ with tab1:
             except:
                 broken_ext.append(url)
         
-        text = soup.get_text()
-        words = spell.split_words(text)
-        typos = [w for w in spell.unknown(words) if not w.istitle() and len(w) > 2 and w.lower() not in [i.lower() for i in ignore]]
+        # Optional Typo Logic
+        typos = []
+        if check_typos:
+            text = soup.get_text()
+            words = spell.split_words(text)
+            typos = [w for w in spell.unknown(words) if not w.istitle() and len(w) > 2 and w.lower() not in [i.lower() for i in ignore]]
+            
         return broken_int, broken_ext, typos
 
-    if st.button("🚀 INITIALIZE AUDIT"):
+    if st.button("🚀 INITIALIZE SYSTEM AUDIT"):
         if not all([subdomain, email, token]):
-            st.warning("⚠️ Credentials Required in Sidebar")
+            st.warning("⚠️ Credentials Required: Please fill out the connection settings in the sidebar.")
         else:
             api_url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json"
             auth = (f"{email}/token", token)
@@ -156,29 +128,31 @@ with tab1:
                     progress_bar = st.progress(0)
                     for i, art in enumerate(articles):
                         progress_bar.progress((i + 1) / len(articles))
-                        b_int, b_ext, typos = audit_content(art['body'], ignore_list, subdomain)
+                        b_int, b_ext, typos = audit_content(art['body'], ignore_list, subdomain, enable_typos)
                         if b_int or b_ext or typos:
                             report_list.append({
                                 "Title": art['title'], "Internal 404s": len(b_int), 
-                                "External 404s": len(b_ext), "Typos": len(typos),
-                                "Details": f"Links: {len(b_int)+len(b_ext)}, Typos: {', '.join(typos[:5])}"
+                                "External 404s": len(b_ext), "Typos Found": len(typos),
+                                "Article Link": art['html_url']
                             })
                     
                     if report_list:
                         df = pd.DataFrame(report_list)
-                        st.subheader("📊 Audit Summary")
+                        st.subheader("📊 Executive Results")
                         c1, c2, c3 = st.columns(3)
                         c1.metric("Internal Failures", df['Internal 404s'].sum())
                         c2.metric("External Failures", df['External 404s'].sum())
-                        c3.metric("QA Typo Risks", df['Typos'].sum())
+                        c3.metric("QA Typo Risks", df['Typos Found'].sum() if enable_typos else "N/A")
                         
                         st.dataframe(df, use_container_width=True)
                         csv = df.to_csv(index=False).encode('utf-8')
-                        st.download_button("📥 DOWNLOAD CSV REPORT", data=csv, file_name="audit.csv", mime="text/csv")
+                        st.download_button("📥 DOWNLOAD CSV REPORT ($25)", data=csv, file_name=f"audit_{subdomain}.csv", mime="text/csv")
                     else:
-                        st.success("Perfect Integrity!")
+                        st.success("🌟 Perfect Integrity! No issues detected.")
+                else:
+                    st.error(f"❌ Connection Error {response.status_code}. Check your API credentials.")
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error(f"❌ System Failure: {e}")
 
 with tab2:
     st.markdown("""
