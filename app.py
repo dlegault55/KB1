@@ -43,7 +43,7 @@ st.markdown("""
     .metric-value { font-size: 2rem; font-weight: bold; color: #38BDF8; }
     .metric-label { font-size: 0.85rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; }
 
-    .section-spacer { margin-top: 80px; padding-top: 40px; border-top: 1px solid #334155; }
+    .section-spacer { margin-top: 60px; padding-top: 40px; border-top: 1px solid #334155; }
     
     .dark-card {
         background-color: #1E293B; padding: 25px; border-radius: 12px;
@@ -52,11 +52,7 @@ st.markdown("""
     .upgrade-header { color: #38BDF8; font-size: 1.3rem; font-weight: bold; margin-bottom: 15px; }
     
     .roadmap-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-    .roadmap-table td { 
-        padding: 15px 15px; 
-        border-bottom: 1px solid #334155; 
-        font-size: 0.9rem; 
-    }
+    .roadmap-table td { padding: 15px 15px; border-bottom: 1px solid #334155; font-size: 0.9rem; }
     .roadmap-table tr:last-child td { border-bottom: none; }
     
     .signup-input {
@@ -66,33 +62,28 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR (LEGACY FEATURES PRESERVED) ---
 with st.sidebar:
     st.markdown(f'<h1 style="color:#38BDF8; margin-bottom:0;">🛡️ ZenAudit</h1>', unsafe_allow_html=True)
-    
     with st.expander("🚀 QUICK START GUIDE", expanded=True):
         st.markdown("""<div class="guide-content"><b>1. Subdomain:</b> [acme]<br><b>2. Admin Email:</b> login@company.com<br><b>3. API Token:</b> Admin Center > Apps > Zendesk API > Enable Token Access.</div>""", unsafe_allow_html=True)
-
     st.header("🔑 Connection")
     subdomain = st.text_input("Subdomain", placeholder="e.g. acme")
     email = st.text_input("Admin Email")
     token = st.text_input("API Token", type="password")
-    
     st.divider()
     enable_typos = st.checkbox("Scan for Typos", value=True)
     raw_ignore = st.text_area("Exclusion List", height=100, placeholder="SaaS, Acme, API")
     ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
-# --- 4. CORE LOGIC & TIPS ---
+# --- 4. DATA LOGIC & TIPS ---
 tips = [
     "💀 **Admin Truth:** If you don't fix these 404s, your customers will mention it in the CSAT comment.",
     "🤖 **AI Reality:** Garbage in, Garbage out. Bad articles make for bad AI responses.",
     "📈 **SEO Burn:** Google de-ranks stale documentation. Keep it fresh.",
     "🏺 **Digital Museum:** 1,800 articles? Time for a content sunsetting strategy.",
     "🔍 **Search Bloat:** Too many articles dilute search relevance for your customers.",
-    "🛑 **Internal Links:** Linking to 'Draft' or 'Private' content creates a dead end.",
-    "🥃 **Guerilla Tip:** Stop using 'New' in titles. It makes your KB look dated instantly.",
-    "🛠️ **Workflow:** Manual audits are for people with too much time."
+    "🥃 **Guerilla Tip:** Stop using 'New' in titles. It makes your KB look dated instantly."
 ]
 
 def audit_content(html_body, ignore, sub, check_typos):
@@ -137,7 +128,6 @@ if st.button("🚀 RUN DEEP SCAN"):
             c_m1, c_m2, c_m3, c_m4 = st.columns(4)
             m1, m2, m3, m4 = c_m1.empty(), c_m2.empty(), c_m3.empty(), c_m4.empty()
             prog_bar = st.progress(0)
-            
             col_con, col_tip = st.columns([1.5, 1])
             console_placeholder = col_con.empty()
             tip_placeholder = col_tip.empty()
@@ -167,8 +157,10 @@ if st.button("🚀 RUN DEEP SCAN"):
             st.success("✅ Deep Scan Complete.")
             st.balloons()
 
-# --- 6. FOOTER ---
+# --- 6. FOOTER (NO FEATURES REMOVED) ---
 st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
+
+# THE "WHY" BOX (PRESERVED)
 st.markdown("### 🛠️ Coverage Details")
 st.markdown("""
 <div class="dark-card" style="margin-bottom: 30px;">
@@ -180,6 +172,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# ROADMAP & SIGNUP BOX (ADDED)
 f_left, f_right = st.columns(2)
 with f_left:
     st.markdown("""
@@ -198,7 +191,7 @@ with f_right:
     st.markdown("""
     <div class="dark-card">
         <div class="upgrade-header">📩 Get Product Updates</div>
-        <p style="font-size: 0.9rem; color: #94A3B8; margin-bottom: 20px;">Be the first to know when we launch <b>Salesforce</b> support and the <b>Full Remediation Report</b>.</p>
+        <p style="font-size: 0.9rem; color: #94A3B8; margin-bottom: 20px;">Be the first to know when we launch new integrations and advanced reporting.</p>
         <input type="email" placeholder="email@company.com" class="signup-input">
         <button style="background-color:#38BDF8; color:#0F172A; border:none; padding:12px; border-radius:6px; font-weight:bold; width:100%; cursor:pointer;">NOTIFY ME</button>
     </div>
