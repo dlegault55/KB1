@@ -48,6 +48,9 @@ st.markdown("""
     .insight-sub { font-size: 0.85rem; color: #F1F5F9; font-style: italic; }
 
     .stButton>button { background-color: #38BDF8; color: #0F172A; font-weight: bold; width: 100%; height: 3.5em; border-radius: 8px; text-transform: uppercase; }
+    
+    .sidebar-footer { font-size: 0.75rem; color: #64748B; margin-top: 50px; line-height: 1.4; }
+    .sidebar-footer a { color: #38BDF8; text-decoration: none; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -74,6 +77,17 @@ with st.sidebar:
         restricted_words = [w.strip().lower() for w in restricted_input.split(",") if w.strip()]
         raw_ignore = st.text_area("Exclusion List", help="Enter words for the spellchecker to ignore (one per line).")
         ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
+
+    # FOOTER SECTION
+    st.markdown("""
+        <div class="sidebar-footer">
+            <hr style="border-color: #334155;">
+            <a href="#">FAQ</a> &nbsp; | &nbsp; <a href="#">Privacy Policy</a>
+            <p style="margin-top: 15px;">
+                Zendesk® is a trademark of Zendesk, Inc. This site and these apps are not affiliated with or endorsed by Zendesk.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
 # --- 4. MAIN DASHBOARD ---
 st.title("Knowledge Base Intelligence")
@@ -121,7 +135,7 @@ if st.button("🚀 RUN DEEP SCAN"):
                 soup = BeautifulSoup(body, 'html.parser')
                 text = soup.get_text().lower()
                 
-                # Logic
+                # Full Logic Suite
                 typos = len([w for w in spell.unknown(spell.split_words(text)) if w not in ignore_list and len(w) > 2]) if do_typo else 0
                 is_stale = (datetime.now() - datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ') > timedelta(days=365)) if do_stale else False
                 alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')]) if do_alt else 0
@@ -130,14 +144,14 @@ if st.button("🚀 RUN DEEP SCAN"):
                 
                 results.append({"Title": art['title'], "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "Hits": key_hits, "Tag Issue": tag_issue})
                 
-                # Live Scoreboard Update
+                # Scoreboard Updates
                 met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
                 met_alt.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Alt'] for d in results) if do_alt else '--'}</span><span class='m-lab'>Alt-Text</span></div>", unsafe_allow_html=True)
                 met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results) if do_typo else '--'}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
                 met_key.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Hits'] for d in results)}</span><span class='m-lab'>Hits</span></div>", unsafe_allow_html=True)
                 met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale']) if do_stale else '--'}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
 
-                # Live Triple-Stack Update
+                # Triple-Stack Updates
                 health = int((sum(1 for d in results if d['Typos'] == 0 and not d['Stale']) / (i+1)) * 100)
                 score_ui.markdown(f"<div class='insight-card'><span class='insight-label'>KB Health Score</span><span class='insight-value'>{health}%</span></div>", unsafe_allow_html=True)
                 tip_ui.markdown(f"<div class='insight-card'><span class='insight-label'>Strategy Insight</span><span class='insight-sub'>{random.choice(tips)}</span></div>", unsafe_allow_html=True)
