@@ -11,23 +11,26 @@ import re
 st.set_page_config(page_title="ZenAudit | Content Audit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. UI Styling
+# 2. UI Styling - Strict Dark Mode, No White Boxes, Padded Metrics
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
     section[data-testid="stSidebar"] { background-color: #1E293B !important; }
 
+    /* Action Button */
     .stButton>button { 
         background-color: #38BDF8; color: #0F172A; border-radius: 8px; 
         font-weight: bold; width: 100%; height: 3.5em; text-transform: uppercase; border: none;
     }
     .stButton>button:hover { background-color: #0EA5E9; color: white; }
     
-    .guide-content, .privacy-content {
+    /* Sidebar Information Boxes */
+    .guide-content {
         background-color: #0F172A; padding: 20px; border-radius: 8px; color: #ffffff;
         border-left: 5px solid #38BDF8; font-size: 0.85rem; line-height: 1.6; margin-bottom: 10px;
     }
 
+    /* Operational Console */
     .console-box {
         background-color: #011627; color: #d6deeb; font-family: 'Courier New', monospace;
         padding: 20px; border-radius: 8px; border: 1px solid #38BDF8;
@@ -36,6 +39,7 @@ st.markdown("""
     .log-err { color: #F87171; font-weight: bold; } 
     .log-msg { color: #38BDF8; } 
     
+    /* Padded Metric Cards */
     .metric-card {
         background-color: #1E293B; padding: 20px; border-radius: 10px;
         text-align: center; border: 1px solid #334155; margin: 0 5px;
@@ -43,6 +47,7 @@ st.markdown("""
     .metric-value { font-size: 2rem; font-weight: bold; color: #38BDF8; }
     .metric-label { font-size: 0.85rem; color: #94A3B8; text-transform: uppercase; letter-spacing: 1px; }
 
+    /* Page Sections & Spacing */
     .section-spacer { margin-top: 60px; padding-top: 40px; border-top: 1px solid #334155; }
     
     .dark-card {
@@ -51,10 +56,12 @@ st.markdown("""
     }
     .upgrade-header { color: #38BDF8; font-size: 1.3rem; font-weight: bold; margin-bottom: 15px; }
     
+    /* Roadmap Table Alignment Fix */
     .roadmap-table { width: 100%; border-collapse: collapse; margin-top: 5px; }
     .roadmap-table td { padding: 15px 15px; border-bottom: 1px solid #334155; font-size: 0.9rem; }
     .roadmap-table tr:last-child td { border-bottom: none; }
     
+    /* Lead Capture Input */
     .signup-input {
         width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #334155;
         background-color: #0F172A; color: white; margin-bottom: 15px;
@@ -62,28 +69,32 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (LEGACY FEATURES PRESERVED) ---
+# --- 3. SIDEBAR ---
 with st.sidebar:
     st.markdown(f'<h1 style="color:#38BDF8; margin-bottom:0;">🛡️ ZenAudit</h1>', unsafe_allow_html=True)
     with st.expander("🚀 QUICK START GUIDE", expanded=True):
         st.markdown("""<div class="guide-content"><b>1. Subdomain:</b> [acme]<br><b>2. Admin Email:</b> login@company.com<br><b>3. API Token:</b> Admin Center > Apps > Zendesk API > Enable Token Access.</div>""", unsafe_allow_html=True)
+    
     st.header("🔑 Connection")
     subdomain = st.text_input("Subdomain", placeholder="e.g. acme")
     email = st.text_input("Admin Email")
     token = st.text_input("API Token", type="password")
+    
     st.divider()
     enable_typos = st.checkbox("Scan for Typos", value=True)
     raw_ignore = st.text_area("Exclusion List", height=100, placeholder="SaaS, Acme, API")
     ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
-# --- 4. DATA LOGIC & TIPS ---
+# --- 4. DATA LOGIC & EXPANDED TIPS ---
 tips = [
     "💀 **Admin Truth:** If you don't fix these 404s, your customers will mention it in the CSAT comment.",
     "🤖 **AI Reality:** Garbage in, Garbage out. Bad articles make for bad AI responses.",
     "📈 **SEO Burn:** Google de-ranks stale documentation. Keep it fresh.",
     "🏺 **Digital Museum:** 1,800 articles? Time for a content sunsetting strategy.",
     "🔍 **Search Bloat:** Too many articles dilute search relevance for your customers.",
-    "🥃 **Guerilla Tip:** Stop using 'New' in titles. It makes your KB look dated instantly."
+    "🛑 **Internal Links:** Linking to 'Draft' or 'Private' content creates a dead end for users.",
+    "🥃 **Guerilla Tip:** Stop using 'New' in titles. It makes your KB look dated after 3 months.",
+    "🛠️ **Workflow:** Manual audits are for people with too much time. Let the machine find the rot."
 ]
 
 def audit_content(html_body, ignore, sub, check_typos):
@@ -104,7 +115,7 @@ def audit_content(html_body, ignore, sub, check_typos):
         typos = [w for w in spell.unknown(words) if not w.istitle() and len(w) > 2 and w.lower() not in ignore]
     return broken_int, broken_ext, typos
 
-# --- 5. MAIN PAGE ---
+# --- 5. MAIN SCAN INTERFACE ---
 st.title("ZenAudit Deep Scan")
 
 if st.button("🚀 RUN DEEP SCAN"): 
@@ -122,12 +133,15 @@ if st.button("🚀 RUN DEEP SCAN"):
                 data = res.json()
                 all_articles.extend(data.get('articles', []))
                 api_url = data.get('next_page')
-            status.update(label="✅ Ready", state="complete")
+            status.update(label="✅ Ready to Process", state="complete")
 
         if all_articles:
+            # Metrics Row
             c_m1, c_m2, c_m3, c_m4 = st.columns(4)
             m1, m2, m3, m4 = c_m1.empty(), c_m2.empty(), c_m3.empty(), c_m4.empty()
             prog_bar = st.progress(0)
+            
+            # Operational Console and Tips
             col_con, col_tip = st.columns([1.5, 1])
             console_placeholder = col_con.empty()
             tip_placeholder = col_tip.empty()
@@ -154,35 +168,57 @@ if st.button("🚀 RUN DEEP SCAN"):
                 m3.markdown(f"<div class='metric-card'><div class='metric-label'>Ext. 404</div><div class='metric-value'>{total_ext}</div></div>", unsafe_allow_html=True)
                 m4.markdown(f"<div class='metric-card'><div class='metric-label'>Typos</div><div class='metric-value'>{total_typo}</div></div>", unsafe_allow_html=True)
 
-            st.success("✅ Deep Scan Complete.")
+            st.success(f"✅ Deep Scan Complete. {total_int + total_ext + total_typo} errors detected.")
             st.balloons()
 
-# --- 6. FOOTER (NO FEATURES REMOVED) ---
+# --- 6. FOOTER (ALL SECTIONS PRESERVED) ---
 st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
 
-# THE "WHY" BOX (PRESERVED)
+# 6a. Coverage Details (The "Why" Box)
 st.markdown("### 🛠️ Coverage Details")
 st.markdown("""
 <div class="dark-card" style="margin-bottom: 30px;">
     <div style="display: flex; gap: 40px;">
-        <div style="flex: 1;"><b>🔗 Internal 404s</b><br><span style="color: #94A3B8; font-size: 0.9rem;">Links pointing to deleted or restricted articles in your subdomain.</span></div>
-        <div style="flex: 1;"><b>🌍 External 404s</b><br><span style="color: #94A3B8; font-size: 0.9rem;">Verification of third-party links to prevent Search Abandonment.</span></div>
-        <div style="flex: 1;"><b>✍️ Typo Detection</b><br><span style="color: #94A3B8; font-size: 0.9rem;">Scans bodies for spelling errors that hurt brand trust.</span></div>
+        <div style="flex: 1;">
+            <b>🔗 Internal 404s</b><br>
+            <span style="color: #94A3B8; font-size: 0.9rem;">Links pointing to deleted or restricted articles in your subdomain.</span>
+        </div>
+        <div style="flex: 1;">
+            <b>🌍 External 404s</b><br>
+            <span style="color: #94A3B8; font-size: 0.9rem;">Verification of third-party links to prevent Search Abandonment.</span>
+        </div>
+        <div style="flex: 1;">
+            <b>✍️ Typo Detection</b><br>
+            <span style="color: #94A3B8; font-size: 0.9rem;">Scans article bodies for spelling errors that hurt brand trust.</span>
+        </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# ROADMAP & SIGNUP BOX (ADDED)
+# 6b. Roadmap & Signup
 f_left, f_right = st.columns(2)
+
 with f_left:
     st.markdown("""
     <div class="dark-card">
         <div class="upgrade-header">🗺️ Platform Roadmap</div>
         <table class="roadmap-table">
-            <tr><td><span style="color: #38BDF8;">✅</span> <b>Zendesk Guide</b></td><td style="text-align:right; color: #38BDF8; font-weight:bold;">LIVE</td></tr>
-            <tr><td>⬜ Salesforce Knowledge</td><td style="text-align:right; color: #94A3B8;">Q3 2026</td></tr>
-            <tr><td>⬜ Intercom Articles</td><td style="text-align:right; color: #94A3B8;">Q4 2026</td></tr>
-            <tr><td>⬜ Notion / Public Docs</td><td style="text-align:right; color: #94A3B8;">Backlog</td></tr>
+            <tr>
+                <td><span style="color: #38BDF8;">✅</span> <b>Zendesk Guide</b></td>
+                <td style="text-align:right; color: #38BDF8; font-weight:bold;">LIVE</td>
+            </tr>
+            <tr>
+                <td>⬜ Salesforce Knowledge</td>
+                <td style="text-align:right; color: #94A3B8;">Q3 2026</td>
+            </tr>
+            <tr>
+                <td>⬜ Intercom Articles</td>
+                <td style="text-align:right; color: #94A3B8;">Q4 2026</td>
+            </tr>
+            <tr>
+                <td>⬜ Notion / Public Docs</td>
+                <td style="text-align:right; color: #94A3B8;">Backlog</td>
+            </tr>
         </table>
     </div>
     """, unsafe_allow_html=True)
@@ -191,8 +227,12 @@ with f_right:
     st.markdown("""
     <div class="dark-card">
         <div class="upgrade-header">📩 Get Product Updates</div>
-        <p style="font-size: 0.9rem; color: #94A3B8; margin-bottom: 20px;">Be the first to know when we launch new integrations and advanced reporting.</p>
+        <p style="font-size: 0.9rem; color: #94A3B8; margin-bottom: 20px;">
+            Be the first to know when we launch new integrations and advanced reporting features.
+        </p>
         <input type="email" placeholder="email@company.com" class="signup-input">
-        <button style="background-color:#38BDF8; color:#0F172A; border:none; padding:12px; border-radius:6px; font-weight:bold; width:100%; cursor:pointer;">NOTIFY ME</button>
+        <button style="background-color:#38BDF8; color:#0F172A; border:none; padding:12px; border-radius:6px; font-weight:bold; width:100%; cursor:pointer;">
+            NOTIFY ME
+        </button>
     </div>
     """, unsafe_allow_html=True)
