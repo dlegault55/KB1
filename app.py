@@ -11,66 +11,59 @@ import re
 st.set_page_config(page_title="ZenAudit | Content Audit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. UI Styling
+# 2. UI Styling - NO WHITE BOXES
 st.markdown("""
     <style>
-    .stButton>button { background-color: #219EBC; color: white; border-radius: 8px; font-weight: bold; width: 100%; height: 3.5em; text-transform: uppercase; border: none;}
-    .stButton>button:hover { background-color: #023047; color: #FFB703; border: 1px solid #FFB703; }
+    /* Main Background & Text */
+    .stApp { background-color: #0F172A; color: #E2E8F0; }
     
-    .guide-content {
-        background-color: #023047; padding: 20px; border-radius: 8px; color: #ffffff;
-        border-left: 5px solid #FFB703; font-size: 0.85rem; line-height: 1.6;
-    }
-    .guide-content b { color: #FFB703; }
-    .privacy-content {
-        background-color: #023047; padding: 15px; border-radius: 8px; color: #e0f2f1;
-        border-left: 5px solid #219EBC; font-size: 0.8rem; line-height: 1.4;
-    }
+    /* Sidebar styling */
+    section[data-testid="stSidebar"] { background-color: #1E293B !important; }
 
+    /* Button Styling */
+    .stButton>button { 
+        background-color: #38BDF8; color: #0F172A; border-radius: 8px; 
+        font-weight: bold; width: 100%; height: 3.5em; text-transform: uppercase; border: none;
+    }
+    .stButton>button:hover { background-color: #0EA5E9; color: white; }
+    
+    /* Dark Contrast Expander Boxes */
+    .guide-content, .privacy-content {
+        background-color: #0F172A; padding: 20px; border-radius: 8px; color: #ffffff;
+        border-left: 5px solid #38BDF8; font-size: 0.85rem; line-height: 1.6;
+    }
+    .guide-content b { color: #38BDF8; }
+
+    /* The Dark Console */
     .console-box {
         background-color: #011627; color: #d6deeb; font-family: 'Courier New', monospace;
-        padding: 20px; border-radius: 8px; border: 1px solid #219EBC;
+        padding: 20px; border-radius: 8px; border: 1px solid #38BDF8;
         height: 320px; overflow-y: auto; font-size: 0.85rem;
     }
-    .log-err { color: #F28482; font-weight: bold; } 
-    .log-msg { color: #8ECAE6; } 
+    .log-err { color: #F87171; font-weight: bold; } 
+    .log-msg { color: #38BDF8; } 
     
-    .tip-style {
-        font-size: 1.05rem; padding: 25px; border-radius: 15px;
-        background-color: #ffffff; border: 2px solid #023047;
-        min-height: 140px; display: flex; align-items: center; justify-content: center;
-        text-align: center; color: #023047; font-weight: 600;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    /* Dark Cards for Tips & Marketing */
+    .dark-card {
+        background-color: #1E293B; padding: 25px; border-radius: 12px;
+        border: 1px solid #334155; color: #F1F5F9; margin-bottom: 20px;
     }
-
-    .upgrade-card {
-        background-color: #f8fafc; padding: 30px; border-radius: 15px;
-        border: 1px solid #e2e8f0; margin-bottom: 20px;
+    .tip-style {
+        font-size: 1.05rem; min-height: 140px; display: flex; 
+        align-items: center; justify-content: center; text-align: center;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 3. SIDEBAR ---
 with st.sidebar:
-    st.markdown(f'<h1 style="color:#219EBC; margin-bottom:0;">🛡️ ZenAudit</h1>', unsafe_allow_html=True)
+    st.markdown(f'<h1 style="color:#38BDF8; margin-bottom:0;">🛡️ ZenAudit</h1>', unsafe_allow_html=True)
     
     with st.expander("🚀 QUICK START GUIDE", expanded=True):
-        st.markdown("""
-        <div class="guide-content">
-            <b>1. Subdomain:</b> [acme] from acme.zendesk.com<br>
-            <b>2. Admin Email:</b> Your login email<br>
-            <b>3. API Token:</b> Admin Center > Apps > Zendesk API > Enable Token Access.
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div class="guide-content"><b>1. Subdomain:</b> [acme]<br><b>2. Admin Email:</b> login@company.com<br><b>3. API Token:</b> Admin Center > Apps > Zendesk API > Enable Token Access.</div>""", unsafe_allow_html=True)
 
     with st.expander("🔒 PRIVACY & FAQ", expanded=False):
-        st.markdown("""
-        <div class="privacy-content">
-            <b>Does this store my data?</b> No. It runs in your browser session.<br>
-            <b>Is it safe?</b> Yes, uses HTTPS and wipes data on tab close.<br>
-            <b>Rate Limits?</b> Fetches 100 articles per request to be safe.
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div class="privacy-content"><b>Does this store my data?</b> No. It runs in your browser session. All API calls use HTTPS. Data is wiped on tab close.</div>""", unsafe_allow_html=True)
 
     st.header("🔑 Connection")
     subdomain = st.text_input("Subdomain", placeholder="e.g. acme")
@@ -79,9 +72,7 @@ with st.sidebar:
     
     st.divider()
     enable_typos = st.checkbox("Scan for Typos", value=True)
-    
-    st.markdown("**Exclusion List**")
-    raw_ignore = st.text_area("Words to ignore (Comma or New Line)", height=100, placeholder="SaaS, Acme, API")
+    raw_ignore = st.text_area("Exclusion List", height=100, placeholder="SaaS, Acme, API")
     ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
 # --- 4. DATA LOGIC & TIPS ---
@@ -91,7 +82,7 @@ tips = [
     "🥃 **Guerilla Tip:** Stop using 'New' in article titles. It stays 'New' for three years.",
     "🛠️ **Workflow:** 1,800 articles? You don't have a Knowledge Base, you have a digital museum.",
     "🛑 **Accessibility:** If your link text is 'Click here,' you're failing customers with screen readers.",
-    "📉 **Stats:** 70% of 'Search Fails' are actually customers finding the article but hitting a dead link.",
+    "📉 **Stats:** 70% of 'Search Fails' are actually customers hitting a dead link.",
     "🕵️ **Deep Cut:** Zendesk search index is only as good as your meta-tags.",
     "⚡ **Speed:** Manual audits are for people with too much time."
 ]
@@ -170,7 +161,7 @@ with tab1:
                     console_placeholder.markdown(f"<div class='console-box'>{'<br>'.join(log_entries)}</div>", unsafe_allow_html=True)
                     
                     if i % 50 == 0 or i == 0:
-                        tip_placeholder.markdown(f"<div class='tip-style'>{random.choice(tips)}</div>", unsafe_allow_html=True)
+                        tip_placeholder.markdown(f"<div class='dark-card tip-style'>{random.choice(tips)}</div>", unsafe_allow_html=True)
 
                     prog_bar.progress((i + 1) / total_count)
                     stat_total.metric("Scanned", f"{i+1}/{total_count}")
@@ -180,42 +171,18 @@ with tab1:
 
                 st.success(f"Scan Complete. {len(report_list)} articles require revision.")
                 st.balloons()
+    
+    # RESTORED MARKETING MATERIAL ON MAIN PAGE
+    st.divider()
+    st.markdown("### 🛠️ What ZenAudit Scans")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown('<div class="dark-card"><b>🔗 Internal 404s</b><br>Finds broken links pointing to your own Zendesk subdomain.</div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown('<div class="dark-card"><b>🌍 External 404s</b><br>Validates outside URLs to ensure your partners haven\'t moved their pages.</div>', unsafe_allow_html=True)
+    with c3:
+        st.markdown('<div class="dark-card"><b>✍️ Typo Detection</b><br>Scans for spelling errors that damage your brand authority.</div>', unsafe_allow_html=True)
 
 with tab2:
     st.markdown("## Editorial Audit vs. Full Remediation")
     col_left, col_right = st.columns(2)
-    
-    with col_left:
-        st.markdown("""
-        <div class="upgrade-card">
-            <h3>🆓 The Free Scan</h3>
-            <p>Perfect for a quick health check of your library.</p>
-            <ul>
-                <li>Live article-by-article log</li>
-                <li>Real-time counter of 404s and typos</li>
-                <li>Syncs up to 1,800+ articles via API</li>
-                <li><b>No exportable data</b></li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    with col_right:
-        st.markdown("""
-        <div class="upgrade-card" style="border: 2px solid #219EBC;">
-            <h3>📥 The Remediation Report ($25)</h3>
-            <p>Actionable data to actually fix the issues.</p>
-            <ul>
-                <li><b>CSV Export:</b> Article Title + Exact URL of the broken link.</li>
-                <li><b>Error Types:</b> Classified by Internal vs External 404s.</li>
-                <li><b>Typo Mapping:</b> List of misspelled words per article.</li>
-                <li><b>Bulk Actions:</b> Ready for import into Jira or spreadsheets.</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("""
-    <div style="text-align:center; padding:20px;">
-        <p><i>The free scan helps you see the problem. The report helps you solve it.</i></p>
-        <button style="background-color:#FB8500; color:white; border:none; padding:15px 45px; border-radius:8px; font-weight:bold; cursor:pointer; width:auto;">GET FULL REPORT - $25</button>
-    </div>
-    """, unsafe_allow_html=True)
