@@ -11,7 +11,7 @@ import random
 st.set_page_config(page_title="ZenAudit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. MASTER CSS (Reinforced for Uniformity)
+# 2. MASTER CSS
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
@@ -23,19 +23,16 @@ st.markdown("""
         padding: 25px; 
         border-radius: 12px;
         border: 1px solid #334155; 
-        transition: 0.3s;
-        /* Force equal height */
         display: flex;
         flex-direction: column;
-        min-height: 180px; 
+        min-height: 200px; 
         height: 100%;
     }
-    .feature-card:hover { border-color: #38BDF8; transform: translateY(-2px); }
     .feature-icon { font-size: 2.2rem; margin-bottom: 12px; display: block; }
     .feature-title { font-size: 1.2rem; font-weight: bold; color: #38BDF8; margin-bottom: 8px; display: block; }
     .feature-desc { font-size: 0.88rem; color: #94A3B8; line-height: 1.5; flex-grow: 1; }
 
-    /* SCOREBOARD (Locked 5-Column) */
+    /* SCOREBOARD */
     .metric-card {
         background-color: #1E293B; padding: 20px; border-radius: 12px;
         text-align: center; border: 1px solid #334155; min-height: 110px;
@@ -65,33 +62,37 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (Full Tooltips Included) ---
+# --- 3. SIDEBAR (Enhanced Field-Level Instructions) ---
 with st.sidebar:
-    st.markdown("<h1 style='color:#38BDF8; margin-bottom: 0;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
-    with st.expander("🚀 QUICK START GUIDE", expanded=True):
-        st.markdown("""
-        <div style="background-color: #0F172A; padding: 15px; border-radius: 8px; font-size: 0.85rem; border-left: 3px solid #38BDF8; line-height:1.6;">
-        <b>1. Subdomain</b>: e.g. <b>acme</b>.<br>
-        <b>2. Admin Email</b>: Your login email.<br>
-        <b>3. API Token</b>: From Zendesk Admin Center.
-        </div>""", unsafe_allow_html=True)
+    st.markdown("<h1 style='color:#38BDF8; margin-bottom: 0.5em;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
     
     st.header("🔑 Connection")
-    subdomain = st.text_input("Subdomain", placeholder="e.g. acme", help="The unique part of your Zendesk URL (acme.zendesk.com).")
-    email = st.text_input("Admin Email", help="The email address associated with your Zendesk Admin account.")
-    token = st.text_input("API Token", type="password", help="The API token generated in Zendesk Admin Center.")
+    subdomain = st.text_input(
+        "Subdomain", 
+        placeholder="e.g. acme", 
+        help="The prefix of your Zendesk URL. For 'acme.zendesk.com', enter 'acme'."
+    )
+    email = st.text_input(
+        "Admin Email", 
+        help="The email address of a Zendesk Administrator. Used with the token for secure API access."
+    )
+    token = st.text_input(
+        "API Token", 
+        type="password", 
+        help="Go to Admin Center > Apps > Zendesk API. Enable 'Token Access', create a new token, and paste it here."
+    )
     
     st.divider()
     st.header("🎯 Tuning")
-    with st.expander("⚙️ AUDIT LAYERS", expanded=False):
-        do_stale = st.checkbox("Stale Content", value=True, help="Identifies articles that haven't been updated in over 365 days.")
-        do_typo = st.checkbox("Typos", value=True, help="Runs a spellcheck across all article content to find spelling errors.")
-        do_format = st.checkbox("Format Check", value=True, help="Verifies if articles have H1/H2 headers and sufficient word count.")
-        do_alt = st.checkbox("Image Alt-Text", value=True, help="Finds images within articles that lack descriptive Alt-Text.")
-        do_tags = st.checkbox("Tag Audit", value=True, help="Flags articles with zero tags, which harms search discoverability.")
+    with st.expander("⚙️ AUDIT LAYERS", expanded=True):
+        do_stale = st.checkbox("Stale Content", value=True, help="Flags articles that haven't been modified in over a year.")
+        do_typo = st.checkbox("Typos", value=True, help="Deep scans content body for spelling mistakes.")
+        do_format = st.checkbox("Format Check", value=True, help="Ensures proper use of H1/H2 headers and minimum content length.")
+        do_alt = st.checkbox("Image Alt-Text", value=True, help="Finds images missing descriptions for screen readers (ADA compliance).")
+        do_tags = st.checkbox("Tag Audit", value=True, help="Flags articles without tags which often go missing in search results.")
     
     with st.expander("🔍 CONTENT FILTERS", expanded=False):
-        restricted_input = st.text_input("Restricted Keywords", help="Comma-separated list of words (e.g. 'internal', 'deprecated') to flag.")
+        restricted_input = st.text_input("Restricted Keywords", help="Comma-separated list of terms to flag for removal or update.")
         restricted_words = [w.strip().lower() for w in restricted_input.split(",") if w.strip()]
         raw_ignore = st.text_area("Exclusion List", help="Enter words for the spellchecker to ignore (one per line).")
         ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
@@ -123,7 +124,7 @@ with col_ins:
 
 finish_ui, dl_area = st.empty(), st.empty()
 
-# --- 5. LOGIC & EXECUTION (Full & Non-Truncated) ---
+# --- 5. LOGIC & EXECUTION ---
 tips = ["🤖 Structure beats volume.", "💀 Check your 404s.", "🔍 Sunset your legacy tags."]
 
 if st.button("🚀 RUN DEEP SCAN"):
@@ -152,7 +153,7 @@ if st.button("🚀 RUN DEEP SCAN"):
                 
                 results.append({"Title": art['title'], "URL": art['html_url'], "Stale": is_stale, "Typos": typos, "Alt": alt_miss, "Keywords": key_hits, "Tag Issue": tag_issue})
                 
-                # Metrics Row
+                # Scoreboard
                 met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
                 met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results) if do_typo else '--'}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
                 met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale']) if do_stale else '--'}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
@@ -164,9 +165,7 @@ if st.button("🚀 RUN DEEP SCAN"):
                 score_ui.markdown(f"<div class='insight-card'><span class='insight-label'>KB Health Score</span><span class='insight-value'>{health}%</span></div>", unsafe_allow_html=True)
                 if i % 10 == 0:
                     tip_ui.markdown(f"<div class='insight-card'><span class='insight-label'>Strategy Insight</span><span class='insight-sub'>{random.choice(tips)}</span></div>", unsafe_allow_html=True)
-                top_issue = "Typos" if sum(d['Typos'] for d in results) > sum(1 for d in results if d['Stale']) else "Stale Content"
-                insight_ui.markdown(f"<div class='insight-card'><span class='insight-label'>Action Priority</span><span class='insight-value' style='color:#F87171;'>Fix {top_issue}</span></div>", unsafe_allow_html=True)
-
+                
                 logs.insert(0, f"✅ Analyzed: {art['title'][:40]}...")
                 console_ui.markdown(f"<div class='console-box'>{'<br>'.join(logs[:14])}</div>", unsafe_allow_html=True)
 
