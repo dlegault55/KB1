@@ -9,7 +9,7 @@ from spellchecker import SpellChecker
 st.set_page_config(page_title="ZenAudit | Zendesk Content Integrity", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. UI Styling
+# 2. UI Styling (Palette: #023047, #219EBC, #8ECAE6, #FFB703, #FB8500)
 st.markdown("""
     <style>
     .stButton>button { 
@@ -26,16 +26,17 @@ st.markdown("""
     .hero-header { font-size: 3.5rem; font-weight: 800; color: #023047; margin-bottom:0;}
     .hero-sub { color: #219EBC; font-size: 1.2rem; margin-bottom: 40px; font-weight: 600; }
     
+    .score-circle {
+        background-color: #023047; color: #FFB703; border-radius: 50%;
+        width: 120px; height: 120px; line-height: 120px; font-size: 32px;
+        font-weight: bold; margin: 0 auto; text-align: center; border: 4px solid #FB8500;
+    }
+    
     .pro-card {
         text-align: center; padding: 30px; border: 3px solid #FB8500;
         border-radius: 15px; background-color: #ffffff; box-shadow: 0 4px 15px rgba(251, 133, 0, 0.1);
     }
     
-    .score-circle {
-        background-color: #023047; color: #FFB703; border-radius: 50%;
-        width: 100px; height: 100px; line-height: 100px; font-size: 24px;
-        font-weight: bold; margin: 0 auto; text-align: center; border: 4px solid #FB8500;
-    }
     .legal-footer { font-size: 0.7rem; color: #64748b; margin-top: 30px; line-height: 1.2; }
     </style>
     """, unsafe_allow_html=True)
@@ -47,7 +48,7 @@ with st.sidebar:
     
     with st.expander("📖 QUICK START GUIDE", expanded=True):
         st.markdown("""
-        1. **Subdomain:** The name before `.zendesk.com`.
+        1. **Subdomain:** The part before `.zendesk.com`.
         2. **Email:** Your admin login email.
         3. **API Token:** Found in **Zendesk Admin Center > Apps & Integrations > Zendesk API**. Enable **Token Access**.
         """)
@@ -144,8 +145,29 @@ with tab1:
                         sc3.metric("QA Typos", df['Typos'].sum())
                         with sc4:
                             st.markdown(f'<div class="score-circle">{integrity_score}%</div>', unsafe_allow_html=True)
-                            st.caption("<center>Overall Content Integrity Score</center>", unsafe_allow_html=True)
+                            st.caption("<center>Overall Integrity Score</center>", unsafe_allow_html=True)
                         
+                        # --- SCORE INTERPRETATION & BENCHMARKS ---
+                        st.divider()
+                        c_left, c_right = st.columns([2, 1])
+                        
+                        with c_left:
+                            if integrity_score < 70:
+                                st.error(f"🚨 **Critical Level Support Debt:** Your score of {integrity_score}% indicates that broken journeys are likely driving significant manual ticket volume. Immediate remediation is recommended.")
+                            elif integrity_score < 90:
+                                st.warning(f"⚠️ **Maintenance Warning:** A score of {integrity_score}% shows 'content drift.' Your brand authority is at risk due to unmaintained links.")
+                            else:
+                                st.success(f"🌟 **Elite Content Integrity:** Your {integrity_score}% score is in the top tier of Zendesk Help Centers. You are maximizing ticket deflection.")
+                        
+                        with c_right:
+                            st.markdown("""
+                            **Benchmark Scale:**
+                            * **95%+** : 🏆 Elite
+                            * **85%-94%** : ✅ Healthy
+                            * **70%-84%** : ⚠️ Warning
+                            * **<70%** : 🚨 Critical
+                            """, unsafe_allow_html=True)
+
                         st.divider()
                         search = st.text_input("🔍 Search results by article title...")
                         if search:
@@ -159,18 +181,10 @@ with tab1:
             except Exception as e: st.error(f"❌ Failure: {e}")
 
 with tab2:
-    st.markdown('<h2 style="text-align:center; color:#023047;">Strategic Content Governance</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 style="text-align:center; color:#023047;">Why High-Performance Teams use ZenAudit</h2>', unsafe_allow_html=True)
+    
     col_a, col_b = st.columns(2)
     with col_a:
-        st.markdown('<div style="text-align:center; padding:30px; border:2px solid #023047; border-radius:12px; height:100%;"><h3>Starter</h3><h2>FREE</h2><p>Unlimited system scans<br>Live Integrity Scoring<br>On-screen reporting</p></div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center; padding:30px; border:2px solid #023047; border-radius:12px; height:100%;"><h3>Starter</h3><h2>FREE</h2><p>Unlimited system scans<br>Live Integrity Scoring<br>Article-level error search</p></div>', unsafe_allow_html=True)
     with col_b:
-        st.markdown(f"""
-        <div class="pro-card">
-            <h3 style="color:#FB8500;">Professional</h3>
-            <h2 style="color:#023047;">$25</h2>
-            <p><b>Full CSV Export Unlocked</b><br>Bulk Remediation Data<br>Team Distribution Ready</p>
-            <a href="https://buy.stripe.com/your_link" target="_blank">
-                <button style="background-color:#FB8500; color:white; border:none; padding:15px 30px; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🚀 UNLOCK FULL REPORT</button>
-            </a>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<div class="pro-card"><h3 style="color:#FB8500;">Professional</h3><h2 style="color:#023047;">$25</h2><p><b>Full CSV Export Unlocked</b><br>Bulk Remediation Data<br>Team-Ready Spreadsheet</p><a href="https://buy.stripe.com/your_link" target="_blank"><button style="background-color:#FB8500; color:white; border:none; padding:15px 30px; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">🚀 UNLOCK FULL REPORT</button></a></div>""", unsafe_allow_html=True)
