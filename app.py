@@ -11,13 +11,10 @@ import re
 st.set_page_config(page_title="ZenAudit | Content Audit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. UI Styling - NO WHITE BOXES
+# 2. UI Styling - STRICT DARK MODE / NO WHITE BOXES
 st.markdown("""
     <style>
-    /* Main Background & Text */
     .stApp { background-color: #0F172A; color: #E2E8F0; }
-    
-    /* Sidebar styling */
     section[data-testid="stSidebar"] { background-color: #1E293B !important; }
 
     /* Button Styling */
@@ -27,12 +24,11 @@ st.markdown("""
     }
     .stButton>button:hover { background-color: #0EA5E9; color: white; }
     
-    /* Dark Contrast Expander Boxes */
+    /* Sidebar Boxes */
     .guide-content, .privacy-content {
-        background-color: #0F172A; padding: 20px; border-radius: 8px; color: #ffffff;
-        border-left: 5px solid #38BDF8; font-size: 0.85rem; line-height: 1.6;
+        background-color: #1E293B; padding: 20px; border-radius: 8px; color: #ffffff;
+        border-left: 5px solid #38BDF8; font-size: 0.85rem; line-height: 1.6; margin-bottom: 10px;
     }
-    .guide-content b { color: #38BDF8; }
 
     /* The Dark Console */
     .console-box {
@@ -43,15 +39,20 @@ st.markdown("""
     .log-err { color: #F87171; font-weight: bold; } 
     .log-msg { color: #38BDF8; } 
     
-    /* Dark Cards for Tips & Marketing */
+    /* Custom Dark Metrics */
+    .metric-card {
+        background-color: #1E293B; padding: 15px; border-radius: 10px;
+        text-align: center; border: 1px solid #334155;
+    }
+    .metric-value { font-size: 1.8rem; font-weight: bold; color: #38BDF8; }
+    .metric-label { font-size: 0.8rem; color: #94A3B8; text-transform: uppercase; }
+
+    /* Marketing/Upgrade Cards */
     .dark-card {
         background-color: #1E293B; padding: 25px; border-radius: 12px;
-        border: 1px solid #334155; color: #F1F5F9; margin-bottom: 20px;
+        border: 1px solid #334155; color: #F1F5F9; margin-bottom: 20px; height: 100%;
     }
-    .tip-style {
-        font-size: 1.05rem; min-height: 140px; display: flex; 
-        align-items: center; justify-content: center; text-align: center;
-    }
+    .upgrade-header { color: #38BDF8; font-size: 1.4rem; font-weight: bold; margin-bottom: 15px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -63,7 +64,7 @@ with st.sidebar:
         st.markdown("""<div class="guide-content"><b>1. Subdomain:</b> [acme]<br><b>2. Admin Email:</b> login@company.com<br><b>3. API Token:</b> Admin Center > Apps > Zendesk API > Enable Token Access.</div>""", unsafe_allow_html=True)
 
     with st.expander("🔒 PRIVACY & FAQ", expanded=False):
-        st.markdown("""<div class="privacy-content"><b>Does this store my data?</b> No. It runs in your browser session. All API calls use HTTPS. Data is wiped on tab close.</div>""", unsafe_allow_html=True)
+        st.markdown("""<div class="privacy-content"><b>Data Policy:</b> Session-only processing. API calls use HTTPS. Credentials are never stored.</div>""", unsafe_allow_html=True)
 
     st.header("🔑 Connection")
     subdomain = st.text_input("Subdomain", placeholder="e.g. acme")
@@ -75,16 +76,12 @@ with st.sidebar:
     raw_ignore = st.text_area("Exclusion List", height=100, placeholder="SaaS, Acme, API")
     ignore_list = [w.strip().lower() for w in re.split(r'[,\n\r]+', raw_ignore) if w.strip()]
 
-# --- 4. DATA LOGIC & TIPS ---
+# --- 4. CORE LOGIC ---
 tips = [
     "💀 **Admin Truth:** If you don't fix these 404s, your customers will mention it in the CSAT comment.",
-    "⚠️ **SEO Reality:** Google doesn't care how 'helpful' your article is if the first link 404s.",
     "🥃 **Guerilla Tip:** Stop using 'New' in article titles. It stays 'New' for three years.",
     "🛠️ **Workflow:** 1,800 articles? You don't have a Knowledge Base, you have a digital museum.",
-    "🛑 **Accessibility:** If your link text is 'Click here,' you're failing customers with screen readers.",
-    "📉 **Stats:** 70% of 'Search Fails' are actually customers hitting a dead link.",
-    "🕵️ **Deep Cut:** Zendesk search index is only as good as your meta-tags.",
-    "⚡ **Speed:** Manual audits are for people with too much time."
+    "📉 **Stats:** 70% of 'Search Fails' are actually customers hitting a dead link."
 ]
 
 def audit_content(html_body, ignore, sub, check_typos):
@@ -105,84 +102,93 @@ def audit_content(html_body, ignore, sub, check_typos):
         typos = [w for w in spell.unknown(words) if not w.istitle() and len(w) > 2 and w.lower() not in ignore]
     return broken_int, broken_ext, typos
 
-# --- 5. MAIN PAGE ---
+# --- 5. MAIN PAGE LAYOUT ---
 st.title("ZenAudit Deep Scan")
-tab1, tab2 = st.tabs(["🚀 SCAN & ANALYZE", "📥 WHY UPGRADE?"])
 
-with tab1:
-    if st.button("🚀 RUN DEEP SCAN"): 
-        if not all([subdomain, email, token]):
-            st.error("⚠️ Credentials missing. Check the Sidebar.")
-        else:
-            all_articles = []
-            auth = (f"{email}/token", token)
-            api_url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100"
+# Scan Controls
+if st.button("🚀 RUN DEEP SCAN"): 
+    if not all([subdomain, email, token]):
+        st.error("⚠️ Credentials missing. Check the Sidebar.")
+    else:
+        all_articles = []
+        auth = (f"{email}/token", token)
+        api_url = f"https://{subdomain}.zendesk.com/api/v2/help_center/articles.json?per_page=100"
+        
+        with st.status("📡 Fetching Library...", expanded=True) as status:
+            while api_url:
+                res = requests.get(api_url, auth=auth)
+                if res.status_code != 200: break
+                data = res.json()
+                all_articles.extend(data.get('articles', []))
+                st.write(f"📥 Indexed {len(all_articles)} headers...")
+                api_url = data.get('next_page')
+            status.update(label="✅ Ready to Scan", state="complete")
+
+        if all_articles:
+            # Custom Metric Row
+            c1, c2, c3, c4 = st.columns(4)
+            m1, m2, m3, m4 = c1.empty(), c2.empty(), c3.empty(), c4.empty()
+            prog_bar = st.progress(0)
             
-            with st.status("📡 Syncing with Zendesk API...", expanded=True) as status:
-                while api_url:
-                    res = requests.get(api_url, auth=auth)
-                    if res.status_code != 200: break
-                    data = res.json()
-                    all_articles.extend(data.get('articles', []))
-                    st.write(f"📥 Indexed {len(all_articles)} articles...")
-                    api_url = data.get('next_page')
-                status.update(label="✅ Library Synchronized", state="complete")
+            col_con, col_tip = st.columns([1.5, 1])
+            with col_con:
+                st.markdown("### 🖥️ Audit Logs")
+                console_placeholder = st.empty()
+            with col_tip:
+                st.markdown("### 🗣️ Admin Insight")
+                tip_placeholder = st.empty()
+            
+            total_int, total_ext, total_typo = 0, 0, 0
+            log_entries = []
+            total_count = len(all_articles)
 
-            if all_articles:
-                m1, m2, m3, m4 = st.columns(4)
-                stat_total, stat_int, stat_ext, stat_typo = m1.empty(), m2.empty(), m3.empty(), m4.empty()
-                prog_bar = st.progress(0)
+            for i, art in enumerate(all_articles):
+                b_int, b_ext, typos = audit_content(art.get('body', ''), ignore_list, subdomain, enable_typos)
                 
-                col_con, col_tip = st.columns([1.5, 1])
-                with col_con:
-                    st.markdown("### 🖥️ Audit Logs")
-                    console_placeholder = st.empty()
-                with col_tip:
-                    st.markdown("### 🗣️ Admin Insight")
-                    tip_placeholder = st.empty()
+                total_int += len(b_int); total_ext += len(b_ext); total_typo += len(typos)
+                status_line = f"<span class='log-err'>[REVISE]</span>" if (b_int or b_ext or typos) else f"<span class='log-msg'>[VERIFIED]</span>"
+                log_entries.insert(0, f"{status_line} {art['title'][:40]}...")
                 
-                report_list = []
-                log_entries = []
-                total_int, total_ext, total_typo = 0, 0, 0
-                total_count = len(all_articles)
+                if len(log_entries) > 12: log_entries.pop()
+                console_placeholder.markdown(f"<div class='console-box'>{'<br>'.join(log_entries)}</div>", unsafe_allow_html=True)
+                
+                if i % 50 == 0 or i == 0:
+                    tip_placeholder.markdown(f"<div class='dark-card' style='display:flex; align-items:center; text-align:center;'>{random.choice(tips)}</div>", unsafe_allow_html=True)
 
-                for i, art in enumerate(all_articles):
-                    b_int, b_ext, typos = audit_content(art.get('body', ''), ignore_list, subdomain, enable_typos)
-                    
-                    if b_int or b_ext or typos:
-                        total_int += len(b_int); total_ext += len(b_ext); total_typo += len(typos)
-                        report_list.append({"Title": art['title']})
-                        status_line = f"<span class='log-err'>[REVISE]</span> {art['title'][:40]}..."
-                    else:
-                        status_line = f"<span class='log-msg'>[VERIFIED]</span> {art['title'][:40]}..."
-                    
-                    log_entries.insert(0, status_line)
-                    if len(log_entries) > 12: log_entries.pop()
-                    console_placeholder.markdown(f"<div class='console-box'>{'<br>'.join(log_entries)}</div>", unsafe_allow_html=True)
-                    
-                    if i % 50 == 0 or i == 0:
-                        tip_placeholder.markdown(f"<div class='dark-card tip-style'>{random.choice(tips)}</div>", unsafe_allow_html=True)
+                prog_bar.progress((i + 1) / total_count)
+                m1.markdown(f"<div class='metric-card'><div class='metric-label'>Scanned</div><div class='metric-value'>{i+1}</div></div>", unsafe_allow_html=True)
+                m2.markdown(f"<div class='metric-card'><div class='metric-label'>Int. 404</div><div class='metric-value'>{total_int}</div></div>", unsafe_allow_html=True)
+                m3.markdown(f"<div class='metric-card'><div class='metric-label'>Ext. 404</div><div class='metric-value'>{total_ext}</div></div>", unsafe_allow_html=True)
+                m4.markdown(f"<div class='metric-card'><div class='metric-label'>Typos</div><div class='metric-value'>{total_typo}</div></div>", unsafe_allow_html=True)
 
-                    prog_bar.progress((i + 1) / total_count)
-                    stat_total.metric("Scanned", f"{i+1}/{total_count}")
-                    stat_int.metric("Int. 404s", total_int)
-                    stat_ext.metric("Ext. 404s", total_ext)
-                    stat_typo.metric("Typos", total_typo)
+            st.success("✅ Deep Scan Complete.")
+            st.balloons()
 
-                st.success(f"Scan Complete. {len(report_list)} articles require revision.")
-                st.balloons()
-    
-    # RESTORED MARKETING MATERIAL ON MAIN PAGE
-    st.divider()
-    st.markdown("### 🛠️ What ZenAudit Scans")
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown('<div class="dark-card"><b>🔗 Internal 404s</b><br>Finds broken links pointing to your own Zendesk subdomain.</div>', unsafe_allow_html=True)
-    with c2:
-        st.markdown('<div class="dark-card"><b>🌍 External 404s</b><br>Validates outside URLs to ensure your partners haven\'t moved their pages.</div>', unsafe_allow_html=True)
-    with c3:
-        st.markdown('<div class="dark-card"><b>✍️ Typo Detection</b><br>Scans for spelling errors that damage your brand authority.</div>', unsafe_allow_html=True)
+# --- 6. INTEGRATED MARKETING & UPGRADE SECTION ---
+st.divider()
 
-with tab2:
-    st.markdown("## Editorial Audit vs. Full Remediation")
-    col_left, col_right = st.columns(2)
+col_val, col_up = st.columns([1.2, 1])
+
+with col_val:
+    st.markdown("### 🛠️ Coverage Details")
+    st.markdown("""
+    <div class="dark-card">
+        <b>🔗 Internal 404s:</b> Links pointing to deleted or restricted articles in your subdomain.<br><br>
+        <b>🌍 External 404s:</b> Verification of third-party links to prevent Search Abandonment.<br><br>
+        <b>✍️ Typo Detection:</b> Scans article bodies for spelling errors that hurt brand trust.
+    </div>
+    """, unsafe_allow_html=True)
+
+with col_up:
+    st.markdown("### 📥 Remediation Report")
+    st.markdown("""
+    <div class="dark-card" style="border-color: #38BDF8;">
+        <div class="upgrade-header">Export Results for $25</div>
+        <ul>
+            <li><b>CSV Map:</b> Exact URLs of every broken link found.</li>
+            <li><b>Article IDs:</b> Match errors to your Zendesk articles instantly.</li>
+            <li><b>Typo List:</b> Specific misspelled words per article.</li>
+        </ul>
+        <button style="background-color:#38BDF8; color:#0F172A; border:none; padding:12px; border-radius:5px; font-weight:bold; width:100%; cursor:pointer; margin-top:10px;">PURCHASE FULL CSV REPORT</button>
+    </div>
+    """, unsafe_allow_html=True)
