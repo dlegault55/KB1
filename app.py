@@ -11,21 +11,31 @@ import random
 st.set_page_config(page_title="ZenAudit", page_icon="🛡️", layout="wide")
 spell = SpellChecker()
 
-# 2. MASTER CSS
+# 2. MASTER CSS (Reinforced for Uniformity)
 st.markdown("""
     <style>
     .stApp { background-color: #0F172A; color: #E2E8F0; }
     section[data-testid="stSidebar"] { background-color: #1E293B !important; }
     
+    /* UNIFORM MARKETING BOXES */
     .feature-card {
-        background-color: #1E293B; padding: 25px; border-radius: 12px;
-        border: 1px solid #334155; height: 100%; transition: 0.3s;
+        background-color: #1E293B; 
+        padding: 25px; 
+        border-radius: 12px;
+        border: 1px solid #334155; 
+        transition: 0.3s;
+        /* Force equal height */
+        display: flex;
+        flex-direction: column;
+        min-height: 180px; 
+        height: 100%;
     }
-    .feature-card:hover { border-color: #38BDF8; }
+    .feature-card:hover { border-color: #38BDF8; transform: translateY(-2px); }
     .feature-icon { font-size: 2.2rem; margin-bottom: 12px; display: block; }
     .feature-title { font-size: 1.2rem; font-weight: bold; color: #38BDF8; margin-bottom: 8px; display: block; }
-    .feature-desc { font-size: 0.9rem; color: #94A3B8; line-height: 1.5; }
+    .feature-desc { font-size: 0.88rem; color: #94A3B8; line-height: 1.5; flex-grow: 1; }
 
+    /* SCOREBOARD (Locked 5-Column) */
     .metric-card {
         background-color: #1E293B; padding: 20px; border-radius: 12px;
         text-align: center; border: 1px solid #334155; min-height: 110px;
@@ -55,15 +65,15 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR (STRICTLY RESTORED HELP TEXT) ---
+# --- 3. SIDEBAR (Full Tooltips Included) ---
 with st.sidebar:
     st.markdown("<h1 style='color:#38BDF8; margin-bottom: 0;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
     with st.expander("🚀 QUICK START GUIDE", expanded=True):
         st.markdown("""
         <div style="background-color: #0F172A; padding: 15px; border-radius: 8px; font-size: 0.85rem; border-left: 3px solid #38BDF8; line-height:1.6;">
-        <b>1. Subdomain</b><br>Prefix of your URL (e.g., <b>acme</b>).<br><br>
-        <b>2. Admin Email</b><br>Your Zendesk administrator login email.<br><br>
-        <b>3. API Token</b><br>Go to <b>Admin Center > Apps > Zendesk API</b>.
+        <b>1. Subdomain</b>: e.g. <b>acme</b>.<br>
+        <b>2. Admin Email</b>: Your login email.<br>
+        <b>3. API Token</b>: From Zendesk Admin Center.
         </div>""", unsafe_allow_html=True)
     
     st.header("🔑 Connection")
@@ -91,19 +101,21 @@ st.title("Knowledge Base Intelligence")
 
 feat_cols = st.columns(3)
 with feat_cols[0]:
-    st.markdown("""<div class='feature-card'><span class='feature-icon'>⚡</span><span class='feature-title'>Stop Manual Auditing</span><span class='feature-desc'>Save 40+ hours per month by automating content lifecycle tracking.</span></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='feature-card'><span class='feature-icon'>⚡</span><span class='feature-title'>Stop Manual Auditing</span><span class='feature-desc'>Save 40+ hours per month by automating lifecycle tracking. Never manually hunt for expired articles again.</span></div>""", unsafe_allow_html=True)
 with feat_cols[1]:
-    st.markdown("""<div class='feature-card'><span class='feature-icon'>🔎</span><span class='feature-title'>Fix Discoverability</span><span class='feature-desc'>Solve the "I can't find it" problem by auditing tags and structural health.</span></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='feature-card'><span class='feature-icon'>🔎</span><span class='feature-title'>Fix Discoverability</span><span class='feature-desc'>Solve the "I can't find it" problem. Audit tags and structure to ensure users find answers on the first search.</span></div>""", unsafe_allow_html=True)
 with feat_cols[2]:
-    st.markdown("""<div class='feature-card'><span class='feature-icon'>🎯</span><span class='feature-title'>Protect Brand Trust</span><span class='feature-desc'>Surface broken accessibility and legacy terms that erode customer confidence.</span></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class='feature-card'><span class='feature-icon'>🎯</span><span class='feature-title'>Protect Brand Trust</span><span class='feature-desc'>Surface broken accessibility and legacy terms that erode customer confidence and professionalism.</span></div>""", unsafe_allow_html=True)
 
 st.divider()
 
+# Wide Scoreboard
 m_row = st.columns(5)
 met_scan, met_alt, met_typo, met_key, met_stale = [col.empty() for col in m_row]
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+# Action Zone
 col_con, col_ins = st.columns([1.5, 1])
 console_ui = col_con.empty()
 with col_ins:
@@ -111,7 +123,7 @@ with col_ins:
 
 finish_ui, dl_area = st.empty(), st.empty()
 
-# --- 5. LOGIC & EXECUTION ---
+# --- 5. LOGIC & EXECUTION (Full & Non-Truncated) ---
 tips = ["🤖 Structure beats volume.", "💀 Check your 404s.", "🔍 Sunset your legacy tags."]
 
 if st.button("🚀 RUN DEEP SCAN"):
@@ -131,7 +143,7 @@ if st.button("🚀 RUN DEEP SCAN"):
                 soup = BeautifulSoup(body, 'html.parser')
                 text = soup.get_text().lower()
                 
-                # Logic
+                # Calculations
                 typos = len([w for w in spell.unknown(spell.split_words(text)) if w not in ignore_list and len(w) > 2]) if do_typo else 0
                 is_stale = (datetime.now() - datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ') > timedelta(days=365)) if do_stale else False
                 alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')]) if do_alt else 0
@@ -140,7 +152,7 @@ if st.button("🚀 RUN DEEP SCAN"):
                 
                 results.append({"Title": art['title'], "URL": art['html_url'], "Stale": is_stale, "Typos": typos, "Alt": alt_miss, "Keywords": key_hits, "Tag Issue": tag_issue})
                 
-                # Metrics (STRICT STACKING)
+                # Metrics Row
                 met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{i+1}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
                 met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Typos'] for d in results) if do_typo else '--'}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
                 met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{sum(1 for d in results if d['Stale']) if do_stale else '--'}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
@@ -159,7 +171,7 @@ if st.button("🚀 RUN DEEP SCAN"):
                 console_ui.markdown(f"<div class='console-box'>{'<br>'.join(logs[:14])}</div>", unsafe_allow_html=True)
 
             st.balloons()
-            finish_ui.success(f"🎉 **Audit Complete!** Processed {len(results)} articles.")
-            dl_area.download_button("📥 DOWNLOAD STRATEGY REPORT", pd.DataFrame(results).to_csv(index=False), "zenaudit_report.csv")
+            finish_ui.success(f"🎉 Audit Complete!")
+            dl_area.download_button("📥 DOWNLOAD REPORT", pd.DataFrame(results).to_csv(index=False), "zenaudit_report.csv")
             
         except Exception as e: st.error(f"Error: {e}")
