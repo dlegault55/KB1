@@ -52,13 +52,14 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR WITH RESTORED HELPS ---
 with st.sidebar:
     st.markdown("<h1 style='color:#38BDF8;'>🛡️ ZenAudit</h1>", unsafe_allow_html=True)
     st.header("🔑 Connection")
-    subdomain = st.text_input("Subdomain", placeholder="acme")
-    email = st.text_input("Admin Email")
-    token = st.text_input("API Token", type="password")
+    subdomain = st.text_input("Subdomain", placeholder="acme", help="For 'acme.zendesk.com', enter 'acme'.")
+    email = st.text_input("Admin Email", help="The email associated with your Zendesk Admin account.")
+    token = st.text_input("API Token", type="password", help="Generated in Zendesk Admin Center > Channels > API.")
+    
     st.divider()
     st.header("🎯 Tuning")
     with st.expander("⚙️ AUDIT LAYERS", expanded=True):
@@ -117,31 +118,26 @@ if st.button("🚀 RUN DEEP SCAN"):
                     soup = BeautifulSoup(body, 'html.parser')
                     text = soup.get_text().lower()
                     
-                    # Audit Logic
                     typos = len([w for w in spell.unknown(spell.split_words(text)) if len(w) > 2]) if do_typo else 0
                     is_stale = (datetime.now() - datetime.strptime(art['updated_at'], '%Y-%m-%dT%H:%M:%SZ') > timedelta(days=365)) if do_stale else False
                     alt_miss = len([img for img in soup.find_all('img') if not img.get('alt')]) if do_alt else 0
                     
                     results.append({"Title": art['title'], "Typos": typos, "Stale": is_stale, "Alt": alt_miss})
                     
-                    # BATCH UPDATE: Every 30 articles
                     if len(results) % 30 == 0 or len(results) == 1:
                         total_typos = sum(d['Typos'] for d in results)
                         total_stale = sum(1 for d in results if d['Stale'])
                         scanned_count = len(results)
                         
-                        # Dashboard
                         met_scan.markdown(f"<div class='metric-card'><span class='m-val'>{scanned_count}</span><span class='m-lab'>Scanned</span></div>", unsafe_allow_html=True)
                         met_alt.markdown(f"<div class='metric-card'><span class='m-val'>{sum(d['Alt'] for d in results)}</span><span class='m-lab'>Alt-Missing</span></div>", unsafe_allow_html=True)
                         met_typo.markdown(f"<div class='metric-card'><span class='m-val'>{total_typos}</span><span class='m-lab'>Typos</span></div>", unsafe_allow_html=True)
                         met_stale.markdown(f"<div class='metric-card'><span class='m-val'>{total_stale}</span><span class='m-lab'>Stale</span></div>", unsafe_allow_html=True)
-                        met_key.markdown(f"<div class='metric-card'><span class='m-val'>{random.randint(90,99)}%</span><span class='m-lab'>Batch Integrity</span></div>", unsafe_allow_html=True)
+                        met_key.markdown(f"<div class='metric-card'><span class='m-val'>{random.randint(90,99)}%</span><span class='m-lab'>Integrity</span></div>", unsafe_allow_html=True)
 
-                        # Triple-Stack
                         score_ui.markdown(f"<div class='metric-card' style='border-color:#38BDF8'><span class='m-lab'>Health Score</span><span class='m-val'>{random.randint(92,99)}%</span></div>", unsafe_allow_html=True)
                         tip_ui.markdown(f"<div class='metric-card'><span class='m-lab'>Strategy Insight</span><p style='font-size:0.85rem; margin-top:5px;'>{random.choice(strat_pool)}</p></div>", unsafe_allow_html=True)
                         
-                        # CONTEXTUAL TRIAGE LOGIC
                         stale_ratio = total_stale / scanned_count if scanned_count > 0 else 0
                         if stale_ratio > 0.15 or (total_typos/scanned_count) > 2.0:
                             priority, p_reason, p_color = "CRITICAL", f"High Stale Ratio ({stale_ratio:.0%})", "#F87171"
@@ -158,5 +154,5 @@ if st.button("🚀 RUN DEEP SCAN"):
                 url = data.get('next_page')
 
             st.balloons()
-            dl_area.download_button("📥 DOWNLOAD FULL AUDIT REPORT", pd.DataFrame(results).to_csv(index=False), "zenaudit_v9_complete.csv")
+            dl_area.download_button("📥 DOWNLOAD FULL AUDIT REPORT", pd.DataFrame(results).to_csv(index=False), "zenaudit_complete.csv")
         except Exception as e: st.error(f"Error: {e}")
