@@ -329,10 +329,18 @@ def run_scan(
 # 6) SIDEBAR (cleaner)
 # =========================
 with st.sidebar:
-    st.markdown(f"<div class='za-title'>{APP_ICON} {APP_TITLE}</div><div class='za-muted'>Zendesk Help Center Auditor</div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='za-title'>{APP_ICON} {APP_TITLE}</div>"
+        f"<div class='za-muted'>Zendesk Help Center Auditor</div>",
+        unsafe_allow_html=True,
+    )
     st.write("")
-
-    st.markdown("<span class='za-chip'>Broken links</span><span class='za-chip'>Alt text</span><span class='za-chip'>Stale</span>", unsafe_allow_html=True)
+    st.markdown(
+        "<span class='za-chip'>Broken links</span>"
+        "<span class='za-chip'>Alt text</span>"
+        "<span class='za-chip'>Stale</span>",
+        unsafe_allow_html=True,
+    )
     st.divider()
 
     st.subheader("Connection")
@@ -356,7 +364,10 @@ with st.sidebar:
     pro_mode = st.checkbox("Pro Mode (dev)", value=True)
     max_articles = st.number_input("Max Articles (0 = all)", min_value=0, value=0, step=50)
 
-    st.markdown("<div class='za-muted' style='margin-top:10px;'>Zendesk® is a trademark of Zendesk, Inc.</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='za-muted' style='margin-top:10px;'>Zendesk® is a trademark of Zendesk, Inc.</div>",
+        unsafe_allow_html=True,
+    )
 
 # =========================
 # 7) TOP-LEVEL UI
@@ -412,7 +423,11 @@ with tab_audit:
         console = st.empty()
     with right:
         status_box = st.empty()
-        st.markdown("<div class='za-card'><div class='za-title'>Quality signals</div><div class='za-muted'>These update live during the scan.</div></div>", unsafe_allow_html=True)
+        signals_box = st.empty()
+
+    # render stable empty cards so layout is aligned from the start (prevents "jumping")
+    status_box.markdown("<div class='za-card' style='min-height:140px;'></div>", unsafe_allow_html=True)
+    signals_box.markdown("<div class='za-card' style='min-height:140px;'></div>", unsafe_allow_html=True)
 
     def refresh_metrics():
         res = st.session_state.scan_results
@@ -430,22 +445,52 @@ with tab_audit:
         met_alt.metric("Alt missing", alt_missing)
         met_stale.metric("Stale", stale_count)
 
+        # 👇 Render this inside the placeholder to keep alignment with the left column
+        signals_box.markdown(
+            f"""
+            <div class='za-card' style='min-height:140px;'>
+                <div class='za-title'>Quality signals</div>
+                <div class='za-muted' style='margin-top:10px; line-height:1.6;'>
+                    <div><b>{critical}</b> critical</div>
+                    <div><b>{warning}</b> warnings</div>
+                    <div><b>{alt_missing}</b> missing alt</div>
+                    <div><b>{stale_count}</b> stale</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
     def progress_cb(scanned_count: int):
-        # If max_articles is 0, we can't know total; show a pulsing-like indicator via modulo
+        # If max_articles is 0, we can't know total; show a looping indicator via modulo
         if max_articles:
-            pct = min(1.0, scanned_count / max_articles)
-            progress.progress(pct, text=f"Scanning… {scanned_count}/{max_articles}")
+            pct = min(1.0, scanned_count / int(max_articles))
+            progress.progress(pct, text=f"Scanning… {scanned_count}/{int(max_articles)}")
         else:
             pct = (scanned_count % 100) / 100
             progress.progress(pct, text=f"Scanning… {scanned_count} (unknown total)")
 
         refresh_metrics()
         logs_html = "<br>".join(st.session_state.last_logs)
-        console.markdown(f"<div class='za-card' style='min-height:260px;'><div class='za-title'>Live log</div><div class='za-muted' style='margin-top:8px;'>{logs_html}</div></div>", unsafe_allow_html=True)
+        console.markdown(
+            f"""
+            <div class='za-card' style='min-height:260px;'>
+                <div class='za-title'>Live log</div>
+                <div class='za-muted' style='margin-top:10px;'>{logs_html}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     def status_cb(title: str, scanned_count: int):
         status_box.markdown(
-            f"<div class='za-card'><div class='za-title'>Now scanning</div><div class='za-muted'>{title}</div><div class='za-muted' style='margin-top:10px;'>Articles scanned: <b>{scanned_count}</b></div></div>",
+            f"""
+            <div class='za-card' style='min-height:140px;'>
+                <div class='za-title'>Now scanning</div>
+                <div class='za-muted' style='margin-top:8px;'>{title}</div>
+                <div class='za-muted' style='margin-top:12px;'>Articles scanned: <b>{scanned_count}</b></div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
 
@@ -485,7 +530,18 @@ with tab_audit:
         df_findings = (
             pd.DataFrame(st.session_state.findings)
             if st.session_state.findings
-            else pd.DataFrame(columns=["Severity","Type","Article Title","Article URL","Target URL","HTTP Status","Detail","Suggested Fix"])
+            else pd.DataFrame(
+                columns=[
+                    "Severity",
+                    "Type",
+                    "Article Title",
+                    "Article URL",
+                    "Target URL",
+                    "HTTP Status",
+                    "Detail",
+                    "Suggested Fix",
+                ]
+            )
         )
 
         if not df_findings.empty:
@@ -501,11 +557,8 @@ with tab_audit:
         with f1:
             sev_filter = st.multiselect("Severity", ["critical", "warning", "info"], default=["critical", "warning", "info"])
         with f2:
-            type_filter = st.multiselect(
-                "Type",
-                sorted(df_preview["Type"].unique().tolist()) if not df_preview.empty else [],
-                default=sorted(df_preview["Type"].unique().tolist()) if not df_preview.empty else [],
-            )
+            type_opts = sorted(df_preview["Type"].unique().tolist()) if not df_preview.empty else []
+            type_filter = st.multiselect("Type", type_opts, default=type_opts)
         with f3:
             q = st.text_input("Search (title/url contains)", placeholder="e.g. billing, /hc/en-us, image.png")
 
@@ -597,7 +650,17 @@ with tab_privacy:
 with tab_pro:
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown("<div class='za-card'><div class='za-title'>Free</div><div class='za-muted'>Preview + basic scans</div><ul><li>Unlimited article scanning</li><li>Preview first 50 findings</li><li>CSV/XLSX preview export</li></ul></div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='za-card'><div class='za-title'>Free</div>"
+            "<div class='za-muted'>Preview + basic scans</div>"
+            "<ul><li>Unlimited article scanning</li><li>Preview first 50 findings</li><li>CSV/XLSX preview export</li></ul></div>",
+            unsafe_allow_html=True,
+        )
     with c2:
-        st.markdown("<div class='za-card'><div class='za-title'>Pro</div><div class='za-muted'>Full export + automation</div><ul><li>Full findings export</li><li>Scheduled audits (future)</li><li>Team sharing (future)</li></ul></div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='za-card'><div class='za-title'>Pro</div>"
+            "<div class='za-muted'>Full export + automation</div>"
+            "<ul><li>Full findings export</li><li>Scheduled audits (future)</li><li>Team sharing (future)</li></ul></div>",
+            unsafe_allow_html=True,
+        )
         st.button("Upgrade (placeholder)", use_container_width=True)
