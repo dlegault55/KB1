@@ -394,10 +394,10 @@ with tab_audit:
     met_alt = m4.empty()
     met_stale = m5.empty()
 
-    # ✅ KEY CHANGE: progress bar gets its own full-width row
-    progress = st.progress(0, text="Idle")
+    # Progress row (full width)
+    progress = st.progress(0, text="Ready")
 
-    # Then the two-column layout starts BELOW the progress bar
+    # Columns BELOW progress
     left, right = st.columns([2.2, 1.2])
     with left:
         console = st.empty()
@@ -405,7 +405,7 @@ with tab_audit:
         status_box = st.empty()
         signals_box = st.empty()
 
-    # stable empty cards so layout is aligned from the start
+    # Stable empty cards
     status_box.markdown("<div class='za-card' style='min-height:140px;'></div>", unsafe_allow_html=True)
     signals_box.markdown("<div class='za-card' style='min-height:140px;'></div>", unsafe_allow_html=True)
     console.markdown("<div class='za-card' style='min-height:260px;'></div>", unsafe_allow_html=True)
@@ -473,6 +473,10 @@ with tab_audit:
             unsafe_allow_html=True,
         )
 
+    # ✅ NEW: force clean completion state at 100%
+    def finalize_progress(scanned_count: int):
+        progress.progress(1.0, text=f"Complete ✅ ({scanned_count} articles)")
+
     if run_btn:
         if not all([subdomain, email, token]):
             st.error("Missing credentials in the sidebar.")
@@ -492,7 +496,12 @@ with tab_audit:
                         progress_cb=progress_cb,
                         status_cb=status_cb,
                     )
+
+                    # ✅ ensure progress ends at 100% (even when max_articles=0)
+                    finalize_progress(len(st.session_state.scan_results))
+
                     s.update(label="Scan complete ✅", state="complete", expanded=False)
+
                 st.toast("Scan complete", icon="✅")
             except Exception as e:
                 st.session_state.scan_running = False
