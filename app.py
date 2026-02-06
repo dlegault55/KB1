@@ -24,7 +24,7 @@ st.set_page_config(page_title=f"{APP_TITLE} Pro", page_icon=APP_ICON, layout="wi
 spell = SpellChecker()
 
 # =========================
-# 2) STYLE (keep minimal; avoid complex HTML cards)
+# 2) STYLE (premium button + subtle polish)
 # =========================
 st.markdown(
     """
@@ -43,7 +43,37 @@ st.markdown(
         margin-right: 6px;
     }
 
-    /* Make metrics look like cards */
+    /* Premium primary button (Run scan) */
+    button[kind="primary"] {
+        background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%) !important;
+        color: #081221 !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.5px !important;
+        border: 0 !important;
+        border-radius: 12px !important;
+        height: 52px !important;
+        box-shadow:
+            0 10px 30px rgba(56,189,248,0.25),
+            0 6px 18px rgba(34,197,94,0.18) !important;
+        transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease !important;
+    }
+    button[kind="primary"]:hover {
+        transform: translateY(-1px) !important;
+        filter: brightness(1.05) !important;
+        box-shadow:
+            0 14px 38px rgba(56,189,248,0.32),
+            0 8px 22px rgba(34,197,94,0.22) !important;
+    }
+    button[kind="primary"]:active {
+        transform: translateY(0px) scale(0.99) !important;
+    }
+    button[kind="secondary"] {
+        border-radius: 12px !important;
+        height: 46px !important;
+        font-weight: 700 !important;
+    }
+
+    /* Make metrics feel like cards */
     div[data-testid="metric-container"] {
         background: #0F1A2E;
         border: 1px solid #1F2A44;
@@ -111,11 +141,12 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
     if url in cache:
         return cache[url]
 
-    headers = {"User-Agent": "ZenAuditPro/0.4 (+streamlit)"}
+    headers = {"User-Agent": "ZenAuditPro/0.5 (+streamlit)"}
     try:
         resp = requests.head(url, allow_redirects=True, timeout=timeout, headers=headers)
         status = resp.status_code
 
+        # Fallback to GET when HEAD is blocked / unsupported
         if status in (403, 405) or status >= 400:
             resp = requests.get(url, allow_redirects=True, timeout=timeout, headers=headers)
             status = resp.status_code
@@ -148,13 +179,40 @@ def findings_to_xlsx_bytes(df: pd.DataFrame) -> bytes:
         df.to_excel(writer, index=False, sheet_name="Findings")
     return bio.getvalue()
 
-def push_log(msg: str, limit: int = 12):
+def push_log(msg: str, limit: int = 14):
     st.session_state.last_logs.insert(0, msg)
     st.session_state.last_logs = st.session_state.last_logs[:limit]
 
 def log_connection_established():
     st.session_state.connected_ok = True
     push_log("✅ Connected to Zendesk")
+
+def build_column_config():
+    """
+    Streamlit column_config compatibility:
+    - Newer Streamlit: st.column_config.LinkColumn / NumberColumn
+    - Some versions:   st.column_config.Link_Column / Number_Column
+    - Older Streamlit: no st.column_config → return {}
+    """
+    cc = getattr(st, "column_config", None)
+    if not cc:
+        return {}
+
+    if hasattr(cc, "LinkColumn") and hasattr(cc, "NumberColumn"):
+        return {
+            "Article URL": cc.LinkColumn("Article"),
+            "Target URL": cc.LinkColumn("Target"),
+            "HTTP Status": cc.NumberColumn("Status"),
+        }
+
+    if hasattr(cc, "Link_Column") and hasattr(cc, "Number_Column"):
+        return {
+            "Article URL": cc.Link_Column("Article"),
+            "Target URL": cc.Link_Column("Target"),
+            "HTTP Status": cc.Number_Column("Status"),
+        }
+
+    return {}
 
 # =========================
 # 5) SCAN ENGINE
@@ -231,10 +289,12 @@ def run_scan(
             if do_alt:
                 alt_miss = len([img for img in soup.find_all("img") if not (img.get("alt") or "").strip()])
 
+            # Per-article summary
             st.session_state.scan_results.append(
                 {"Title": title, "URL": article_url, "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "ID": art.get("id")}
             )
 
+            # Findings: missing alt
             if do_alt:
                 for img in images:
                     if img["missing_alt"]:
@@ -251,8 +311,9 @@ def run_scan(
                             }
                         )
 
+            # Findings: broken links
             if do_links and links:
-                for lk in list(dict.fromkeys(links)):
+                for lk in list(dict.fromkeys(links)):  # dedupe per-article
                     res = check_url_status(lk, timeout=8)
                     if not res["ok"]:
                         st.session_state.findings.append(
@@ -268,6 +329,7 @@ def run_scan(
                             }
                         )
 
+            # Findings: broken images
             if do_images and images:
                 for img in images:
                     src = img["src"]
@@ -286,6 +348,7 @@ def run_scan(
                             }
                         )
 
+            # Findings: stale content
             if do_stale and is_stale:
                 st.session_state.findings.append(
                     {
@@ -363,9 +426,9 @@ tab_audit, tab_method, tab_privacy, tab_pro = st.tabs(["Audit", "Methodology", "
 with tab_audit:
     a1, a2, a3 = st.columns([1.2, 1.2, 2.2])
     with a1:
-        run_btn = st.button("🚀 Run scan", use_container_width=True)
+        run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
     with a2:
-        clear_btn = st.button("🧹 Clear results", use_container_width=True)
+        clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
     with a3:
         st.caption("Tip: turn off Broken Links/Images for a faster first pass.")
 
@@ -385,7 +448,7 @@ with tab_audit:
     met_alt = m4.empty()
     met_stale = m5.empty()
 
-    # Progress row (full width)
+    # Progress row (full width) — boxes sit below this
     progress = st.progress(0, text="Ready")
 
     # Columns BELOW progress
@@ -395,7 +458,7 @@ with tab_audit:
     with left:
         console = st.empty()
 
-    # Right: Native (no HTML) Scan Status layout
+    # Right: Native Scan Status layout (no HTML divs)
     with right:
         st.subheader("Scan status")
         conn_ph = st.empty()
@@ -438,7 +501,7 @@ with tab_audit:
         met_alt.metric("Alt missing", alt_missing)
         met_stale.metric("Stale", stale_count)
 
-        # Connection pill (native)
+        # Connection state
         if st.session_state.connected_ok:
             conn_ph.success("✅ Connected to Zendesk")
         else:
@@ -459,13 +522,14 @@ with tab_audit:
             pct = min(1.0, scanned_count / int(max_articles))
             progress.progress(pct, text=f"Scanning… {scanned_count}/{int(max_articles)}")
         else:
+            # Unknown total: show activity but keep it calm
             pct = (scanned_count % 100) / 100
             progress.progress(pct, text=f"Scanning… {scanned_count} (unknown total)")
 
         refresh_metrics()
 
-        logs_html = "<br>".join(st.session_state.last_logs) if st.session_state.last_logs else "—"
-        console.markdown(f"### Live log\n{logs_html}", unsafe_allow_html=True)
+        logs = "<br>".join(st.session_state.last_logs) if st.session_state.last_logs else "—"
+        console.markdown(f"### Live log\n{logs}", unsafe_allow_html=True)
 
     def status_cb(_scanned_count: int):
         refresh_metrics()
@@ -503,6 +567,9 @@ with tab_audit:
 
     refresh_metrics()
 
+    # =========================
+    # RESULTS / FINDINGS
+    # =========================
     if st.session_state.scan_results:
         st.divider()
         st.subheader("Findings")
@@ -554,16 +621,13 @@ with tab_audit:
                     | view["Target URL"].fillna("").str.lower().str.contains(qq)
                 ]
 
-        st.dataframe(
-            view,
-            column_config={
-                "Article URL": st.column_config.Link_Column("Article"),
-                "Target URL": st.column_config.Link_Column("Target"),
-                "HTTP Status": st.column_config.Number_Column("Status"),
-            },
-            use_container_width=True,
-            hide_index=True,
-        )
+        # ✅ Streamlit version-safe column config
+        col_cfg = build_column_config()
+        df_kwargs = dict(use_container_width=True, hide_index=True)
+        if col_cfg:
+            df_kwargs["column_config"] = col_cfg
+
+        st.dataframe(view, **df_kwargs)
 
         st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
 
