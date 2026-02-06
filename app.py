@@ -137,16 +137,31 @@ def extract_links_images(html: str, base_url: str) -> Tuple[BeautifulSoup, str, 
     return soup, text, links, images
 
 def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
+    """
+    ok:
+      True  -> confirmed working
+      False -> confirmed broken
+      None  -> inconclusive (blocked / auth / rate-limited)
+    """
     cache = st.session_state.url_cache
     if url in cache:
         return cache[url]
 
-    headers = {"User-Agent": "ZenAuditPro/0.5 (+streamlit)"}
+    # More browser-like headers reduce cheap 403s
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/121.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
+
     try:
         resp = requests.head(url, allow_redirects=True, timeout=timeout, headers=headers)
         status = resp.status_code
 
-        # Fallback to GET when HEAD is blocked / unsupported
+        # Fallback to GET when HEAD is blocked / unsupported / suspicious
         if status in (403, 405) or status >= 400:
             resp = requests.get(url, allow_redirects=True, timeout=timeout, headers=headers)
             status = resp.status_code
@@ -156,7 +171,8 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
         elif status >= 500:
             result = {"ok": False, "status": status, "kind": "server_error", "severity": "warning"}
         elif status in (401, 403, 429):
-            result = {"ok": False, "status": status, "kind": "blocked_or_rate_limited", "severity": "warning"}
+            # Blocked/auth/rate-limited -> inconclusive, not "broken"
+            result = {"ok": None, "status": status, "kind": "blocked_or_rate_limited", "severity": "info"}
         elif status >= 400:
             result = {"ok": False, "status": status, "kind": "client_error", "severity": "warning"}
         else:
@@ -172,12 +188,6 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
 
 def severity_rank(sev: str) -> int:
     return {"critical": 0, "warning": 1, "info": 2}.get(str(sev), 2)
-
-def findings_to_xlsx_bytes(df: pd.DataFrame) -> bytes:
-    bio = BytesIO()
-    with pd.ExcelWriter(bio, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Findings")
-    return bio.getvalue()
 
 def push_log(msg: str, limit: int = 14):
     st.session_state.last_logs.insert(0, msg)
@@ -213,6 +223,20 @@ def build_column_config():
         }
 
     return {}
+
+def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str]]:
+    """
+    Returns: (xlsx_bytes or None, error_message or None)
+    Prevents app crashes if openpyxl isn't installed.
+    """
+    try:
+        import openpyxl  # noqa: F401
+    except Exception:
+        return None, "XLSX export requires the 'openpyxl' package."
+    bio = BytesIO()
+    with pd.ExcelWriter(bio, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Findings")
+    return bio.getvalue(), None
 
 # =========================
 # 5) SCAN ENGINE
@@ -287,9 +311,8 @@ def run_scan(
 
             alt_miss = 0
             if do_alt:
-                alt_miss = len([img for img in soup.find_all("img") if not (img.get("alt") or "").strip()])
+                alt_miss = len([img for img in soup.find_all("img") if not (img.get("alt") or "").strip())]
 
-            # Per-article summary
             st.session_state.scan_results.append(
                 {"Title": title, "URL": article_url, "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "ID": art.get("id")}
             )
@@ -311,11 +334,11 @@ def run_scan(
                             }
                         )
 
-            # Findings: broken links
+            # Findings: broken links (ONLY confirmed failures; skip inconclusive 401/403/429)
             if do_links and links:
-                for lk in list(dict.fromkeys(links)):  # dedupe per-article
+                for lk in list(dict.fromkeys(links)):
                     res = check_url_status(lk, timeout=8)
-                    if not res["ok"]:
+                    if res["ok"] is False:
                         st.session_state.findings.append(
                             {
                                 "Severity": res["severity"],
@@ -329,12 +352,12 @@ def run_scan(
                             }
                         )
 
-            # Findings: broken images
+            # Findings: broken images (ONLY confirmed failures; skip inconclusive 401/403/429)
             if do_images and images:
                 for img in images:
                     src = img["src"]
                     res = check_url_status(src, timeout=8)
-                    if not res["ok"]:
+                    if res["ok"] is False:
                         st.session_state.findings.append(
                             {
                                 "Severity": res["severity"],
@@ -448,17 +471,12 @@ with tab_audit:
     met_alt = m4.empty()
     met_stale = m5.empty()
 
-    # Progress row (full width) — boxes sit below this
     progress = st.progress(0, text="Ready")
 
-    # Columns BELOW progress
     left, right = st.columns([2.2, 1.2])
-
-    # Left: Live log placeholder
     with left:
         console = st.empty()
 
-    # Right: Native Scan Status layout (no HTML divs)
     with right:
         st.subheader("Scan status")
         conn_ph = st.empty()
@@ -476,7 +494,6 @@ with tab_audit:
         st.divider()
         st.caption("Tip: Fix broken links first, then images, then content quality.")
 
-    # Initial placeholders (prevents jump)
     console.markdown("### Live log\n—")
     conn_ph.info("Waiting to start")
     now_ph.write("**Now scanning:** —")
@@ -501,17 +518,14 @@ with tab_audit:
         met_alt.metric("Alt missing", alt_missing)
         met_stale.metric("Stale", stale_count)
 
-        # Connection state
         if st.session_state.connected_ok:
             conn_ph.success("✅ Connected to Zendesk")
         else:
             conn_ph.info("Waiting to start")
 
-        # Now scanning
         title = st.session_state.last_scanned_title or "—"
         now_ph.write(f"**Now scanning:** {title}")
 
-        # Quality metrics
         crit_ph.metric("Critical", critical)
         warn_ph.metric("Warnings", warning)
         alt_ph.metric("Missing alt", alt_missing)
@@ -522,7 +536,6 @@ with tab_audit:
             pct = min(1.0, scanned_count / int(max_articles))
             progress.progress(pct, text=f"Scanning… {scanned_count}/{int(max_articles)}")
         else:
-            # Unknown total: show activity but keep it calm
             pct = (scanned_count % 100) / 100
             progress.progress(pct, text=f"Scanning… {scanned_count} (unknown total)")
 
@@ -556,7 +569,6 @@ with tab_audit:
                         progress_cb=progress_cb,
                         status_cb=status_cb,
                     )
-
                     finalize_progress(len(st.session_state.scan_results))
                     s.update(label="Scan complete ✅", state="complete", expanded=False)
 
@@ -567,9 +579,6 @@ with tab_audit:
 
     refresh_metrics()
 
-    # =========================
-    # RESULTS / FINDINGS
-    # =========================
     if st.session_state.scan_results:
         st.divider()
         st.subheader("Findings")
@@ -621,7 +630,6 @@ with tab_audit:
                     | view["Target URL"].fillna("").str.lower().str.contains(qq)
                 ]
 
-        # ✅ Streamlit version-safe column config
         col_cfg = build_column_config()
         df_kwargs = dict(use_container_width=True, hide_index=True)
         if col_cfg:
@@ -630,21 +638,27 @@ with tab_audit:
         st.dataframe(view, **df_kwargs)
 
         st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
-
         if gated:
             st.warning(f"Free preview shows first **{FREE_FINDING_LIMIT}** findings. Enable **Pro Mode (dev)** to export everything.")
 
         export_df = df_findings if (pro_mode or not gated) else df_preview
+
+        xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(export_df)
+
         c_exp1, c_exp2 = st.columns([1, 1])
         with c_exp1:
-            if total_findings > 0:
+            if total_findings > 0 and xlsx_bytes:
                 st.download_button(
                     "📥 Download XLSX",
-                    data=findings_to_xlsx_bytes(export_df),
+                    data=xlsx_bytes,
                     file_name="zenaudit_report.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True,
                 )
+            elif total_findings > 0:
+                st.button("📥 Download XLSX", disabled=True, use_container_width=True)
+                st.caption("XLSX export unavailable. Add openpyxl to requirements.txt.")
+
         with c_exp2:
             if total_findings > 0:
                 st.download_button(
@@ -668,7 +682,7 @@ with tab_method:
 - **Broken links/images:** HTTP status:
   - 404/410 → critical
   - 5xx/timeout/request errors → warning
-  - 401/403/429 → warning (blocked/rate limited)
+  - 401/403/429 → *inconclusive* (often blocked/auth/rate-limited) and excluded from findings by default
 """
     )
 
