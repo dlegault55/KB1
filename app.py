@@ -311,7 +311,8 @@ def run_scan(
 
             alt_miss = 0
             if do_alt:
-                alt_miss = len([img for img in soup.find_all("img") if not (img.get("alt") or "").strip())]
+                alt_miss = len([img for img in soup.find_all("img") if not (img.get("alt") or "").strip()])
+
 
             st.session_state.scan_results.append(
                 {"Title": title, "URL": article_url, "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "ID": art.get("id")}
