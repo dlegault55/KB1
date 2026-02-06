@@ -80,6 +80,23 @@ st.markdown(
         padding: 10px 12px;
         border-radius: 12px;
     }
+
+    /* Simple “link-as-button” style (markdown) */
+    a.za-linkbtn {
+        display: inline-block;
+        width: 100%;
+        text-align: center;
+        padding: 10px 12px;
+        border-radius: 12px;
+        font-weight: 800;
+        text-decoration: none !important;
+        color: #081221 !important;
+        background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%);
+        box-shadow:
+            0 10px 30px rgba(56,189,248,0.20),
+            0 6px 18px rgba(34,197,94,0.14);
+    }
+    a.za-linkbtn:hover { filter: brightness(1.04); }
 </style>
 """,
     unsafe_allow_html=True,
@@ -110,6 +127,13 @@ ss_init()
 # =========================
 # 4) HELPERS
 # =========================
+def link_cta(label: str, url: str):
+    """Compatible replacement for st.link_button across Streamlit versions."""
+    if not url:
+        st.button(label, disabled=True, use_container_width=True)
+        return
+    st.markdown(f'<a class="za-linkbtn" href="{url}" target="_blank" rel="noopener">{label}</a>', unsafe_allow_html=True)
+
 def safe_parse_updated_at(s: str) -> Optional[datetime]:
     try:
         return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
@@ -168,7 +192,6 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
         resp = requests.head(url, allow_redirects=True, timeout=timeout, headers=headers)
         status = resp.status_code
 
-        # Fallback to GET when HEAD is blocked / unsupported / suspicious
         if status in (403, 405) or status >= 400:
             resp = requests.get(url, allow_redirects=True, timeout=timeout, headers=headers)
             status = resp.status_code
@@ -178,7 +201,6 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
         elif status >= 500:
             result = {"ok": False, "status": status, "kind": "server_error", "severity": "warning"}
         elif status in (401, 403, 429):
-            # Blocked/auth/rate-limited -> inconclusive, not "broken"
             result = {"ok": None, "status": status, "kind": "blocked_or_rate_limited", "severity": "info"}
         elif status >= 400:
             result = {"ok": False, "status": status, "kind": "client_error", "severity": "warning"}
@@ -205,12 +227,6 @@ def log_connection_established():
     push_log("✅ Connected to Zendesk")
 
 def build_column_config():
-    """
-    Streamlit column_config compatibility:
-    - Newer Streamlit: st.column_config.LinkColumn / NumberColumn
-    - Some versions:   st.column_config.Link_Column / Number_Column
-    - Older Streamlit: no st.column_config → return {}
-    """
     cc = getattr(st, "column_config", None)
     if not cc:
         return {}
@@ -232,10 +248,6 @@ def build_column_config():
     return {}
 
 def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str]]:
-    """
-    Returns: (xlsx_bytes or None, error_message or None)
-    Prevents app crashes if openpyxl isn't installed.
-    """
     try:
         import openpyxl  # noqa: F401
     except Exception:
@@ -249,12 +261,6 @@ def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str
 # 4b) PRO PAYWALL HELPERS (Worker)
 # =========================
 def _worker_cfg() -> Tuple[Optional[str], Optional[str], str]:
-    """
-    Reads Streamlit secrets:
-      WORKER_BASE_URL
-      STATUS_API_TOKEN
-      PAYMENT_LINK_URL (optional)
-    """
     base = st.secrets.get("WORKER_BASE_URL")
     token = st.secrets.get("STATUS_API_TOKEN")
     pay = st.secrets.get("PAYMENT_LINK_URL", "") or ""
@@ -328,10 +334,6 @@ def worker_consume(email: str) -> Tuple[bool, int, str]:
         return False, 0, f"Consume error: {e}"
 
 def pro_access_active(pro_mode: bool) -> bool:
-    """
-    True if Pro is available for full export (dev bypass OR claimed scan available)
-    and not already consumed locally this session.
-    """
     if pro_mode:
         return True
     return bool(st.session_state.pro_unlocked) and (not st.session_state.xlsx_consumed_local)
@@ -415,7 +417,6 @@ def run_scan(
                 {"Title": title, "URL": article_url, "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "ID": art.get("id")}
             )
 
-            # Findings: missing alt
             if do_alt:
                 for img in images:
                     if img["missing_alt"]:
@@ -432,7 +433,6 @@ def run_scan(
                             }
                         )
 
-            # Findings: broken links (ONLY confirmed failures; skip inconclusive 401/403/429)
             if do_links and links:
                 for lk in list(dict.fromkeys(links)):
                     res = check_url_status(lk, timeout=8)
@@ -450,7 +450,6 @@ def run_scan(
                             }
                         )
 
-            # Findings: broken images (ONLY confirmed failures; skip inconclusive 401/403/429)
             if do_images and images:
                 for img in images:
                     src = img["src"]
@@ -469,7 +468,6 @@ def run_scan(
                             }
                         )
 
-            # Findings: stale content
             if do_stale and is_stale:
                 st.session_state.findings.append(
                     {
@@ -553,7 +551,6 @@ with tab_audit:
     with a3:
         st.caption("Tip: turn off Broken Links/Images for a faster first pass.")
 
-    # --- Pro / Claim panel (ONLY place to claim/check; keys to avoid collisions) ---
     base, tok, pay_url = _worker_cfg()
     with st.expander("🔓 Pro export (1 Excel download)", expanded=True):
         st.caption("Purchase 1 scan, then claim it for the email that should be allowed to download the Excel report.")
@@ -605,10 +602,7 @@ with tab_audit:
                         st.info(err or "No scan available for that email.")
 
             with b3:
-                if pay_url:
-                    st.link_button("💳 Buy 1 scan", pay_url, use_container_width=True, key="link_buy_scan_audit")
-                else:
-                    st.button("💳 Buy 1 scan", disabled=True, use_container_width=True, key="btn_buy_disabled_audit")
+                link_cta("💳 Buy 1 scan", pay_url)
 
             if st.session_state.pro_last_status_error:
                 st.caption(st.session_state.pro_last_status_error)
@@ -772,7 +766,6 @@ with tab_audit:
 
         total_findings = len(df_findings)
 
-        # Pro gating uses dev bypass OR claimed scan availability (and not consumed in-session)
         pro_access = pro_access_active(pro_mode)
 
         gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
@@ -819,11 +812,6 @@ with tab_audit:
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(export_df)
 
         def _consume_once():
-            """
-            Called when user clicks XLSX download.
-            - In dev pro_mode: do NOT consume.
-            - Otherwise: consume exactly once per session.
-            """
             if pro_mode:
                 return
             if st.session_state.xlsx_consumed_local:
@@ -904,7 +892,7 @@ with tab_privacy:
     )
 
 with tab_pro:
-    base, tok, pay_url = _worker_cfg()
+    _base, _tok, pay_url = _worker_cfg()
 
     c1, c2 = st.columns(2)
     with c1:
@@ -919,10 +907,7 @@ with tab_pro:
         st.write("🚀 Full findings (beyond 50)")
         st.write("📥 One-time Excel download (counts as 1 scan)")
         st.write("🛠 Manual override supported (admin grant)")
-        if pay_url:
-            st.link_button("💳 Buy 1 scan", pay_url, use_container_width=True, key="link_buy_scan_protab")
-        else:
-            st.button("Upgrade (configure PAYMENT_LINK_URL)", disabled=True, use_container_width=True, key="btn_upgrade_disabled_protab")
+        link_cta("💳 Buy 1 scan", pay_url)
 
     st.divider()
-    st.caption("To unlock Pro export, use the **Pro export** panel under the **Run scan** button on the Audit tab.")
+    st.caption("To unlock Pro export, use the **Pro export** panel under **Run scan** on the Audit tab.")
