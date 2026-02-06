@@ -532,69 +532,6 @@ with st.sidebar:
     pro_mode = st.checkbox("Pro Mode (dev)", value=True)
     max_articles = st.number_input("Max Articles (0 = all)", min_value=0, value=0, step=50)
 
-    # ---- Pro claim section (uses Worker) ----
-    st.divider()
-    st.subheader("Pro scan (1 Excel download)")
-
-    pro_email_in = st.text_input(
-        "Claim email (can differ from payer)",
-        value=st.session_state.pro_email,
-        placeholder="admin@company.com",
-        help="Use the email that should be allowed to download the Excel report.",
-    )
-    st.session_state.pro_email = (pro_email_in or "").strip().lower()
-
-    base, tok, pay_url = _worker_cfg()
-    if not base or not tok:
-        st.warning("Paywall not configured: missing WORKER_BASE_URL / STATUS_API_TOKEN secrets.")
-    else:
-        cpa1, cpa2 = st.columns(2)
-        with cpa1:
-            if st.button(
-                "🔓 Claim scan",
-                use_container_width=True,
-                disabled=not bool(st.session_state.pro_email),
-                help="After paying, claim the scan for the email that should have access.",
-            ):
-                ok, avail, err = worker_claim(st.session_state.pro_email)
-                st.session_state.pro_unlocked = ok
-                st.session_state.pro_available_scans = avail
-                st.session_state.pro_last_status_error = err
-                st.session_state.xlsx_consumed_local = False
-                if ok:
-                    st.toast("Scan claimed ✅", icon="✅")
-                else:
-                    st.warning(err or "Could not claim scan.")
-
-        with cpa2:
-            if st.button(
-                "🔄 Check access",
-                use_container_width=True,
-                disabled=not bool(st.session_state.pro_email),
-            ):
-                ok, avail, err = worker_get_status(st.session_state.pro_email)
-                st.session_state.pro_unlocked = ok
-                st.session_state.pro_available_scans = avail
-                st.session_state.pro_last_status_error = err
-                if ok:
-                    st.toast("Scan available ✅", icon="✅")
-                else:
-                    st.info(err or "No scan available for that email.")
-
-        if pay_url:
-            st.link_button("💳 Buy 1 scan", pay_url, use_container_width=True)
-
-        if st.session_state.pro_last_status_error:
-            st.caption(st.session_state.pro_last_status_error)
-
-        if st.session_state.pro_unlocked:
-            st.success(
-                f"✅ Scan available for {st.session_state.pro_email} "
-                f"(remaining: {st.session_state.pro_available_scans})"
-            )
-        else:
-            st.info("No scan available yet. Purchase, then click **Claim scan**.")
-
     st.caption("Zendesk® is a trademark of Zendesk, Inc.")
 
 # =========================
@@ -616,6 +553,63 @@ with tab_audit:
         clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
     with a3:
         st.caption("Tip: turn off Broken Links/Images for a faster first pass.")
+
+    # --- Pro / Claim panel (moved directly under Run scan) ---
+    base, tok, pay_url = _worker_cfg()
+    with st.expander("🔓 Pro export (1 Excel download)", expanded=True):
+        st.caption("Purchase 1 scan, then claim it for the email that should be allowed to download the Excel report.")
+
+        pro_email_top = st.text_input(
+            "Claim email",
+            value=st.session_state.pro_email,
+            placeholder="admin@company.com",
+            help="Can be different from the payment email (e.g., finance paid, admin uses).",
+        )
+        st.session_state.pro_email = (pro_email_top or "").strip().lower()
+
+        if not base or not tok:
+            st.warning("Paywall not configured: missing WORKER_BASE_URL / STATUS_API_TOKEN secrets.")
+        else:
+            b1, b2, b3 = st.columns([1, 1, 1.2])
+            with b1:
+                if st.button("🔓 Claim scan", use_container_width=True, disabled=not bool(st.session_state.pro_email)):
+                    ok, avail, err = worker_claim(st.session_state.pro_email)
+                    st.session_state.pro_unlocked = ok
+                    st.session_state.pro_available_scans = avail
+                    st.session_state.pro_last_status_error = err
+                    st.session_state.xlsx_consumed_local = False
+                    if ok:
+                        st.toast("Scan claimed ✅", icon="✅")
+                    else:
+                        st.warning(err or "Could not claim scan.")
+
+            with b2:
+                if st.button("🔄 Check access", use_container_width=True, disabled=not bool(st.session_state.pro_email)):
+                    ok, avail, err = worker_get_status(st.session_state.pro_email)
+                    st.session_state.pro_unlocked = ok
+                    st.session_state.pro_available_scans = avail
+                    st.session_state.pro_last_status_error = err
+                    if ok:
+                        st.toast("Scan available ✅", icon="✅")
+                    else:
+                        st.info(err or "No scan available for that email.")
+
+            with b3:
+                if pay_url:
+                    st.link_button("💳 Buy 1 scan", pay_url, use_container_width=True)
+                else:
+                    st.button("💳 Buy 1 scan", disabled=True, use_container_width=True)
+
+            if st.session_state.pro_last_status_error:
+                st.caption(st.session_state.pro_last_status_error)
+
+            if st.session_state.pro_unlocked:
+                st.success(
+                    f"✅ Scan available for {st.session_state.pro_email} "
+                    f"(remaining: {st.session_state.pro_available_scans})"
+                )
+            else:
+                st.info("No scan available yet. Purchase, then click **Claim scan**.")
 
     if clear_btn:
         st.session_state.scan_results = []
@@ -826,7 +820,7 @@ with tab_audit:
             if st.session_state.xlsx_consumed_local:
                 return
             if not st.session_state.pro_email:
-                st.warning("Enter your claim email in the sidebar to consume a scan.")
+                st.warning("Enter your claim email above to consume a scan.")
                 return
 
             ok, avail, err = worker_consume(st.session_state.pro_email)
