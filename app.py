@@ -97,6 +97,14 @@ def ss_init():
     st.session_state.setdefault("last_scanned_title", "")
     st.session_state.setdefault("connected_ok", False)
 
+    # Pro / Paywall state
+    st.session_state.setdefault("pro_email", "")
+    st.session_state.setdefault("pro_unlocked", False)
+    st.session_state.setdefault("pro_available_scans", 0)
+    st.session_state.setdefault("pro_last_status_error", "")
+    # Local/session guard to prevent double-consume via Streamlit reruns
+    st.session_state.setdefault("xlsx_consumed_local", False)
+
 ss_init()
 
 # =========================
@@ -239,6 +247,97 @@ def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str
     return bio.getvalue(), None
 
 # =========================
+# 4b) PRO PAYWALL HELPERS (Worker)
+# =========================
+def _worker_cfg() -> Tuple[Optional[str], Optional[str], str]:
+    """
+    Reads Streamlit secrets:
+      WORKER_BASE_URL
+      STATUS_API_TOKEN
+      PAYMENT_LINK_URL (optional)
+    """
+    base = st.secrets.get("WORKER_BASE_URL")
+    token = st.secrets.get("STATUS_API_TOKEN")
+    pay = st.secrets.get("PAYMENT_LINK_URL", "") or ""
+    if not base or not token:
+        return None, None, str(pay)
+    return str(base).rstrip("/"), str(token), str(pay)
+
+def worker_get_status(email: str) -> Tuple[bool, int, str]:
+    base, token, _pay = _worker_cfg()
+    if not base or not token:
+        return False, 0, "Missing WORKER_BASE_URL or STATUS_API_TOKEN in Streamlit secrets."
+
+    try:
+        r = requests.get(
+            f"{base}/status",
+            params={"email": email},
+            headers={"x-status-token": token},
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return False, 0, f"Status check failed ({r.status_code})."
+        data = r.json()
+        avail = int(data.get("available_scans") or 0)
+        return (avail > 0), avail, ""
+    except Exception as e:
+        return False, 0, f"Status check error: {e}"
+
+def worker_claim(email: str) -> Tuple[bool, int, str]:
+    base, token, _pay = _worker_cfg()
+    if not base or not token:
+        return False, 0, "Missing WORKER_BASE_URL or STATUS_API_TOKEN in Streamlit secrets."
+
+    try:
+        r = requests.post(
+            f"{base}/claim",
+            json={"email": email},
+            headers={"x-status-token": token},
+            timeout=15,
+        )
+        if r.status_code != 200:
+            if r.status_code == 404:
+                return False, 0, "No unclaimed purchase found yet. Did you complete payment?"
+            return False, 0, f"Claim failed ({r.status_code})."
+
+        data = r.json()
+        avail = int(data.get("available_scans") or 0)
+        return (avail > 0), avail, ""
+    except Exception as e:
+        return False, 0, f"Claim error: {e}"
+
+def worker_consume(email: str) -> Tuple[bool, int, str]:
+    base, token, _pay = _worker_cfg()
+    if not base or not token:
+        return False, 0, "Missing WORKER_BASE_URL or STATUS_API_TOKEN in Streamlit secrets."
+
+    try:
+        r = requests.post(
+            f"{base}/consume",
+            json={"email": email},
+            headers={"x-status-token": token},
+            timeout=15,
+        )
+        if r.status_code != 200:
+            if r.status_code == 409:
+                return False, 0, "No scans available to consume."
+            return False, 0, f"Consume failed ({r.status_code})."
+        data = r.json()
+        avail = int(data.get("available_scans") or 0)
+        return True, avail, ""
+    except Exception as e:
+        return False, 0, f"Consume error: {e}"
+
+def pro_access_active(pro_mode: bool) -> bool:
+    """
+    True if Pro is available for full export (dev bypass OR claimed scan available)
+    and not already consumed locally this session.
+    """
+    if pro_mode:
+        return True
+    return bool(st.session_state.pro_unlocked) and (not st.session_state.xlsx_consumed_local)
+
+# =========================
 # 5) SCAN ENGINE
 # =========================
 def run_scan(
@@ -312,7 +411,6 @@ def run_scan(
             alt_miss = 0
             if do_alt:
                 alt_miss = len([img for img in soup.find_all("img") if not (img.get("alt") or "").strip()])
-
 
             st.session_state.scan_results.append(
                 {"Title": title, "URL": article_url, "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "ID": art.get("id")}
@@ -433,6 +531,69 @@ with st.sidebar:
     st.subheader("Limits & gating")
     pro_mode = st.checkbox("Pro Mode (dev)", value=True)
     max_articles = st.number_input("Max Articles (0 = all)", min_value=0, value=0, step=50)
+
+    # ---- Pro claim section (uses Worker) ----
+    st.divider()
+    st.subheader("Pro scan (1 Excel download)")
+
+    pro_email_in = st.text_input(
+        "Claim email (can differ from payer)",
+        value=st.session_state.pro_email,
+        placeholder="admin@company.com",
+        help="Use the email that should be allowed to download the Excel report.",
+    )
+    st.session_state.pro_email = (pro_email_in or "").strip().lower()
+
+    base, tok, pay_url = _worker_cfg()
+    if not base or not tok:
+        st.warning("Paywall not configured: missing WORKER_BASE_URL / STATUS_API_TOKEN secrets.")
+    else:
+        cpa1, cpa2 = st.columns(2)
+        with cpa1:
+            if st.button(
+                "🔓 Claim scan",
+                use_container_width=True,
+                disabled=not bool(st.session_state.pro_email),
+                help="After paying, claim the scan for the email that should have access.",
+            ):
+                ok, avail, err = worker_claim(st.session_state.pro_email)
+                st.session_state.pro_unlocked = ok
+                st.session_state.pro_available_scans = avail
+                st.session_state.pro_last_status_error = err
+                st.session_state.xlsx_consumed_local = False
+                if ok:
+                    st.toast("Scan claimed ✅", icon="✅")
+                else:
+                    st.warning(err or "Could not claim scan.")
+
+        with cpa2:
+            if st.button(
+                "🔄 Check access",
+                use_container_width=True,
+                disabled=not bool(st.session_state.pro_email),
+            ):
+                ok, avail, err = worker_get_status(st.session_state.pro_email)
+                st.session_state.pro_unlocked = ok
+                st.session_state.pro_available_scans = avail
+                st.session_state.pro_last_status_error = err
+                if ok:
+                    st.toast("Scan available ✅", icon="✅")
+                else:
+                    st.info(err or "No scan available for that email.")
+
+        if pay_url:
+            st.link_button("💳 Buy 1 scan", pay_url, use_container_width=True)
+
+        if st.session_state.pro_last_status_error:
+            st.caption(st.session_state.pro_last_status_error)
+
+        if st.session_state.pro_unlocked:
+            st.success(
+                f"✅ Scan available for {st.session_state.pro_email} "
+                f"(remaining: {st.session_state.pro_available_scans})"
+            )
+        else:
+            st.info("No scan available yet. Purchase, then click **Claim scan**.")
 
     st.caption("Zendesk® is a trademark of Zendesk, Inc.")
 
@@ -606,7 +767,11 @@ with tab_audit:
             df_findings = df_findings.sort_values(by=["_sev_rank", "Type"], ascending=[True, True]).drop(columns=["_sev_rank"])
 
         total_findings = len(df_findings)
-        gated = (not pro_mode) and (total_findings > FREE_FINDING_LIMIT)
+
+        # Pro gating uses dev bypass OR claimed scan availability (and not consumed in-session)
+        pro_access = pro_access_active(pro_mode)
+
+        gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
         df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
 
         f1, f2, f3 = st.columns([1.2, 1.2, 2.6])
@@ -640,25 +805,62 @@ with tab_audit:
 
         st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
         if gated:
-            st.warning(f"Free preview shows first **{FREE_FINDING_LIMIT}** findings. Enable **Pro Mode (dev)** to export everything.")
+            st.warning(
+                f"Free preview shows first **{FREE_FINDING_LIMIT}** findings. "
+                f"Purchase + **Claim scan** to unlock the one-time Excel export."
+            )
 
-        export_df = df_findings if (pro_mode or not gated) else df_preview
+        # Full export only if pro_access is active; otherwise export preview
+        export_df = df_findings if pro_access else df_preview
 
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(export_df)
 
+        def _consume_once():
+            """
+            Called when user clicks XLSX download.
+            - In dev pro_mode: do NOT consume.
+            - Otherwise: consume exactly once per session.
+            """
+            if pro_mode:
+                return
+            if st.session_state.xlsx_consumed_local:
+                return
+            if not st.session_state.pro_email:
+                st.warning("Enter your claim email in the sidebar to consume a scan.")
+                return
+
+            ok, avail, err = worker_consume(st.session_state.pro_email)
+            if ok:
+                st.session_state.xlsx_consumed_local = True
+                st.session_state.pro_unlocked = False
+                st.session_state.pro_available_scans = avail
+                st.toast("Scan used ✅ (Excel download)", icon="✅")
+            else:
+                st.warning(err or "Could not consume scan (try again).")
+
         c_exp1, c_exp2 = st.columns([1, 1])
         with c_exp1:
-            if total_findings > 0 and xlsx_bytes:
-                st.download_button(
-                    "📥 Download XLSX",
-                    data=xlsx_bytes,
-                    file_name="zenaudit_report.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                )
-            elif total_findings > 0:
+            if total_findings <= 0:
                 st.button("📥 Download XLSX", disabled=True, use_container_width=True)
-                st.caption("XLSX export unavailable. Add openpyxl to requirements.txt.")
+            else:
+                if not pro_access:
+                    st.button("📥 Download XLSX (Pro)", disabled=True, use_container_width=True)
+                    st.caption("⚠️ One-time Excel download. Purchase + claim a scan to unlock.")
+                else:
+                    if xlsx_bytes:
+                        if not pro_mode:
+                            st.caption("⚠️ One-time download. Save the file after downloading.")
+                        st.download_button(
+                            "📥 Download XLSX" + ("" if pro_mode else " (uses 1 scan)"),
+                            data=xlsx_bytes,
+                            file_name="zenaudit_report.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                            on_click=_consume_once,
+                        )
+                    else:
+                        st.button("📥 Download XLSX (Pro)", disabled=True, use_container_width=True)
+                        st.caption(xlsx_err or "XLSX export unavailable.")
 
         with c_exp2:
             if total_findings > 0:
@@ -699,18 +901,51 @@ with tab_privacy:
     )
 
 with tab_pro:
+    base, tok, pay_url = _worker_cfg()
+
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("Free")
         st.write("✅ Unlimited article scanning")
         st.write("✅ Preview first 50 findings")
-        st.write("✅ CSV/XLSX preview export")
+        st.write("✅ CSV export (preview)")
+        st.write("✅ XLSX export (preview)")
+
     with c2:
-        st.subheader("Pro")
-        st.write("🚀 Full findings export")
-        st.write("🚀 Scheduled audits (future)")
-        st.write("🚀 Team sharing (future)")
-        st.button("Upgrade (placeholder)", use_container_width=True)
+        st.subheader("Pro (1 scan)")
+        st.write("🚀 Full findings (beyond 50)")
+        st.write("📥 One-time Excel download (counts as 1 scan)")
+        st.write("🛠 Manual override supported (admin grant)")
+        if pay_url:
+            st.link_button("💳 Buy 1 scan", pay_url, use_container_width=True)
+        else:
+            st.button("Upgrade (configure PAYMENT_LINK_URL)", disabled=True, use_container_width=True)
 
+    st.divider()
+    st.markdown("### Claim your scan")
+    st.caption("After purchase, claim the scan for the email that should be able to download Excel.")
+    pro_email_tab = st.text_input("Claim email", value=st.session_state.pro_email, placeholder="admin@company.com")
+    st.session_state.pro_email = (pro_email_tab or "").strip().lower()
 
-
+    b1, b2 = st.columns(2)
+    with b1:
+        if st.button("🔓 Claim scan", use_container_width=True, disabled=not bool(st.session_state.pro_email) or not (base and tok)):
+            ok, avail, err = worker_claim(st.session_state.pro_email)
+            st.session_state.pro_unlocked = ok
+            st.session_state.pro_available_scans = avail
+            st.session_state.pro_last_status_error = err
+            st.session_state.xlsx_consumed_local = False
+            if ok:
+                st.success(f"✅ Scan available (remaining: {avail})")
+            else:
+                st.warning(err or "Could not claim scan.")
+    with b2:
+        if st.button("🔄 Check access", use_container_width=True, disabled=not bool(st.session_state.pro_email) or not (base and tok)):
+            ok, avail, err = worker_get_status(st.session_state.pro_email)
+            st.session_state.pro_unlocked = ok
+            st.session_state.pro_available_scans = avail
+            st.session_state.pro_last_status_error = err
+            if ok:
+                st.success(f"✅ Scan available (remaining: {avail})")
+            else:
+                st.info(err or "No scan available for that email.")
