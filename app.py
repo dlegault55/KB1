@@ -105,8 +105,7 @@ if page == "Audit Dashboard":
         score_ui, tip_ui, insight_ui = st.empty(), st.empty(), st.empty()
 
     st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True)
-    dl_area = st.empty()
-
+    
     # CORE AUDIT ENGINE
     strat_pool = [
         "🤖 SEO: Use 'How-to' prefixes for indexing.",
@@ -185,8 +184,42 @@ if page == "Audit Dashboard":
                     url = data.get('next_page')
                 
                 st.balloons()
-                dl_area.download_button("📥 DOWNLOAD FULL REPORT", pd.DataFrame(st.session_state.scan_results).to_csv(index=False), "zenaudit_report.csv")
             except Exception as e: st.error(f"Audit failed: {e}")
+
+    # --- NEW: INTERACTIVE DATA PREVIEW AREA ---
+    if st.session_state.scan_results:
+        st.divider()
+        st.subheader("⚠️ Top 10 Priority Fixes")
+        
+        # Sort and Prepare Teaser Table
+        df_preview = pd.DataFrame(st.session_state.scan_results)
+        df_top_10 = df_preview.sort_values(by="Typos", ascending=False).head(10)
+        
+        # Style and Display
+        st.dataframe(
+            df_top_10[['Title', 'URL', 'Typos', 'Stale', 'Alt']], 
+            column_config={
+                "URL": st.column_config.Link_Column("Action Link"),
+                "Typos": st.column_config.Number_Column("Errors", format="%d 🚩"),
+                "Stale": st.column_config.Checkbox_Column("Stale?"),
+                "Alt": st.column_config.Number_Column("Missing Alt", format="%d 🖼️")
+            },
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        pay_col1, pay_col2 = st.columns([1.5, 1])
+        with pay_col1:
+            st.info(f"💡 Found issues in {len(df_preview)} total articles. The top 10 worst offenders are shown above for immediate triage.")
+        with pay_col2:
+            st.markdown("### 🔓 Unlock Full Report")
+            st.download_button(
+                "📥 DOWNLOAD FULL AUDIT (.CSV)", 
+                df_preview.to_csv(index=False), 
+                "zenaudit_full_report.csv",
+                help="Get the full list of all flagged articles and SEO metadata."
+            )
 
 elif page == "💡 Strategy & FAQ":
     st.title("Methodology & Support")
