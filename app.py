@@ -171,6 +171,10 @@ def push_log(msg: str, limit: int = 12):
     st.session_state.last_logs.insert(0, msg)
     st.session_state.last_logs = st.session_state.last_logs[:limit]
 
+def log_connection_established():
+    # Shows under Live log as soon as the first successful API request returns
+    push_log("✅ Connected to Zendesk")
+
 # =========================
 # 5) SCAN ENGINE
 # =========================
@@ -199,12 +203,18 @@ def run_scan(
     url = f"{base_url}/api/v2/help_center/articles.json?per_page={ZENDESK_PER_PAGE}"
 
     scanned = 0
+    connection_logged = False
 
     while url:
         r = requests.get(url, auth=auth, timeout=REQUEST_TIMEOUT)
         if r.status_code == 401:
             raise RuntimeError("Auth failed (401). Check email/token and Zendesk API settings.")
         r.raise_for_status()
+
+        # ✅ First successful request = connection established
+        if not connection_logged:
+            log_connection_established()
+            connection_logged = True
 
         data = r.json()
         articles = data.get("articles", [])
@@ -425,7 +435,7 @@ with tab_audit:
         status_box = st.empty()
         signals_box = st.empty()
 
-    # render stable empty cards so layout is aligned from the start (prevents "jumping")
+    # stable empty cards so layout is aligned from the start
     status_box.markdown("<div class='za-card' style='min-height:140px;'></div>", unsafe_allow_html=True)
     signals_box.markdown("<div class='za-card' style='min-height:140px;'></div>", unsafe_allow_html=True)
 
@@ -445,7 +455,6 @@ with tab_audit:
         met_alt.metric("Alt missing", alt_missing)
         met_stale.metric("Stale", stale_count)
 
-        # 👇 Render this inside the placeholder to keep alignment with the left column
         signals_box.markdown(
             f"""
             <div class='za-card' style='min-height:140px;'>
@@ -462,7 +471,6 @@ with tab_audit:
         )
 
     def progress_cb(scanned_count: int):
-        # If max_articles is 0, we can't know total; show a looping indicator via modulo
         if max_articles:
             pct = min(1.0, scanned_count / int(max_articles))
             progress.progress(pct, text=f"Scanning… {scanned_count}/{int(max_articles)}")
@@ -499,8 +507,8 @@ with tab_audit:
             st.error("Missing credentials in the sidebar.")
         else:
             try:
+                # ✅ Removed misleading "Connecting to Zendesk…" line; connection is logged in Live log once confirmed
                 with st.status("Running scan…", expanded=True) as s:
-                    s.write("Connecting to Zendesk…")
                     run_scan(
                         subdomain=subdomain,
                         email=email,
