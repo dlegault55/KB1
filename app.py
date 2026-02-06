@@ -84,7 +84,6 @@ ss_init()
 # =========================
 def safe_parse_updated_at(s: str) -> Optional[datetime]:
     try:
-        # Zendesk often returns UTC like: 2025-01-01T12:34:56Z
         return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
     except Exception:
         return None
@@ -118,13 +117,6 @@ def extract_links_images(html: str, base_url: str) -> Tuple[BeautifulSoup, str, 
     return soup, text, links, images
 
 def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
-    """
-    Cached URL status check:
-      ok: bool
-      status: int|None
-      kind: str|None
-      severity: critical|warning|info
-    """
     cache = st.session_state.url_cache
     if url in cache:
         return cache[url]
@@ -134,7 +126,6 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
         resp = requests.head(url, allow_redirects=True, timeout=timeout, headers=headers)
         status = resp.status_code
 
-        # Fallback GET when HEAD is blocked / not allowed / suspicious
         if status in (403, 405) or status >= 400:
             resp = requests.get(url, allow_redirects=True, timeout=timeout, headers=headers)
             status = resp.status_code
@@ -172,7 +163,6 @@ def push_log(msg: str, limit: int = 12):
     st.session_state.last_logs = st.session_state.last_logs[:limit]
 
 def log_connection_established():
-    # Shows under Live log as soon as the first successful API request returns
     push_log("✅ Connected to Zendesk")
 
 # =========================
@@ -191,7 +181,6 @@ def run_scan(
     progress_cb,
     status_cb,
 ):
-    # reset for new scan
     st.session_state.scan_results = []
     st.session_state.findings = []
     st.session_state.last_logs = []
@@ -211,7 +200,6 @@ def run_scan(
             raise RuntimeError("Auth failed (401). Check email/token and Zendesk API settings.")
         r.raise_for_status()
 
-        # ✅ First successful request = connection established
         if not connection_logged:
             log_connection_established()
             connection_logged = True
@@ -231,7 +219,6 @@ def run_scan(
 
             soup, text_raw, links, images = extract_links_images(body, base_url=base_url)
 
-            # ---- layers
             typos = 0
             if do_typo:
                 text = (text_raw or "").lower()
@@ -249,19 +236,10 @@ def run_scan(
             if do_alt:
                 alt_miss = len([img for img in soup.find_all("img") if not (img.get("alt") or "").strip()])
 
-            # ---- per-article summary
             st.session_state.scan_results.append(
-                {
-                    "Title": title,
-                    "URL": article_url,
-                    "Typos": typos,
-                    "Stale": is_stale,
-                    "Alt": alt_miss,
-                    "ID": art.get("id"),
-                }
+                {"Title": title, "URL": article_url, "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "ID": art.get("id")}
             )
 
-            # ---- findings rows
             if do_alt:
                 for img in images:
                     if img["missing_alt"]:
@@ -279,7 +257,7 @@ def run_scan(
                         )
 
             if do_links and links:
-                for lk in list(dict.fromkeys(links)):  # dedupe per-article
+                for lk in list(dict.fromkeys(links)):
                     res = check_url_status(lk, timeout=8)
                     if not res["ok"]:
                         st.session_state.findings.append(
@@ -336,19 +314,16 @@ def run_scan(
     st.session_state.scan_running = False
 
 # =========================
-# 6) SIDEBAR (cleaner)
+# 6) SIDEBAR
 # =========================
 with st.sidebar:
     st.markdown(
-        f"<div class='za-title'>{APP_ICON} {APP_TITLE}</div>"
-        f"<div class='za-muted'>Zendesk Help Center Auditor</div>",
+        f"<div class='za-title'>{APP_ICON} {APP_TITLE}</div><div class='za-muted'>Zendesk Help Center Auditor</div>",
         unsafe_allow_html=True,
     )
     st.write("")
     st.markdown(
-        "<span class='za-chip'>Broken links</span>"
-        "<span class='za-chip'>Alt text</span>"
-        "<span class='za-chip'>Stale</span>",
+        "<span class='za-chip'>Broken links</span><span class='za-chip'>Alt text</span><span class='za-chip'>Stale</span>",
         unsafe_allow_html=True,
     )
     st.divider()
@@ -374,10 +349,7 @@ with st.sidebar:
     pro_mode = st.checkbox("Pro Mode (dev)", value=True)
     max_articles = st.number_input("Max Articles (0 = all)", min_value=0, value=0, step=50)
 
-    st.markdown(
-        "<div class='za-muted' style='margin-top:10px;'>Zendesk® is a trademark of Zendesk, Inc.</div>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("<div class='za-muted' style='margin-top:10px;'>Zendesk® is a trademark of Zendesk, Inc.</div>", unsafe_allow_html=True)
 
 # =========================
 # 7) TOP-LEVEL UI
@@ -385,11 +357,9 @@ with st.sidebar:
 st.markdown(
     """
 <div class="za-card">
-  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
-    <div>
-      <div style="font-size:1.35rem; font-weight:800;">Knowledge Base Intelligence</div>
-      <div class="za-muted">Scan your Help Center for broken links, broken images, missing alt text, typos, and stale content.</div>
-    </div>
+  <div>
+    <div style="font-size:1.35rem; font-weight:800;">Knowledge Base Intelligence</div>
+    <div class="za-muted">Scan your Help Center for broken links, broken images, missing alt text, typos, and stale content.</div>
   </div>
 </div>
 """,
@@ -402,7 +372,6 @@ tab_audit, tab_method, tab_privacy, tab_pro = st.tabs(["Audit", "Methodology", "
 # 8) AUDIT TAB
 # =========================
 with tab_audit:
-    # action row
     a1, a2, a3 = st.columns([1.2, 1.2, 2.2])
     with a1:
         run_btn = st.button("🚀 Run scan", use_container_width=True)
@@ -418,7 +387,6 @@ with tab_audit:
         st.session_state.url_cache = {}
         st.toast("Cleared.", icon="🧼")
 
-    # metrics placeholders
     m1, m2, m3, m4, m5 = st.columns(5)
     met_scanned = m1.empty()
     met_critical = m2.empty()
@@ -426,10 +394,12 @@ with tab_audit:
     met_alt = m4.empty()
     met_stale = m5.empty()
 
-    # scan live area
+    # ✅ KEY CHANGE: progress bar gets its own full-width row
+    progress = st.progress(0, text="Idle")
+
+    # Then the two-column layout starts BELOW the progress bar
     left, right = st.columns([2.2, 1.2])
     with left:
-        progress = st.progress(0, text="Idle")
         console = st.empty()
     with right:
         status_box = st.empty()
@@ -438,6 +408,7 @@ with tab_audit:
     # stable empty cards so layout is aligned from the start
     status_box.markdown("<div class='za-card' style='min-height:140px;'></div>", unsafe_allow_html=True)
     signals_box.markdown("<div class='za-card' style='min-height:140px;'></div>", unsafe_allow_html=True)
+    console.markdown("<div class='za-card' style='min-height:260px;'></div>", unsafe_allow_html=True)
 
     def refresh_metrics():
         res = st.session_state.scan_results
@@ -507,7 +478,6 @@ with tab_audit:
             st.error("Missing credentials in the sidebar.")
         else:
             try:
-                # ✅ Removed misleading "Connecting to Zendesk…" line; connection is logged in Live log once confirmed
                 with st.status("Running scan…", expanded=True) as s:
                     run_scan(
                         subdomain=subdomain,
@@ -530,7 +500,6 @@ with tab_audit:
 
     refresh_metrics()
 
-    # Results section
     if st.session_state.scan_results:
         st.divider()
         st.subheader("Findings")
@@ -539,16 +508,7 @@ with tab_audit:
             pd.DataFrame(st.session_state.findings)
             if st.session_state.findings
             else pd.DataFrame(
-                columns=[
-                    "Severity",
-                    "Type",
-                    "Article Title",
-                    "Article URL",
-                    "Target URL",
-                    "HTTP Status",
-                    "Detail",
-                    "Suggested Fix",
-                ]
+                columns=["Severity", "Type", "Article Title", "Article URL", "Target URL", "HTTP Status", "Detail", "Suggested Fix"]
             )
         )
 
@@ -560,7 +520,6 @@ with tab_audit:
         gated = (not pro_mode) and (total_findings > FREE_FINDING_LIMIT)
         df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
 
-        # quick filters
         f1, f2, f3 = st.columns([1.2, 1.2, 2.6])
         with f1:
             sev_filter = st.multiselect("Severity", ["critical", "warning", "info"], default=["critical", "warning", "info"])
@@ -600,7 +559,6 @@ with tab_audit:
         if gated:
             st.warning(f"Free preview shows first **{FREE_FINDING_LIMIT}** findings. Enable **Pro Mode (dev)** to export everything.")
 
-        # Export
         export_df = df_findings if (pro_mode or not gated) else df_preview
         c_exp1, c_exp2 = st.columns([1, 1])
         with c_exp1:
