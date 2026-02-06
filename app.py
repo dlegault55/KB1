@@ -24,32 +24,13 @@ st.set_page_config(page_title=f"{APP_TITLE} Pro", page_icon=APP_ICON, layout="wi
 spell = SpellChecker()
 
 # =========================
-# 2) STYLE (polished + modern)
+# 2) STYLE (keep minimal; avoid complex HTML cards)
 # =========================
 st.markdown(
     """
 <style>
     .stApp { background: #0B1220; color: #E6EEF8; }
     section[data-testid="stSidebar"] { background: #0F1A2E !important; border-right: 1px solid #1F2A44; }
-
-    .za-card {
-        background: #0F1A2E;
-        border: 1px solid #1F2A44;
-        border-radius: 14px;
-        padding: 16px 18px;
-    }
-    .za-card-hero {
-        background: linear-gradient(180deg, rgba(56,189,248,0.10), rgba(56,189,248,0.02));
-        border: 1px solid rgba(56,189,248,0.25);
-        border-radius: 14px;
-        padding: 16px 18px;
-    }
-    .za-divider { height: 1px; background: #1F2A44; margin: 12px 0; }
-    .za-muted { color: #9FB1CC; font-size: 0.92rem; }
-    .za-title { font-size: 1.1rem; font-weight: 700; }
-    .za-kv { display:flex; justify-content:space-between; gap:10px; margin-top:8px; }
-    .za-k { color:#9FB1CC; font-size:0.88rem; }
-    .za-v { color:#E6EEF8; font-weight:700; }
 
     .za-chip {
         display: inline-block;
@@ -62,41 +43,7 @@ st.markdown(
         margin-right: 6px;
     }
 
-    .za-pill {
-        display:inline-flex;
-        align-items:center;
-        gap:8px;
-        padding: 6px 10px;
-        border-radius: 999px;
-        border: 1px solid #1F2A44;
-        background: rgba(15,26,46,0.6);
-        color: #BBD2F3;
-        font-size: 0.85rem;
-        font-weight: 700;
-    }
-    .za-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 999px;
-        background: #64748B;
-        display:inline-block;
-    }
-    .za-dot.green { background: #22C55E; }
-    .za-dot.blue { background: #38BDF8; }
-
-    .stButton>button {
-        border-radius: 10px !important;
-        height: 46px !important;
-        font-weight: 700 !important;
-        border: 0 !important;
-    }
-    div.stDownloadButton > button {
-        border-radius: 10px !important;
-        height: 46px !important;
-        font-weight: 700 !important;
-    }
-
-    /* Slightly nicer metric spacing */
+    /* Make metrics look like cards */
     div[data-testid="metric-container"] {
         background: #0F1A2E;
         border: 1px solid #1F2A44;
@@ -112,10 +59,10 @@ st.markdown(
 # 3) SESSION STATE
 # =========================
 def ss_init():
-    st.session_state.setdefault("scan_results", [])   # per-article summary
-    st.session_state.setdefault("findings", [])       # issue-level rows
+    st.session_state.setdefault("scan_results", [])
+    st.session_state.setdefault("findings", [])
     st.session_state.setdefault("last_logs", [])
-    st.session_state.setdefault("url_cache", {})      # URL status cache
+    st.session_state.setdefault("url_cache", {})
     st.session_state.setdefault("scan_running", False)
     st.session_state.setdefault("last_scanned_title", "")
     st.session_state.setdefault("connected_ok", False)
@@ -164,7 +111,7 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
     if url in cache:
         return cache[url]
 
-    headers = {"User-Agent": "ZenAuditPro/0.3 (+streamlit)"}
+    headers = {"User-Agent": "ZenAuditPro/0.4 (+streamlit)"}
     try:
         resp = requests.head(url, allow_redirects=True, timeout=timeout, headers=headers)
         status = resp.status_code
@@ -366,12 +313,15 @@ def run_scan(
 # =========================
 with st.sidebar:
     st.markdown(
-        f"<div class='za-title'>{APP_ICON} {APP_TITLE}</div><div class='za-muted'>Zendesk Help Center Auditor</div>",
+        f"## {APP_ICON} {APP_TITLE}\n"
+        f"<span style='color:#9FB1CC;'>Zendesk Help Center Auditor</span>",
         unsafe_allow_html=True,
     )
     st.write("")
     st.markdown(
-        "<span class='za-chip'>Broken links</span><span class='za-chip'>Alt text</span><span class='za-chip'>Stale</span>",
+        "<span class='za-chip'>Broken links</span>"
+        "<span class='za-chip'>Alt text</span>"
+        "<span class='za-chip'>Stale</span>",
         unsafe_allow_html=True,
     )
     st.divider()
@@ -397,25 +347,13 @@ with st.sidebar:
     pro_mode = st.checkbox("Pro Mode (dev)", value=True)
     max_articles = st.number_input("Max Articles (0 = all)", min_value=0, value=0, step=50)
 
-    st.markdown("<div class='za-muted' style='margin-top:10px;'>Zendesk® is a trademark of Zendesk, Inc.</div>", unsafe_allow_html=True)
+    st.caption("Zendesk® is a trademark of Zendesk, Inc.")
 
 # =========================
 # 7) TOP-LEVEL UI
 # =========================
-st.markdown(
-    """
-<div class="za-card-hero">
-  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px;">
-    <div>
-      <div style="font-size:1.35rem; font-weight:800;">Knowledge Base Intelligence</div>
-      <div class="za-muted" style="margin-top:4px;">Scan your Help Center for broken links, broken images, missing alt text, typos, and stale content.</div>
-    </div>
-    <div class="za-pill"><span class="za-dot blue"></span>Audit</div>
-  </div>
-</div>
-""",
-    unsafe_allow_html=True,
-)
+st.markdown("## Knowledge Base Intelligence")
+st.caption("Scan your Help Center for broken links, broken images, missing alt text, typos, and stale content.")
 
 tab_audit, tab_method, tab_privacy, tab_pro = st.tabs(["Audit", "Methodology", "Privacy", "Pro"])
 
@@ -452,14 +390,37 @@ with tab_audit:
 
     # Columns BELOW progress
     left, right = st.columns([2.2, 1.2])
+
+    # Left: Live log placeholder
     with left:
         console = st.empty()
-    with right:
-        scan_status = st.empty()
 
-    # Stable empty cards
-    scan_status.markdown("<div class='za-card' style='min-height:300px;'></div>", unsafe_allow_html=True)
-    console.markdown("<div class='za-card' style='min-height:260px;'></div>", unsafe_allow_html=True)
+    # Right: Native (no HTML) Scan Status layout
+    with right:
+        st.subheader("Scan status")
+        conn_ph = st.empty()
+        st.divider()
+        now_ph = st.empty()
+        st.divider()
+        st.markdown("**Quality signals**")
+        q1, q2 = st.columns(2)
+        with q1:
+            crit_ph = st.empty()
+            alt_ph = st.empty()
+        with q2:
+            warn_ph = st.empty()
+            stale_ph = st.empty()
+        st.divider()
+        st.caption("Tip: Fix broken links first, then images, then content quality.")
+
+    # Initial placeholders (prevents jump)
+    console.markdown("### Live log\n—")
+    conn_ph.info("Waiting to start")
+    now_ph.write("**Now scanning:** —")
+    crit_ph.metric("Critical", 0)
+    warn_ph.metric("Warnings", 0)
+    alt_ph.metric("Missing alt", 0)
+    stale_ph.metric("Stale", 0)
 
     def refresh_metrics():
         res = st.session_state.scan_results
@@ -477,39 +438,21 @@ with tab_audit:
         met_alt.metric("Alt missing", alt_missing)
         met_stale.metric("Stale", stale_count)
 
-        # slick single Scan Status card (stacked sections)
-        conn_dot = "green" if st.session_state.connected_ok else ""
-        conn_text = "Connected" if st.session_state.connected_ok else "Not connected"
-        now_scanning = st.session_state.last_scanned_title or "—"
+        # Connection pill (native)
+        if st.session_state.connected_ok:
+            conn_ph.success("✅ Connected to Zendesk")
+        else:
+            conn_ph.info("Waiting to start")
 
-        scan_status.markdown(
-            f"""
-            <div class='za-card' style='min-height:300px;'>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div class='za-title'>Scan status</div>
-                    <div class="za-pill"><span class="za-dot {conn_dot}"></span>{conn_text}</div>
-                </div>
+        # Now scanning
+        title = st.session_state.last_scanned_title or "—"
+        now_ph.write(f"**Now scanning:** {title}")
 
-                <div class="za-divider"></div>
-
-                <div class="za-k">Now scanning</div>
-                <div class="za-v" style="margin-top:6px;">{now_scanning}</div>
-
-                <div class="za-divider"></div>
-
-                <div class="za-title" style="font-size:1.0rem;">Quality signals</div>
-                <div class="za-kv"><div class="za-k">Critical</div><div class="za-v">{critical}</div></div>
-                <div class="za-kv"><div class="za-k">Warnings</div><div class="za-v">{warning}</div></div>
-                <div class="za-kv"><div class="za-k">Missing alt</div><div class="za-v">{alt_missing}</div></div>
-                <div class="za-kv"><div class="za-k">Stale</div><div class="za-v">{stale_count}</div></div>
-
-                <div class="za-divider"></div>
-
-                <div class="za-muted">Tip: Fix <b>broken links</b> first, then images, then content quality.</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        # Quality metrics
+        crit_ph.metric("Critical", critical)
+        warn_ph.metric("Warnings", warning)
+        alt_ph.metric("Missing alt", alt_missing)
+        stale_ph.metric("Stale", stale_count)
 
     def progress_cb(scanned_count: int):
         if max_articles:
@@ -520,19 +463,11 @@ with tab_audit:
             progress.progress(pct, text=f"Scanning… {scanned_count} (unknown total)")
 
         refresh_metrics()
-        logs_html = "<br>".join(st.session_state.last_logs)
-        console.markdown(
-            f"""
-            <div class='za-card' style='min-height:260px;'>
-                <div class='za-title'>Live log</div>
-                <div class='za-muted' style='margin-top:10px;'>{logs_html}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
 
-    # called by scan engine
-    def status_cb(scanned_count: int):
+        logs_html = "<br>".join(st.session_state.last_logs) if st.session_state.last_logs else "—"
+        console.markdown(f"### Live log\n{logs_html}", unsafe_allow_html=True)
+
+    def status_cb(_scanned_count: int):
         refresh_metrics()
 
     def finalize_progress(scanned_count: int):
@@ -630,7 +565,6 @@ with tab_audit:
             hide_index=True,
         )
 
-        st.write("")
         st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
 
         if gated:
@@ -664,28 +598,23 @@ with tab_method:
     st.markdown(
         """
 ### Metric definitions
-- **Stale Content:** Flags articles not updated in **365 days**.
-- **Typo detection:** Uses `pyspellchecker` and filters obvious false positives (very short / non-alpha).
-- **Alt-text:** Flags `<img>` tags missing meaningful `alt`.
-- **Broken links / images:** Checks HTTP status:
-  - **404/410** → critical
-  - **5xx / timeout / request errors** → warning
-  - **401/403/429** → warning (often blocked or rate limited)
-
-### Practical workflow
-1) Run with links/images ON once weekly for “real breakage”.
-2) Run with links/images OFF daily for cheap checks (typos/stale/alt).
-3) Export findings → fix in batches by Type (links first).
+- **Stale Content:** Articles not updated in **365 days**
+- **Typo detection:** `pyspellchecker`, filtering short/non-alpha noise
+- **Alt-text:** `<img>` tags missing meaningful `alt`
+- **Broken links/images:** HTTP status:
+  - 404/410 → critical
+  - 5xx/timeout/request errors → warning
+  - 401/403/429 → warning (blocked/rate limited)
 """
     )
 
 with tab_privacy:
-    st.info("ZenAudit is client-side first: your credentials are used only to fetch articles during the scan.")
+    st.info("ZenAudit is client-side first: credentials are used only to fetch articles during the scan.")
     st.markdown(
         """
 ### Data handling
 - Direct HTTPS calls to your Zendesk subdomain
-- Tokens are not written into the export
+- Tokens are not written into export
 - Results live in Streamlit session state and reset when you clear or rerun
 """
     )
@@ -693,17 +622,13 @@ with tab_privacy:
 with tab_pro:
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown(
-            "<div class='za-card'><div class='za-title'>Free</div>"
-            "<div class='za-muted'>Preview + basic scans</div>"
-            "<ul><li>Unlimited article scanning</li><li>Preview first 50 findings</li><li>CSV/XLSX preview export</li></ul></div>",
-            unsafe_allow_html=True,
-        )
+        st.subheader("Free")
+        st.write("✅ Unlimited article scanning")
+        st.write("✅ Preview first 50 findings")
+        st.write("✅ CSV/XLSX preview export")
     with c2:
-        st.markdown(
-            "<div class='za-card'><div class='za-title'>Pro</div>"
-            "<div class='za-muted'>Full export + automation</div>"
-            "<ul><li>Full findings export</li><li>Scheduled audits (future)</li><li>Team sharing (future)</li></ul></div>",
-            unsafe_allow_html=True,
-        )
+        st.subheader("Pro")
+        st.write("🚀 Full findings export")
+        st.write("🚀 Scheduled audits (future)")
+        st.write("🚀 Team sharing (future)")
         st.button("Upgrade (placeholder)", use_container_width=True)
