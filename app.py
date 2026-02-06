@@ -1,5 +1,4 @@
 import re
-import random
 from io import BytesIO
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List, Tuple
@@ -25,7 +24,7 @@ st.set_page_config(page_title=f"{APP_TITLE} Pro", page_icon=APP_ICON, layout="wi
 spell = SpellChecker()
 
 # =========================
-# 2) STYLE (minimal + modern)
+# 2) STYLE (polished + modern)
 # =========================
 st.markdown(
     """
@@ -39,8 +38,19 @@ st.markdown(
         border-radius: 14px;
         padding: 16px 18px;
     }
+    .za-card-hero {
+        background: linear-gradient(180deg, rgba(56,189,248,0.10), rgba(56,189,248,0.02));
+        border: 1px solid rgba(56,189,248,0.25);
+        border-radius: 14px;
+        padding: 16px 18px;
+    }
+    .za-divider { height: 1px; background: #1F2A44; margin: 12px 0; }
     .za-muted { color: #9FB1CC; font-size: 0.92rem; }
     .za-title { font-size: 1.1rem; font-weight: 700; }
+    .za-kv { display:flex; justify-content:space-between; gap:10px; margin-top:8px; }
+    .za-k { color:#9FB1CC; font-size:0.88rem; }
+    .za-v { color:#E6EEF8; font-weight:700; }
+
     .za-chip {
         display: inline-block;
         padding: 4px 10px;
@@ -51,6 +61,29 @@ st.markdown(
         background: rgba(56,189,248,0.08);
         margin-right: 6px;
     }
+
+    .za-pill {
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid #1F2A44;
+        background: rgba(15,26,46,0.6);
+        color: #BBD2F3;
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+    .za-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #64748B;
+        display:inline-block;
+    }
+    .za-dot.green { background: #22C55E; }
+    .za-dot.blue { background: #38BDF8; }
+
     .stButton>button {
         border-radius: 10px !important;
         height: 46px !important;
@@ -61,6 +94,14 @@ st.markdown(
         border-radius: 10px !important;
         height: 46px !important;
         font-weight: 700 !important;
+    }
+
+    /* Slightly nicer metric spacing */
+    div[data-testid="metric-container"] {
+        background: #0F1A2E;
+        border: 1px solid #1F2A44;
+        padding: 10px 12px;
+        border-radius: 12px;
     }
 </style>
 """,
@@ -76,6 +117,8 @@ def ss_init():
     st.session_state.setdefault("last_logs", [])
     st.session_state.setdefault("url_cache", {})      # URL status cache
     st.session_state.setdefault("scan_running", False)
+    st.session_state.setdefault("last_scanned_title", "")
+    st.session_state.setdefault("connected_ok", False)
 
 ss_init()
 
@@ -121,7 +164,7 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
     if url in cache:
         return cache[url]
 
-    headers = {"User-Agent": "ZenAuditPro/0.2 (+streamlit)"}
+    headers = {"User-Agent": "ZenAuditPro/0.3 (+streamlit)"}
     try:
         resp = requests.head(url, allow_redirects=True, timeout=timeout, headers=headers)
         status = resp.status_code
@@ -163,6 +206,7 @@ def push_log(msg: str, limit: int = 12):
     st.session_state.last_logs = st.session_state.last_logs[:limit]
 
 def log_connection_established():
+    st.session_state.connected_ok = True
     push_log("✅ Connected to Zendesk")
 
 # =========================
@@ -186,6 +230,8 @@ def run_scan(
     st.session_state.last_logs = []
     st.session_state.url_cache = {}
     st.session_state.scan_running = True
+    st.session_state.last_scanned_title = ""
+    st.session_state.connected_ok = False
 
     auth = (f"{email}/token", token)
     base_url = f"https://{subdomain}.zendesk.com"
@@ -214,6 +260,8 @@ def run_scan(
                 break
 
             title = art.get("title", "") or ""
+            st.session_state.last_scanned_title = title
+
             body = art.get("body", "") or ""
             article_url = art.get("html_url") or f"{base_url}/hc/articles/{art.get('id')}"
 
@@ -307,7 +355,7 @@ def run_scan(
 
             push_log(f"✅ {scanned}: {title[:60]}")
             progress_cb(scanned)
-            status_cb(title, scanned)
+            status_cb(scanned)
 
         url = data.get("next_page")
 
@@ -356,10 +404,13 @@ with st.sidebar:
 # =========================
 st.markdown(
     """
-<div class="za-card">
-  <div>
-    <div style="font-size:1.35rem; font-weight:800;">Knowledge Base Intelligence</div>
-    <div class="za-muted">Scan your Help Center for broken links, broken images, missing alt text, typos, and stale content.</div>
+<div class="za-card-hero">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:14px;">
+    <div>
+      <div style="font-size:1.35rem; font-weight:800;">Knowledge Base Intelligence</div>
+      <div class="za-muted" style="margin-top:4px;">Scan your Help Center for broken links, broken images, missing alt text, typos, and stale content.</div>
+    </div>
+    <div class="za-pill"><span class="za-dot blue"></span>Audit</div>
   </div>
 </div>
 """,
@@ -385,6 +436,8 @@ with tab_audit:
         st.session_state.findings = []
         st.session_state.last_logs = []
         st.session_state.url_cache = {}
+        st.session_state.last_scanned_title = ""
+        st.session_state.connected_ok = False
         st.toast("Cleared.", icon="🧼")
 
     m1, m2, m3, m4, m5 = st.columns(5)
@@ -402,12 +455,10 @@ with tab_audit:
     with left:
         console = st.empty()
     with right:
-        status_box = st.empty()
-        signals_box = st.empty()
+        scan_status = st.empty()
 
     # Stable empty cards
-    status_box.markdown("<div class='za-card' style='min-height:140px;'></div>", unsafe_allow_html=True)
-    signals_box.markdown("<div class='za-card' style='min-height:140px;'></div>", unsafe_allow_html=True)
+    scan_status.markdown("<div class='za-card' style='min-height:300px;'></div>", unsafe_allow_html=True)
     console.markdown("<div class='za-card' style='min-height:260px;'></div>", unsafe_allow_html=True)
 
     def refresh_metrics():
@@ -426,16 +477,35 @@ with tab_audit:
         met_alt.metric("Alt missing", alt_missing)
         met_stale.metric("Stale", stale_count)
 
-        signals_box.markdown(
+        # slick single Scan Status card (stacked sections)
+        conn_dot = "green" if st.session_state.connected_ok else ""
+        conn_text = "Connected" if st.session_state.connected_ok else "Not connected"
+        now_scanning = st.session_state.last_scanned_title or "—"
+
+        scan_status.markdown(
             f"""
-            <div class='za-card' style='min-height:140px;'>
-                <div class='za-title'>Quality signals</div>
-                <div class='za-muted' style='margin-top:10px; line-height:1.6;'>
-                    <div><b>{critical}</b> critical</div>
-                    <div><b>{warning}</b> warnings</div>
-                    <div><b>{alt_missing}</b> missing alt</div>
-                    <div><b>{stale_count}</b> stale</div>
+            <div class='za-card' style='min-height:300px;'>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class='za-title'>Scan status</div>
+                    <div class="za-pill"><span class="za-dot {conn_dot}"></span>{conn_text}</div>
                 </div>
+
+                <div class="za-divider"></div>
+
+                <div class="za-k">Now scanning</div>
+                <div class="za-v" style="margin-top:6px;">{now_scanning}</div>
+
+                <div class="za-divider"></div>
+
+                <div class="za-title" style="font-size:1.0rem;">Quality signals</div>
+                <div class="za-kv"><div class="za-k">Critical</div><div class="za-v">{critical}</div></div>
+                <div class="za-kv"><div class="za-k">Warnings</div><div class="za-v">{warning}</div></div>
+                <div class="za-kv"><div class="za-k">Missing alt</div><div class="za-v">{alt_missing}</div></div>
+                <div class="za-kv"><div class="za-k">Stale</div><div class="za-v">{stale_count}</div></div>
+
+                <div class="za-divider"></div>
+
+                <div class="za-muted">Tip: Fix <b>broken links</b> first, then images, then content quality.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -461,19 +531,10 @@ with tab_audit:
             unsafe_allow_html=True,
         )
 
-    def status_cb(title: str, scanned_count: int):
-        status_box.markdown(
-            f"""
-            <div class='za-card' style='min-height:140px;'>
-                <div class='za-title'>Now scanning</div>
-                <div class='za-muted' style='margin-top:8px;'>{title}</div>
-                <div class='za-muted' style='margin-top:12px;'>Articles scanned: <b>{scanned_count}</b></div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    # called by scan engine
+    def status_cb(scanned_count: int):
+        refresh_metrics()
 
-    # ✅ NEW: force clean completion state at 100%
     def finalize_progress(scanned_count: int):
         progress.progress(1.0, text=f"Complete ✅ ({scanned_count} articles)")
 
@@ -497,9 +558,7 @@ with tab_audit:
                         status_cb=status_cb,
                     )
 
-                    # ✅ ensure progress ends at 100% (even when max_articles=0)
                     finalize_progress(len(st.session_state.scan_results))
-
                     s.update(label="Scan complete ✅", state="complete", expanded=False)
 
                 st.toast("Scan complete", icon="✅")
@@ -517,7 +576,16 @@ with tab_audit:
             pd.DataFrame(st.session_state.findings)
             if st.session_state.findings
             else pd.DataFrame(
-                columns=["Severity", "Type", "Article Title", "Article URL", "Target URL", "HTTP Status", "Detail", "Suggested Fix"]
+                columns=[
+                    "Severity",
+                    "Type",
+                    "Article Title",
+                    "Article URL",
+                    "Target URL",
+                    "HTTP Status",
+                    "Detail",
+                    "Suggested Fix",
+                ]
             )
         )
 
