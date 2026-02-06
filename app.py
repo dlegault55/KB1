@@ -155,7 +155,6 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
     if url in cache:
         return cache[url]
 
-    # More browser-like headers reduce cheap 403s
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -554,7 +553,7 @@ with tab_audit:
     with a3:
         st.caption("Tip: turn off Broken Links/Images for a faster first pass.")
 
-    # --- Pro / Claim panel (moved directly under Run scan) ---
+    # --- Pro / Claim panel (ONLY place to claim/check; keys to avoid collisions) ---
     base, tok, pay_url = _worker_cfg()
     with st.expander("🔓 Pro export (1 Excel download)", expanded=True):
         st.caption("Purchase 1 scan, then claim it for the email that should be allowed to download the Excel report.")
@@ -564,6 +563,7 @@ with tab_audit:
             value=st.session_state.pro_email,
             placeholder="admin@company.com",
             help="Can be different from the payment email (e.g., finance paid, admin uses).",
+            key="pro_claim_email_audit",
         )
         st.session_state.pro_email = (pro_email_top or "").strip().lower()
 
@@ -572,7 +572,12 @@ with tab_audit:
         else:
             b1, b2, b3 = st.columns([1, 1, 1.2])
             with b1:
-                if st.button("🔓 Claim scan", use_container_width=True, disabled=not bool(st.session_state.pro_email)):
+                if st.button(
+                    "🔓 Claim scan",
+                    use_container_width=True,
+                    disabled=not bool(st.session_state.pro_email),
+                    key="btn_claim_scan_audit",
+                ):
                     ok, avail, err = worker_claim(st.session_state.pro_email)
                     st.session_state.pro_unlocked = ok
                     st.session_state.pro_available_scans = avail
@@ -584,7 +589,12 @@ with tab_audit:
                         st.warning(err or "Could not claim scan.")
 
             with b2:
-                if st.button("🔄 Check access", use_container_width=True, disabled=not bool(st.session_state.pro_email)):
+                if st.button(
+                    "🔄 Check access",
+                    use_container_width=True,
+                    disabled=not bool(st.session_state.pro_email),
+                    key="btn_check_access_audit",
+                ):
                     ok, avail, err = worker_get_status(st.session_state.pro_email)
                     st.session_state.pro_unlocked = ok
                     st.session_state.pro_available_scans = avail
@@ -596,9 +606,9 @@ with tab_audit:
 
             with b3:
                 if pay_url:
-                    st.link_button("💳 Buy 1 scan", pay_url, use_container_width=True)
+                    st.link_button("💳 Buy 1 scan", pay_url, use_container_width=True, key="link_buy_scan_audit")
                 else:
-                    st.button("💳 Buy 1 scan", disabled=True, use_container_width=True)
+                    st.button("💳 Buy 1 scan", disabled=True, use_container_width=True, key="btn_buy_disabled_audit")
 
             if st.session_state.pro_last_status_error:
                 st.caption(st.session_state.pro_last_status_error)
@@ -801,10 +811,9 @@ with tab_audit:
         if gated:
             st.warning(
                 f"Free preview shows first **{FREE_FINDING_LIMIT}** findings. "
-                f"Purchase + **Claim scan** to unlock the one-time Excel export."
+                f"Purchase + **Claim scan** above to unlock the one-time Excel export."
             )
 
-        # Full export only if pro_access is active; otherwise export preview
         export_df = df_findings if pro_access else df_preview
 
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(export_df)
@@ -911,35 +920,9 @@ with tab_pro:
         st.write("📥 One-time Excel download (counts as 1 scan)")
         st.write("🛠 Manual override supported (admin grant)")
         if pay_url:
-            st.link_button("💳 Buy 1 scan", pay_url, use_container_width=True)
+            st.link_button("💳 Buy 1 scan", pay_url, use_container_width=True, key="link_buy_scan_protab")
         else:
-            st.button("Upgrade (configure PAYMENT_LINK_URL)", disabled=True, use_container_width=True)
+            st.button("Upgrade (configure PAYMENT_LINK_URL)", disabled=True, use_container_width=True, key="btn_upgrade_disabled_protab")
 
     st.divider()
-    st.markdown("### Claim your scan")
-    st.caption("After purchase, claim the scan for the email that should be able to download Excel.")
-    pro_email_tab = st.text_input("Claim email", value=st.session_state.pro_email, placeholder="admin@company.com")
-    st.session_state.pro_email = (pro_email_tab or "").strip().lower()
-
-    b1, b2 = st.columns(2)
-    with b1:
-        if st.button("🔓 Claim scan", use_container_width=True, disabled=not bool(st.session_state.pro_email) or not (base and tok)):
-            ok, avail, err = worker_claim(st.session_state.pro_email)
-            st.session_state.pro_unlocked = ok
-            st.session_state.pro_available_scans = avail
-            st.session_state.pro_last_status_error = err
-            st.session_state.xlsx_consumed_local = False
-            if ok:
-                st.success(f"✅ Scan available (remaining: {avail})")
-            else:
-                st.warning(err or "Could not claim scan.")
-    with b2:
-        if st.button("🔄 Check access", use_container_width=True, disabled=not bool(st.session_state.pro_email) or not (base and tok)):
-            ok, avail, err = worker_get_status(st.session_state.pro_email)
-            st.session_state.pro_unlocked = ok
-            st.session_state.pro_available_scans = avail
-            st.session_state.pro_last_status_error = err
-            if ok:
-                st.success(f"✅ Scan available (remaining: {avail})")
-            else:
-                st.info(err or "No scan available for that email.")
+    st.caption("To unlock Pro export, use the **Pro export** panel under the **Run scan** button on the Audit tab.")
