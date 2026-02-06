@@ -3,3 +3,4 @@ requests
 beautifulsoup4
 pyspellchecker
 pandas
+openpyxl>=3.1.0
