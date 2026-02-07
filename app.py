@@ -43,6 +43,35 @@ st.markdown(
         margin-right: 6px;
     }
 
+    /* Step cards */
+    .za-stepgrid { display: grid; grid-template-columns: 1.05fr 1.7fr 1.1fr; gap: 14px; }
+    .za-card {
+        background: rgba(15,26,46,0.90);
+        border: 1px solid #1F2A44;
+        border-radius: 16px;
+        padding: 14px 14px 12px 14px;
+        box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+    }
+    .za-stepchip {
+        display:inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(56,189,248,0.22);
+        background: rgba(56,189,248,0.08);
+        color: #BBD2F3;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+        margin-bottom: 8px;
+    }
+    .za-cardtitle {
+        font-size: 1.05rem;
+        font-weight: 850;
+        margin: 0 0 10px 0;
+        color: #E6EEF8;
+    }
+    .za-subtle { color:#9FB1CC; font-size: 0.85rem; }
+
     /* Premium primary button (Run scan) */
     button[kind="primary"] {
         background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%) !important;
@@ -97,6 +126,25 @@ st.markdown(
             0 6px 18px rgba(34,197,94,0.14);
     }
     a.za-linkbtn:hover { filter: brightness(1.04); }
+
+    .za-pill-ok {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(34,197,94,0.12);
+        border: 1px solid rgba(34,197,94,0.30);
+        color:#BFF7D0;
+        font-weight: 750;
+    }
+    .za-pill-info {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(56,189,248,0.08);
+        border: 1px solid rgba(56,189,248,0.20);
+        color:#BBD2F3;
+        font-weight: 650;
+    }
 </style>
 """,
     unsafe_allow_html=True,
@@ -132,7 +180,10 @@ def link_cta(label: str, url: str):
     if not url:
         st.button(label, disabled=True, use_container_width=True)
         return
-    st.markdown(f'<a class="za-linkbtn" href="{url}" target="_blank" rel="noopener">{label}</a>', unsafe_allow_html=True)
+    st.markdown(
+        f'<a class="za-linkbtn" href="{url}" target="_blank" rel="noopener">{label}</a>',
+        unsafe_allow_html=True,
+    )
 
 def safe_parse_updated_at(s: str) -> Optional[datetime]:
     try:
@@ -521,87 +572,84 @@ tab_audit, tab_method, tab_privacy, tab_pro = st.tabs(["Audit", "Methodology", "
 # 8) AUDIT TAB
 # =========================
 with tab_audit:
-    # --- NEW: Step-by-step flow with grouped buttons ---
     base, pay_url = _worker_cfg()
 
     st.markdown("### ✅ 3-step flow")
+
+    # Step cards (visual wrapper)
     s1, s2, s3 = st.columns([1.05, 1.7, 1.1])
 
     # STEP 1: Buy
     with s1:
-        st.markdown("#### Step 1 — Buy scan")
+        st.markdown("<div class='za-card'>", unsafe_allow_html=True)
+        st.markdown("<div class='za-stepchip'>STEP 1</div>", unsafe_allow_html=True)
+        st.markdown("<div class='za-cardtitle'>Buy</div>", unsafe_allow_html=True)
         link_cta("💳 Buy 1 scan", pay_url)
-        st.caption("Only needed for full XLSX export beyond the free preview.")
+        st.markdown("<div class='za-subtle' style='margin-top:8px;'>Only needed for full XLSX export beyond the free preview.</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    # STEP 2: Claim + Check access
+    # STEP 2: Verify access (single button)
     with s2:
-        st.markdown("#### Step 2 — Claim / check access")
+        st.markdown("<div class='za-card'>", unsafe_allow_html=True)
+        st.markdown("<div class='za-stepchip'>STEP 2</div>", unsafe_allow_html=True)
+        st.markdown("<div class='za-cardtitle'>Verify access</div>", unsafe_allow_html=True)
 
         pro_email_top = st.text_input(
-            "Claim email",
+            "Email",
             value=st.session_state.pro_email,
             placeholder="admin@company.com",
-            help="For now: enter the email you granted scans to (Stripe claim comes next).",
+            help="Enter the email that should have scan credits.",
             key="pro_claim_email_step2",
+            label_visibility="collapsed",
         )
         st.session_state.pro_email = (pro_email_top or "").strip().lower()
 
         if not base:
             st.warning("Paywall not configured: missing WORKER_BASE_URL secret.")
         else:
-            b1, b2 = st.columns([1, 1])
-
-            with b1:
-                if st.button(
-                    "🔓 Claim scan",
-                    use_container_width=True,
-                    disabled=not bool(st.session_state.pro_email),
-                    key="btn_claim_scan_step2",
-                ):
-                    ok, avail, err = worker_claim(st.session_state.pro_email)
-                    st.session_state.pro_unlocked = ok
-                    st.session_state.pro_available_scans = avail
-                    st.session_state.pro_last_status_error = err
-                    st.session_state.xlsx_consumed_local = False
-                    if ok:
-                        st.toast("Scan claimed ✅", icon="✅")
-                    else:
-                        st.warning(err or "Claim not available yet.")
-
-            with b2:
-                if st.button(
-                    "🔄 Check access",
-                    use_container_width=True,
-                    disabled=not bool(st.session_state.pro_email),
-                    key="btn_check_access_step2",
-                ):
-                    ok, avail, err = worker_get_status(st.session_state.pro_email)
-                    st.session_state.pro_unlocked = ok
-                    st.session_state.pro_available_scans = avail
-                    st.session_state.pro_last_status_error = err
-                    if ok:
-                        st.toast("Scan available ✅", icon="✅")
-                    else:
-                        st.info(err or "No scan available for that email.")
-
-        if st.session_state.pro_last_status_error:
-            st.caption(st.session_state.pro_last_status_error)
-
-        if st.session_state.pro_unlocked:
-            st.success(
-                f"✅ Scan available for {st.session_state.pro_email} "
-                f"(remaining: {st.session_state.pro_available_scans})"
+            verify = st.button(
+                "✅ Verify access",
+                use_container_width=True,
+                disabled=not bool(st.session_state.pro_email),
+                key="btn_verify_access_step2",
             )
-        else:
-            st.info("No scan available yet. (For now: use Worker /grant to test. Stripe claim comes next.)")
+            if verify:
+                ok, avail, err = worker_get_status(st.session_state.pro_email)
+                st.session_state.pro_unlocked = ok
+                st.session_state.pro_available_scans = avail
+                st.session_state.pro_last_status_error = err
+                st.session_state.xlsx_consumed_local = False
+
+        # Compact status pill (instead of big blocks)
+        if st.session_state.pro_email:
+            if st.session_state.pro_unlocked:
+                st.markdown(
+                    f"<div class='za-pill-ok'>✅ Access verified • Remaining scans: {st.session_state.pro_available_scans}</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                msg = st.session_state.pro_last_status_error or "No scan credit found for this email yet."
+                st.markdown(
+                    f"<div class='za-pill-info'>ℹ️ {msg}</div>",
+                    unsafe_allow_html=True,
+                )
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # STEP 3: Run + Clear grouped
     with s3:
-        st.markdown("#### Step 3 — Run scan")
+        st.markdown("<div class='za-card'>", unsafe_allow_html=True)
+        st.markdown("<div class='za-stepchip'>STEP 3</div>", unsafe_allow_html=True)
+        st.markdown("<div class='za-cardtitle'>Run scan</div>", unsafe_allow_html=True)
         run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
         clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
-        st.caption("Tip: turn off Broken Links/Images for a faster first pass.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
+    # One helper line under the whole stepper
+    st.markdown(
+        "<div class='za-subtle' style='margin-top:8px;'>Tip: disable Broken Links/Images for a faster first pass.</div>",
+        unsafe_allow_html=True,
+    )
     st.divider()
 
     if clear_btn:
@@ -613,7 +661,6 @@ with tab_audit:
         st.session_state.connected_ok = False
         st.toast("Cleared.", icon="🧼")
 
-    # Metrics row
     m1, m2, m3, m4, m5 = st.columns(5)
     met_scanned = m1.empty()
     met_critical = m2.empty()
@@ -658,252 +705,4 @@ with tab_audit:
 
         scanned = len(res)
         critical = sum(1 for x in fnd if x.get("Severity") == "critical")
-        warning = sum(1 for x in fnd if x.get("Severity") == "warning")
-        alt_missing = sum(d.get("Alt", 0) for d in res) if res else 0
-        stale_count = sum(1 for d in res if d.get("Stale")) if res else 0
-
-        met_scanned.metric("Scanned", scanned)
-        met_critical.metric("Critical", critical)
-        met_warn.metric("Warnings", warning)
-        met_alt.metric("Alt missing", alt_missing)
-        met_stale.metric("Stale", stale_count)
-
-        if st.session_state.connected_ok:
-            conn_ph.success("✅ Connected to Zendesk")
-        else:
-            conn_ph.info("Waiting to start")
-
-        title = st.session_state.last_scanned_title or "—"
-        now_ph.write(f"**Now scanning:** {title}")
-
-        crit_ph.metric("Critical", critical)
-        warn_ph.metric("Warnings", warning)
-        alt_ph.metric("Missing alt", alt_missing)
-        stale_ph.metric("Stale", stale_count)
-
-    def progress_cb(scanned_count: int):
-        if max_articles:
-            pct = min(1.0, scanned_count / int(max_articles))
-            progress.progress(pct, text=f"Scanning… {scanned_count}/{int(max_articles)}")
-        else:
-            pct = (scanned_count % 100) / 100
-            progress.progress(pct, text=f"Scanning… {scanned_count} (unknown total)")
-
-        refresh_metrics()
-
-        logs = "<br>".join(st.session_state.last_logs) if st.session_state.last_logs else "—"
-        console.markdown(f"### Live log\n{logs}", unsafe_allow_html=True)
-
-    def status_cb(_scanned_count: int):
-        refresh_metrics()
-
-    def finalize_progress(scanned_count: int):
-        progress.progress(1.0, text=f"Complete ✅ ({scanned_count} articles)")
-
-    if run_btn:
-        if not all([subdomain, email, token]):
-            st.error("Missing credentials in the sidebar.")
-        else:
-            try:
-                with st.status("Running scan…", expanded=True) as s:
-                    run_scan(
-                        subdomain=subdomain,
-                        email=email,
-                        token=token,
-                        do_stale=do_stale,
-                        do_typo=do_typo,
-                        do_alt=do_alt,
-                        do_links=do_links,
-                        do_images=do_images,
-                        max_articles=int(max_articles),
-                        progress_cb=progress_cb,
-                        status_cb=status_cb,
-                    )
-                    finalize_progress(len(st.session_state.scan_results))
-                    s.update(label="Scan complete ✅", state="complete", expanded=False)
-
-                st.toast("Scan complete", icon="✅")
-            except Exception as e:
-                st.session_state.scan_running = False
-                st.error(f"Scan failed: {e}")
-
-    refresh_metrics()
-
-    if st.session_state.scan_results:
-        st.divider()
-        st.subheader("Findings")
-
-        df_findings = (
-            pd.DataFrame(st.session_state.findings)
-            if st.session_state.findings
-            else pd.DataFrame(
-                columns=[
-                    "Severity",
-                    "Type",
-                    "Article Title",
-                    "Article URL",
-                    "Target URL",
-                    "HTTP Status",
-                    "Detail",
-                    "Suggested Fix",
-                ]
-            )
-        )
-
-        if not df_findings.empty:
-            df_findings["_sev_rank"] = df_findings["Severity"].map(lambda s: severity_rank(str(s)))
-            df_findings = (
-                df_findings.sort_values(by=["_sev_rank", "Type"], ascending=[True, True])
-                .drop(columns=["_sev_rank"])
-            )
-
-        total_findings = len(df_findings)
-
-        pro_access = pro_access_active(pro_mode)
-
-        gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
-        df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
-
-        f1, f2, f3 = st.columns([1.2, 1.2, 2.6])
-        with f1:
-            sev_filter = st.multiselect(
-                "Severity",
-                ["critical", "warning", "info"],
-                default=["critical", "warning", "info"],
-            )
-        with f2:
-            type_opts = sorted(df_preview["Type"].unique().tolist()) if not df_preview.empty else []
-            type_filter = st.multiselect("Type", type_opts, default=type_opts)
-        with f3:
-            q = st.text_input("Search (title/url contains)", placeholder="e.g. billing, /hc/en-us, image.png")
-
-        view = df_preview.copy()
-        if not view.empty:
-            view = view[view["Severity"].isin(sev_filter)]
-            if type_filter:
-                view = view[view["Type"].isin(type_filter)]
-            if q.strip():
-                qq = q.strip().lower()
-                view = view[
-                    view["Article Title"].fillna("").str.lower().str.contains(qq)
-                    | view["Article URL"].fillna("").str.lower().str.contains(qq)
-                    | view["Target URL"].fillna("").str.lower().str.contains(qq)
-                ]
-
-        col_cfg = build_column_config()
-        df_kwargs = dict(use_container_width=True, hide_index=True)
-        if col_cfg:
-            df_kwargs["column_config"] = col_cfg
-
-        st.dataframe(view, **df_kwargs)
-
-        st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
-        if gated:
-            st.warning(
-                f"Free preview shows first **{FREE_FINDING_LIMIT}** findings. "
-                f"Purchase + Check access above to unlock the one-time Excel export."
-            )
-
-        export_df = df_findings if pro_access else df_preview
-        xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(export_df)
-
-        def _consume_once():
-            if pro_mode:
-                return
-            if st.session_state.xlsx_consumed_local:
-                return
-            if not st.session_state.pro_email:
-                st.warning("Enter your claim email above to consume a scan.")
-                return
-
-            ok, avail, err = worker_consume(st.session_state.pro_email)
-            if ok:
-                st.session_state.xlsx_consumed_local = True
-                st.session_state.pro_unlocked = False
-                st.session_state.pro_available_scans = avail
-                st.toast("Scan used ✅ (Excel download)", icon="✅")
-            else:
-                st.warning(err or "Could not consume scan (try again).")
-
-        c_exp1, c_exp2 = st.columns([1, 1])
-        with c_exp1:
-            if total_findings <= 0:
-                st.button("📥 Download XLSX", disabled=True, use_container_width=True)
-            else:
-                if not pro_access:
-                    st.button("📥 Download XLSX (Pro)", disabled=True, use_container_width=True)
-                    st.caption("⚠️ One-time Excel download. Purchase + check access to unlock.")
-                else:
-                    if xlsx_bytes:
-                        if not pro_mode:
-                            st.caption("⚠️ One-time download. Save the file after downloading.")
-                        st.download_button(
-                            "📥 Download XLSX" + ("" if pro_mode else " (uses 1 scan)"),
-                            data=xlsx_bytes,
-                            file_name="zenaudit_report.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
-                            on_click=_consume_once,
-                        )
-                    else:
-                        st.button("📥 Download XLSX (Pro)", disabled=True, use_container_width=True)
-                        st.caption(xlsx_err or "XLSX export unavailable.")
-
-        with c_exp2:
-            if total_findings > 0:
-                st.download_button(
-                    "📥 Download CSV",
-                    data=export_df.to_csv(index=False),
-                    file_name="zenaudit_report.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                )
-
-# =========================
-# 9) OTHER TABS
-# =========================
-with tab_method:
-    st.markdown(
-        """
-### Metric definitions
-- **Stale Content:** Articles not updated in **365 days**
-- **Typo detection:** `pyspellchecker`, filtering short/non-alpha noise
-- **Alt-text:** `<img>` tags missing meaningful `alt`
-- **Broken links/images:** HTTP status:
-  - 404/410 → critical
-  - 5xx/timeout/request errors → warning
-  - 401/403/429 → inconclusive (often blocked/auth/rate-limited)
-"""
-    )
-
-with tab_privacy:
-    st.info("ZenAudit is client-side first: credentials are used only to fetch articles during the scan.")
-    st.markdown(
-        """
-### Data handling
-- Direct HTTPS calls to your Zendesk subdomain
-- Tokens are not written into export
-- Results live in Streamlit session state and reset when you clear or rerun
-"""
-    )
-
-with tab_pro:
-    _base, pay_url = _worker_cfg()
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.subheader("Free")
-        st.write("✅ Unlimited article scanning")
-        st.write("✅ Preview first 50 findings")
-        st.write("✅ CSV export (preview)")
-        st.write("✅ XLSX export (preview)")
-
-    with c2:
-        st.subheader("Pro (1 scan)")
-        st.write("🚀 Full findings (beyond 50)")
-        st.write("📥 One-time Excel download (counts as 1 scan)")
-        st.write("🛠 Manual override supported (admin grant)")
-        link_cta("💳 Buy 1 scan", pay_url)
-
-    st.divider()
-    st.caption("To unlock Pro export, use the **3-step flow** on the **Audit** tab.")
+        warning = sum(1 for x
