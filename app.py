@@ -607,6 +607,18 @@ with tab_audit:
         clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
     with a3:
         st.markdown("<div class='za-subtle'>Tip: Disable Broken Links/Images for a faster first pass.</div>", unsafe_allow_html=True)
+            # Pricing explainer (shown before scan so the flow is obvious)
+    st.markdown(
+        f"""
+<div class="za-subtle" style="margin: 6px 0 14px 0;">
+  <b>How pricing works</b><br>
+  Running a scan is free and includes a preview of up to <b>{FREE_FINDING_LIMIT}</b> findings.
+  After the scan completes, you can unlock the full report (all findings + Excel export) for a <b>one-time $30 fee</b>.
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
 
     if clear_btn:
         st.session_state.scan_results = []
