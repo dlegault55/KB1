@@ -80,24 +80,22 @@ st.markdown(
         border-radius: 12px;
     }
 
-    /* Compact “link-as-button” style (markdown) */
-    a.za-linkbtn {
-        display: inline-block;
-        width: auto;
-        min-width: 170px;
-        text-align: center;
-        padding: 8px 14px;
-        border-radius: 10px;
-        font-weight: 850;
-        font-size: 0.85rem;
-        text-decoration: none !important;
-        color: #081221 !important;
-        background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%);
-        box-shadow:
-            0 10px 24px rgba(56,189,248,0.18),
-            0 6px 14px rgba(34,197,94,0.12);
-    }
-    a.za-linkbtn:hover { filter: brightness(1.04); }
+a.za-linkbtn {
+    display: inline-block;
+    width: 100%;
+    min-width: 0;
+    text-align: center;
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-weight: 850;
+    font-size: 0.85rem;
+    text-decoration: none !important;
+    color: #081221 !important;
+    background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%);
+    box-shadow:
+        0 10px 24px rgba(56,189,248,0.18),
+        0 6px 14px rgba(34,197,94,0.12);
+}
 
     .za-pill-ok {
         margin-top: 8px;
