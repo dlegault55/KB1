@@ -65,6 +65,7 @@ st.markdown(
             0 8px 22px rgba(34,197,94,0.22) !important;
     }
     button[kind="primary"]:active { transform: translateY(0px) scale(0.99) !important; }
+
     button[kind="secondary"] {
         border-radius: 12px !important;
         height: 46px !important;
@@ -79,20 +80,22 @@ st.markdown(
         border-radius: 12px;
     }
 
-    /* Simple “link-as-button” style (markdown) */
+    /* Compact “link-as-button” style (markdown) */
     a.za-linkbtn {
         display: inline-block;
-        width: 100%;
+        width: auto;
+        min-width: 170px;
         text-align: center;
-        padding: 10px 12px;
-        border-radius: 12px;
-        font-weight: 800;
+        padding: 8px 14px;
+        border-radius: 10px;
+        font-weight: 850;
+        font-size: 0.85rem;
         text-decoration: none !important;
         color: #081221 !important;
         background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%);
         box-shadow:
-            0 10px 30px rgba(56,189,248,0.20),
-            0 6px 18px rgba(34,197,94,0.14);
+            0 10px 24px rgba(56,189,248,0.18),
+            0 6px 14px rgba(34,197,94,0.12);
     }
     a.za-linkbtn:hover { filter: brightness(1.04); }
 
@@ -125,6 +128,10 @@ st.markdown(
     }
 
     .za-subtle { color:#9FB1CC; font-size: 0.85rem; }
+
+    /* Small alignment helper so buttons sit closer to input baseline */
+    .za-btnrow { padding-top: 26px; }
+    .za-btnrow small { display:block; margin-top: 6px; color:#9FB1CC; font-size:0.78rem; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -159,9 +166,12 @@ ss_init()
 def link_cta(label: str, url: str):
     """Compatible replacement for st.link_button across Streamlit versions."""
     if not url:
-        st.button(label, disabled=True, use_container_width=True)
+        st.button(label, disabled=True)
         return
-    st.markdown(f'<a class="za-linkbtn" href="{url}" target="_blank" rel="noopener">{label}</a>', unsafe_allow_html=True)
+    st.markdown(
+        f'<a class="za-linkbtn" href="{url}" target="_blank" rel="noopener">{label}</a>',
+        unsafe_allow_html=True,
+    )
 
 def safe_parse_updated_at(s: str) -> Optional[datetime]:
     try:
@@ -330,10 +340,6 @@ def pro_access_active(pro_mode: bool) -> bool:
     return bool(st.session_state.pro_unlocked) and (not st.session_state.xlsx_consumed_local)
 
 def try_unlock_from_status(email: str) -> None:
-    """
-    Checks worker status and sets session unlock flags.
-    Safe to call frequently.
-    """
     email = (email or "").strip().lower()
     st.session_state.pro_email = email
     st.session_state.pro_last_status_error = ""
@@ -348,7 +354,6 @@ def try_unlock_from_status(email: str) -> None:
     st.session_state.pro_unlocked = ok
     st.session_state.pro_available_scans = avail
     st.session_state.pro_last_status_error = err or ""
-    # Reset local consume guard when we (re)unlock
     if ok:
         st.session_state.xlsx_consumed_local = False
 
@@ -559,7 +564,6 @@ tab_audit, tab_method, tab_privacy, tab_pro = st.tabs(["Audit", "Methodology", "
 with tab_audit:
     base, pay_url = _worker_cfg()
 
-    # Top action row: run + clear
     a1, a2, a3 = st.columns([1.15, 1.0, 2.2])
     with a1:
         run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
@@ -581,7 +585,6 @@ with tab_audit:
         st.session_state.xlsx_consumed_local = False
         st.toast("Cleared.", icon="🧼")
 
-    # Metrics row
     m1, m2, m3, m4, m5 = st.columns(5)
     met_scanned = m1.empty()
     met_critical = m2.empty()
@@ -673,7 +676,6 @@ with tab_audit:
             st.error("Missing credentials in the sidebar.")
         else:
             try:
-                # Start fresh per run
                 st.session_state.pro_unlocked = False
                 st.session_state.pro_available_scans = 0
                 st.session_state.pro_last_status_error = ""
@@ -697,22 +699,12 @@ with tab_audit:
                     s.update(label="Scan complete ✅", state="complete", expanded=False)
 
                 st.toast("Scan complete", icon="✅")
-
-                # OPTIONAL: if they already paid previously, auto-unlock after scan
-                # (This just checks /status, it does not consume.)
-                if not pro_mode:
-                    # Use whichever email they type below; if empty, do nothing.
-                    pass
-
             except Exception as e:
                 st.session_state.scan_running = False
                 st.error(f"Scan failed: {e}")
 
     refresh_metrics()
 
-    # =========================
-    # FINDINGS + PAYWALL (Scan first, buy results)
-    # =========================
     if st.session_state.scan_results:
         st.divider()
         st.subheader("Findings")
@@ -744,7 +736,6 @@ with tab_audit:
         gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
         df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
 
-        # Filters + search
         f1, f2, f3 = st.columns([1.2, 1.2, 2.6])
         with f1:
             sev_filter = st.multiselect("Severity", ["critical", "warning", "info"], default=["critical", "warning", "info"])
@@ -778,38 +769,43 @@ with tab_audit:
         if gated:
             st.warning(f"Free preview shows the first **{FREE_FINDING_LIMIT}** findings. Unlock to export the full report.")
 
-        # =========================
-        # Unlock Full Report (Buy after scan)
-        # =========================
         st.markdown("### 🔓 Unlock full report")
 
-        u1, u2, u3 = st.columns([1.4, 1.2, 1.2])
+        # Email gets more space; buttons are compact columns
+        u1, u2, u3 = st.columns([2.2, 0.9, 0.9])
 
         with u1:
             unlock_email = st.text_input(
-                "Email for unlock",
+                "Email",
                 value=st.session_state.pro_email,
                 placeholder="admin@company.com",
-                help="Use the same email you use at checkout.",
+                label_visibility="visible",
                 key="unlock_email_main",
             ).strip().lower()
             st.session_state.pro_email = unlock_email
 
-            if not base and not pro_mode:
+            st.markdown("<div class='za-subtle'>Use the same email you use at checkout.</div>", unsafe_allow_html=True)
+
+            if (not base) and (not pro_mode):
                 st.markdown("<div class='za-pill-warn'>⚠️ Paywall not configured (missing WORKER_BASE_URL secret).</div>", unsafe_allow_html=True)
-            else:
-                st.markdown("<div class='za-subtle'>Run scan first. Pay only if you want the full XLSX export.</div>", unsafe_allow_html=True)
 
         with u2:
-            link_cta("💳 Buy full report ($20)", pay_url)
+            st.markdown("<div class='za-btnrow'>", unsafe_allow_html=True)
+            link_cta("💳 Buy full report", pay_url)
+            st.markdown("<small>Opens checkout</small>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         with u3:
+            st.markdown("<div class='za-btnrow'>", unsafe_allow_html=True)
             unlock_btn = st.button(
-                "✅ I paid — unlock",
-                use_container_width=True,
+                "✅ I paid",
+                use_container_width=False,
                 disabled=(not bool(st.session_state.pro_email)) or ((not base) and (not pro_mode)),
                 key="btn_unlock_paid",
             )
+            st.markdown("<small>Unlock report</small>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
             if unlock_btn:
                 if pro_mode:
                     st.session_state.pro_unlocked = True
@@ -833,12 +829,9 @@ with tab_audit:
                 )
             else:
                 if st.session_state.pro_email:
-                    msg = st.session_state.pro_last_status_error or "No scan credit found for this email yet. If you just paid, wait a few seconds and click unlock again."
+                    msg = st.session_state.pro_last_status_error or "No scan credit found for this email yet. If you just paid, wait a few seconds and click “I paid”."
                     st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
 
-        # =========================
-        # EXPORTS (consume only on XLSX download)
-        # =========================
         export_df = df_findings if pro_access else df_preview
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(export_df)
 
