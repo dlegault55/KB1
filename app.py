@@ -258,26 +258,31 @@ def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str
     return bio.getvalue(), None
 
 # =========================
-# 4b) PRO PAYWALL HELPERS (Worker)
+# 4b) PRO PAYWALL HELPERS (Worker) — UPDATED for your current Worker
 # =========================
-def _worker_cfg() -> Tuple[Optional[str], Optional[str], str]:
+def _worker_cfg() -> Tuple[Optional[str], str]:
+    """
+    Current worker supports:
+      GET /status?email=...
+      GET /consume?email=...
+      GET /grant?email=...&n=...   (temp)
+    No token headers required right now.
+    """
     base = st.secrets.get("WORKER_BASE_URL")
-    token = st.secrets.get("STATUS_API_TOKEN")
     pay = st.secrets.get("PAYMENT_LINK_URL", "") or ""
-    if not base or not token:
-        return None, None, str(pay)
-    return str(base).rstrip("/"), str(token), str(pay)
+    if not base:
+        return None, str(pay)
+    return str(base).rstrip("/"), str(pay)
 
 def worker_get_status(email: str) -> Tuple[bool, int, str]:
-    base, token, _pay = _worker_cfg()
-    if not base or not token:
-        return False, 0, "Missing WORKER_BASE_URL or STATUS_API_TOKEN in Streamlit secrets."
+    base, _pay = _worker_cfg()
+    if not base:
+        return False, 0, "Missing WORKER_BASE_URL in Streamlit secrets."
 
     try:
         r = requests.get(
             f"{base}/status",
             params={"email": email},
-            headers={"x-status-token": token},
             timeout=10,
         )
         if r.status_code != 200:
@@ -289,38 +294,20 @@ def worker_get_status(email: str) -> Tuple[bool, int, str]:
         return False, 0, f"Status check error: {e}"
 
 def worker_claim(email: str) -> Tuple[bool, int, str]:
-    base, token, _pay = _worker_cfg()
-    if not base or not token:
-        return False, 0, "Missing WORKER_BASE_URL or STATUS_API_TOKEN in Streamlit secrets."
-
-    try:
-        r = requests.post(
-            f"{base}/claim",
-            json={"email": email},
-            headers={"x-status-token": token},
-            timeout=15,
-        )
-        if r.status_code != 200:
-            if r.status_code == 404:
-                return False, 0, "No unclaimed purchase found yet. Did you complete payment?"
-            return False, 0, f"Claim failed ({r.status_code})."
-
-        data = r.json()
-        avail = int(data.get("available_scans") or 0)
-        return (avail > 0), avail, ""
-    except Exception as e:
-        return False, 0, f"Claim error: {e}"
+    # Claim is not implemented in your Worker yet (no Stripe webhook + claim endpoint).
+    # We leave the UI but avoid crashing.
+    return False, 0, "Claim is not enabled yet. (Next step: Stripe webhook + /claim.)"
 
 def worker_consume(email: str) -> Tuple[bool, int, str]:
-    base, token, _pay = _worker_cfg()
-    if not base or not token:
-        return False, 0, "Missing WORKER_BASE_URL or STATUS_API_TOKEN in Streamlit secrets."
+    base, _pay = _worker_cfg()
+    if not base:
+        return False, 0, "Missing WORKER_BASE_URL in Streamlit secrets."
 
     try:
-        r = requests.post(
+        # Current worker: GET /consume?email=...
+        r = requests.get(
             f"{base}/consume",
-            json={"email": email},
-            headers={"x-status-token": token},
+            params={"email": email},
             timeout=15,
         )
         if r.status_code != 200:
@@ -551,21 +538,21 @@ with tab_audit:
     with a3:
         st.caption("Tip: turn off Broken Links/Images for a faster first pass.")
 
-    base, tok, pay_url = _worker_cfg()
+    base, pay_url = _worker_cfg()
     with st.expander("🔓 Pro export (1 Excel download)", expanded=True):
-        st.caption("Purchase 1 scan, then claim it for the email that should be allowed to download the Excel report.")
+        st.caption("Purchase 1 scan, then check access for the email that should be allowed to download the Excel report.")
 
         pro_email_top = st.text_input(
             "Claim email",
             value=st.session_state.pro_email,
             placeholder="admin@company.com",
-            help="Can be different from the payment email (e.g., finance paid, admin uses).",
+            help="For now: enter the same email you granted scans to (Stripe claim comes next).",
             key="pro_claim_email_audit",
         )
         st.session_state.pro_email = (pro_email_top or "").strip().lower()
 
-        if not base or not tok:
-            st.warning("Paywall not configured: missing WORKER_BASE_URL / STATUS_API_TOKEN secrets.")
+        if not base:
+            st.warning("Paywall not configured: missing WORKER_BASE_URL secret.")
         else:
             b1, b2, b3 = st.columns([1, 1, 1.2])
             with b1:
@@ -583,7 +570,7 @@ with tab_audit:
                     if ok:
                         st.toast("Scan claimed ✅", icon="✅")
                     else:
-                        st.warning(err or "Could not claim scan.")
+                        st.warning(err or "Claim not available yet.")
 
             with b2:
                 if st.button(
@@ -613,7 +600,7 @@ with tab_audit:
                     f"(remaining: {st.session_state.pro_available_scans})"
                 )
             else:
-                st.info("No scan available yet. Purchase, then click **Claim scan**.")
+                st.info("No scan available yet. (For now: use Worker /grant to test. Stripe claim comes next.)")
 
     if clear_btn:
         st.session_state.scan_results = []
@@ -804,7 +791,7 @@ with tab_audit:
         if gated:
             st.warning(
                 f"Free preview shows first **{FREE_FINDING_LIMIT}** findings. "
-                f"Purchase + **Claim scan** above to unlock the one-time Excel export."
+                f"Purchase + Check access above to unlock the one-time Excel export."
             )
 
         export_df = df_findings if pro_access else df_preview
@@ -836,7 +823,7 @@ with tab_audit:
             else:
                 if not pro_access:
                     st.button("📥 Download XLSX (Pro)", disabled=True, use_container_width=True)
-                    st.caption("⚠️ One-time Excel download. Purchase + claim a scan to unlock.")
+                    st.caption("⚠️ One-time Excel download. Purchase + check access to unlock.")
                 else:
                     if xlsx_bytes:
                         if not pro_mode:
@@ -892,7 +879,7 @@ with tab_privacy:
     )
 
 with tab_pro:
-    _base, _tok, pay_url = _worker_cfg()
+    _base, pay_url = _worker_cfg()
 
     c1, c2 = st.columns(2)
     with c1:
