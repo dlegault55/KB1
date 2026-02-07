@@ -769,6 +769,21 @@ with tab_audit:
 
         st.markdown("### 🔓 Unlock full report")
 
+        st.markdown(
+    """
+<div class="za-subtle">
+<b>How it works</b>
+<ul style="margin:6px 0 0 18px;">
+  <li>Run your scan (free preview shows up to 50 findings).</li>
+  <li>Buy only if you want the full export.</li>
+  <li>After paying, use the same checkout email and click <b>I paid</b> to unlock.</li>
+</ul>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+
         # Left: email. Right: both buttons in one row (side-by-side).
         u1, uR = st.columns([2.2, 1.8])
 
