@@ -49,7 +49,10 @@ st.markdown(
         background: rgba(15,26,46,0.90);
         border: 1px solid #1F2A44;
         border-radius: 16px;
-        padding: 14px 14px 12px 14px;
+
+        /* PRO POLISH: tighten vertical padding a bit so cards feel less bulky */
+        padding: 12px 14px 10px 14px;
+
         box-shadow: 0 10px 24px rgba(0,0,0,0.25);
     }
 
@@ -58,7 +61,9 @@ st.markdown(
       display:flex;
       align-items:center;
       gap:10px;
-      margin: 0 0 10px 0;
+
+      /* PRO POLISH: slightly tighter spacing below header row */
+      margin: 0 0 8px 0;
     }
 
     .za-stepchip {
@@ -71,22 +76,19 @@ st.markdown(
         font-size: 0.78rem;
         font-weight: 800;
         letter-spacing: 0.3px;
-        margin-bottom: 8px;
+        margin-bottom: 8px; /* (overridden by margin:0 !important below) */
     }
     .za-cardtitle {
         font-size: 1.05rem;
         font-weight: 850;
-        margin: 0 0 10px 0;
+        margin: 0 0 10px 0; /* (overridden by margin:0 !important below) */
         color: #E6EEF8;
     }
     .za-subtle { color:#9FB1CC; font-size: 0.85rem; }
 
-    /* Remove default margins that can cause misalignment */
+    /* Alignment fix */
     .za-stepchip{ margin: 0 !important; line-height: 1 !important; }
     .za-cardtitle{ margin: 0 !important; line-height: 1.1 !important; }
-
-    /* Streamlit markdown wrappers sometimes add spacing */
-    .za-card .stMarkdown { margin: 0 !important; padding: 0 !important; }
 
     /* Premium primary button (Run scan) */
     button[kind="primary"] {
@@ -268,7 +270,6 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
         elif status >= 500:
             result = {"ok": False, "status": status, "kind": "server_error", "severity": "warning"}
         elif status in (401, 403, 429):
-            # Inconclusive - often blocked/auth/rate-limited.
             result = {"ok": None, "status": status, "kind": "blocked_or_rate_limited", "severity": "info"}
         elif status >= 400:
             result = {"ok": False, "status": status, "kind": "client_error", "severity": "warning"}
@@ -329,13 +330,6 @@ def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str
 # 4b) PRO PAYWALL HELPERS (Worker)
 # =========================
 def _worker_cfg() -> Tuple[Optional[str], str]:
-    """
-    Current worker supports:
-      GET /status?email=...
-      GET /consume?email=...
-      GET /grant?email=...&n=...   (temp)
-    No token headers required right now.
-    """
     base = st.secrets.get("WORKER_BASE_URL")
     pay = st.secrets.get("PAYMENT_LINK_URL", "") or ""
     if not base:
@@ -358,7 +352,6 @@ def worker_get_status(email: str) -> Tuple[bool, int, str]:
         return False, 0, f"Status check error: {e}"
 
 def worker_claim(email: str) -> Tuple[bool, int, str]:
-    # Claim is not implemented in your Worker yet (no Stripe webhook + claim endpoint).
     return False, 0, "Claim is not enabled yet. (Next step: Stripe webhook + /claim.)"
 
 def worker_consume(email: str) -> Tuple[bool, int, str]:
@@ -594,7 +587,6 @@ with tab_audit:
 
     s1, s2, s3 = st.columns([1.05, 1.7, 1.1])
 
-    # STEP 1: Buy
     with s1:
         st.markdown("<div class='za-card'>", unsafe_allow_html=True)
         st.markdown(
@@ -611,7 +603,6 @@ with tab_audit:
         )
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # STEP 2: Verify access (single button)
     with s2:
         st.markdown("<div class='za-card'>", unsafe_allow_html=True)
         st.markdown(
@@ -660,7 +651,6 @@ with tab_audit:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # STEP 3: Run + Clear grouped
     with s3:
         st.markdown("<div class='za-card'>", unsafe_allow_html=True)
         st.markdown(
@@ -833,7 +823,6 @@ with tab_audit:
             )
 
         total_findings = len(df_findings)
-
         pro_access = pro_access_active(pro_mode)
 
         gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
