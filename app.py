@@ -24,7 +24,7 @@ st.set_page_config(page_title=f"{APP_TITLE} Pro", page_icon=APP_ICON, layout="wi
 spell = SpellChecker()
 
 # =========================
-# 2) STYLE (premium button + subtle polish)
+# 2) STYLE
 # =========================
 st.markdown(
     """
@@ -64,9 +64,7 @@ st.markdown(
             0 14px 38px rgba(56,189,248,0.32),
             0 8px 22px rgba(34,197,94,0.22) !important;
     }
-    button[kind="primary"]:active {
-        transform: translateY(0px) scale(0.99) !important;
-    }
+    button[kind="primary"]:active { transform: translateY(0px) scale(0.99) !important; }
     button[kind="secondary"] {
         border-radius: 12px !important;
         height: 46px !important;
@@ -116,25 +114,16 @@ st.markdown(
         color:#BBD2F3;
         font-weight: 650;
     }
+    .za-pill-warn {
+        margin-top: 8px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(251,191,36,0.10);
+        border: 1px solid rgba(251,191,36,0.25);
+        color:#FDE68A;
+        font-weight: 650;
+    }
 
-    /* Step heading (compact, no cards) */
-    .za-steps-title{
-        font-weight: 850;
-        font-size: 1.0rem;
-        margin: 0 0 6px 0;
-    }
-    .za-step-label{
-        display:inline-block;
-        padding: 4px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(56,189,248,0.22);
-        background: rgba(56,189,248,0.08);
-        color: #BBD2F3;
-        font-size: 0.78rem;
-        font-weight: 850;
-        letter-spacing: 0.3px;
-        margin-bottom: 8px;
-    }
     .za-subtle { color:#9FB1CC; font-size: 0.85rem; }
 </style>
 """,
@@ -158,6 +147,7 @@ def ss_init():
     st.session_state.setdefault("pro_unlocked", False)
     st.session_state.setdefault("pro_available_scans", 0)
     st.session_state.setdefault("pro_last_status_error", "")
+
     # Local/session guard to prevent double-consume via Streamlit reruns
     st.session_state.setdefault("xlsx_consumed_local", False)
 
@@ -171,10 +161,7 @@ def link_cta(label: str, url: str):
     if not url:
         st.button(label, disabled=True, use_container_width=True)
         return
-    st.markdown(
-        f'<a class="za-linkbtn" href="{url}" target="_blank" rel="noopener">{label}</a>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(f'<a class="za-linkbtn" href="{url}" target="_blank" rel="noopener">{label}</a>', unsafe_allow_html=True)
 
 def safe_parse_updated_at(s: str) -> Optional[datetime]:
     try:
@@ -274,18 +261,10 @@ def build_column_config():
         return {}
 
     if hasattr(cc, "LinkColumn") and hasattr(cc, "NumberColumn"):
-        return {
-            "Article URL": cc.LinkColumn("Article"),
-            "Target URL": cc.LinkColumn("Target"),
-            "HTTP Status": cc.NumberColumn("Status"),
-        }
+        return {"Article URL": cc.LinkColumn("Article"), "Target URL": cc.LinkColumn("Target"), "HTTP Status": cc.NumberColumn("Status")}
 
     if hasattr(cc, "Link_Column") and hasattr(cc, "Number_Column"):
-        return {
-            "Article URL": cc.Link_Column("Article"),
-            "Target URL": cc.Link_Column("Target"),
-            "HTTP Status": cc.Number_Column("Status"),
-        }
+        return {"Article URL": cc.Link_Column("Article"), "Target URL": cc.Link_Column("Target"), "HTTP Status": cc.Number_Column("Status")}
 
     return {}
 
@@ -300,15 +279,14 @@ def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str
     return bio.getvalue(), None
 
 # =========================
-# 4b) PRO PAYWALL HELPERS (Worker)
+# 4b) PAYWALL / WORKER
 # =========================
 def _worker_cfg() -> Tuple[Optional[str], str]:
     """
-    Current worker supports:
+    Worker supports:
       GET /status?email=...
       GET /consume?email=...
-      GET /grant?email=...&n=...   (temp)
-    No token headers required right now.
+      GET /grant?email=...&n=...   (temp/dev)
     """
     base = st.secrets.get("WORKER_BASE_URL")
     pay = st.secrets.get("PAYMENT_LINK_URL", "") or ""
@@ -320,7 +298,6 @@ def worker_get_status(email: str) -> Tuple[bool, int, str]:
     base, _pay = _worker_cfg()
     if not base:
         return False, 0, "Missing WORKER_BASE_URL in Streamlit secrets."
-
     try:
         r = requests.get(f"{base}/status", params={"email": email}, timeout=10)
         if r.status_code != 200:
@@ -331,14 +308,10 @@ def worker_get_status(email: str) -> Tuple[bool, int, str]:
     except Exception as e:
         return False, 0, f"Status check error: {e}"
 
-def worker_claim(email: str) -> Tuple[bool, int, str]:
-    return False, 0, "Claim is not enabled yet. (Next step: Stripe webhook + /claim.)"
-
 def worker_consume(email: str) -> Tuple[bool, int, str]:
     base, _pay = _worker_cfg()
     if not base:
         return False, 0, "Missing WORKER_BASE_URL in Streamlit secrets."
-
     try:
         r = requests.get(f"{base}/consume", params={"email": email}, timeout=15)
         if r.status_code != 200:
@@ -355,6 +328,29 @@ def pro_access_active(pro_mode: bool) -> bool:
     if pro_mode:
         return True
     return bool(st.session_state.pro_unlocked) and (not st.session_state.xlsx_consumed_local)
+
+def try_unlock_from_status(email: str) -> None:
+    """
+    Checks worker status and sets session unlock flags.
+    Safe to call frequently.
+    """
+    email = (email or "").strip().lower()
+    st.session_state.pro_email = email
+    st.session_state.pro_last_status_error = ""
+
+    if not email:
+        st.session_state.pro_unlocked = False
+        st.session_state.pro_available_scans = 0
+        st.session_state.pro_last_status_error = "Enter an email to unlock."
+        return
+
+    ok, avail, err = worker_get_status(email)
+    st.session_state.pro_unlocked = ok
+    st.session_state.pro_available_scans = avail
+    st.session_state.pro_last_status_error = err or ""
+    # Reset local consume guard when we (re)unlock
+    if ok:
+        st.session_state.xlsx_consumed_local = False
 
 # =========================
 # 5) SCAN ENGINE
@@ -563,74 +559,14 @@ tab_audit, tab_method, tab_privacy, tab_pro = st.tabs(["Audit", "Methodology", "
 with tab_audit:
     base, pay_url = _worker_cfg()
 
-    st.markdown("### ✅ 3-step flow")
-
-    # Compact (no cards): 3 columns
-    s1, s2, s3 = st.columns([1.05, 1.7, 1.1])
-
-    # Step 1
-    with s1:
-        st.markdown("<span class='za-step-label'>STEP 1</span>", unsafe_allow_html=True)
-        st.markdown("<div class='za-steps-title'>Buy</div>", unsafe_allow_html=True)
-        link_cta("💳 Buy 1 scan", pay_url)
-        st.markdown(
-            "<div class='za-subtle' style='margin-top:6px;'>Only needed for full XLSX export beyond the free preview.</div>",
-            unsafe_allow_html=True,
-        )
-
-    # Step 2
-    with s2:
-        st.markdown("<span class='za-step-label'>STEP 2</span>", unsafe_allow_html=True)
-        st.markdown("<div class='za-steps-title'>Verify access</div>", unsafe_allow_html=True)
-
-        pro_email_top = st.text_input(
-            "Email",
-            value=st.session_state.pro_email,
-            placeholder="admin@company.com",
-            help="Enter the email that should have scan credits.",
-            key="pro_claim_email_step2",
-            label_visibility="collapsed",
-        )
-        st.session_state.pro_email = (pro_email_top or "").strip().lower()
-
-        if not base:
-            st.warning("Paywall not configured: missing WORKER_BASE_URL secret.")
-        else:
-            verify = st.button(
-                "✅ Verify access",
-                use_container_width=True,
-                disabled=not bool(st.session_state.pro_email),
-                key="btn_verify_access_step2",
-            )
-            if verify:
-                ok, avail, err = worker_get_status(st.session_state.pro_email)
-                st.session_state.pro_unlocked = ok
-                st.session_state.pro_available_scans = avail
-                st.session_state.pro_last_status_error = err
-                st.session_state.xlsx_consumed_local = False
-
-        if st.session_state.pro_email:
-            if st.session_state.pro_unlocked:
-                st.markdown(
-                    f"<div class='za-pill-ok'>✅ Access verified • Remaining scans: {st.session_state.pro_available_scans}</div>",
-                    unsafe_allow_html=True,
-                )
-            else:
-                msg = st.session_state.pro_last_status_error or "No scan credit found for this email yet."
-                st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
-
-    # Step 3
-    with s3:
-        st.markdown("<span class='za-step-label'>STEP 3</span>", unsafe_allow_html=True)
-        st.markdown("<div class='za-steps-title'>Run scan</div>", unsafe_allow_html=True)
+    # Top action row: run + clear
+    a1, a2, a3 = st.columns([1.15, 1.0, 2.2])
+    with a1:
         run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
+    with a2:
         clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
-
-    st.markdown(
-        "<div class='za-subtle' style='margin-top:10px;'>Tip: disable Broken Links/Images for a faster first pass.</div>",
-        unsafe_allow_html=True,
-    )
-    st.divider()
+    with a3:
+        st.markdown("<div class='za-subtle'>Tip: Disable Broken Links/Images for a faster first pass.</div>", unsafe_allow_html=True)
 
     if clear_btn:
         st.session_state.scan_results = []
@@ -639,8 +575,13 @@ with tab_audit:
         st.session_state.url_cache = {}
         st.session_state.last_scanned_title = ""
         st.session_state.connected_ok = False
+        st.session_state.pro_unlocked = False
+        st.session_state.pro_available_scans = 0
+        st.session_state.pro_last_status_error = ""
+        st.session_state.xlsx_consumed_local = False
         st.toast("Cleared.", icon="🧼")
 
+    # Metrics row
     m1, m2, m3, m4, m5 = st.columns(5)
     met_scanned = m1.empty()
     met_critical = m2.empty()
@@ -732,6 +673,12 @@ with tab_audit:
             st.error("Missing credentials in the sidebar.")
         else:
             try:
+                # Start fresh per run
+                st.session_state.pro_unlocked = False
+                st.session_state.pro_available_scans = 0
+                st.session_state.pro_last_status_error = ""
+                st.session_state.xlsx_consumed_local = False
+
                 with st.status("Running scan…", expanded=True) as s:
                     run_scan(
                         subdomain=subdomain,
@@ -750,12 +697,22 @@ with tab_audit:
                     s.update(label="Scan complete ✅", state="complete", expanded=False)
 
                 st.toast("Scan complete", icon="✅")
+
+                # OPTIONAL: if they already paid previously, auto-unlock after scan
+                # (This just checks /status, it does not consume.)
+                if not pro_mode:
+                    # Use whichever email they type below; if empty, do nothing.
+                    pass
+
             except Exception as e:
                 st.session_state.scan_running = False
                 st.error(f"Scan failed: {e}")
 
     refresh_metrics()
 
+    # =========================
+    # FINDINGS + PAYWALL (Scan first, buy results)
+    # =========================
     if st.session_state.scan_results:
         st.divider()
         st.subheader("Findings")
@@ -779,10 +736,7 @@ with tab_audit:
 
         if not df_findings.empty:
             df_findings["_sev_rank"] = df_findings["Severity"].map(lambda s: severity_rank(str(s)))
-            df_findings = (
-                df_findings.sort_values(by=["_sev_rank", "Type"], ascending=[True, True])
-                .drop(columns=["_sev_rank"])
-            )
+            df_findings = df_findings.sort_values(by=["_sev_rank", "Type"], ascending=[True, True]).drop(columns=["_sev_rank"])
 
         total_findings = len(df_findings)
         pro_access = pro_access_active(pro_mode)
@@ -790,13 +744,10 @@ with tab_audit:
         gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
         df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
 
+        # Filters + search
         f1, f2, f3 = st.columns([1.2, 1.2, 2.6])
         with f1:
-            sev_filter = st.multiselect(
-                "Severity",
-                ["critical", "warning", "info"],
-                default=["critical", "warning", "info"],
-            )
+            sev_filter = st.multiselect("Severity", ["critical", "warning", "info"], default=["critical", "warning", "info"])
         with f2:
             type_opts = sorted(df_preview["Type"].unique().tolist()) if not df_preview.empty else []
             type_filter = st.multiselect("Type", type_opts, default=type_opts)
@@ -825,11 +776,69 @@ with tab_audit:
 
         st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
         if gated:
-            st.warning(
-                f"Free preview shows first **{FREE_FINDING_LIMIT}** findings. "
-                f"Buy + verify access above to unlock the one-time Excel export."
-            )
+            st.warning(f"Free preview shows the first **{FREE_FINDING_LIMIT}** findings. Unlock to export the full report.")
 
+        # =========================
+        # Unlock Full Report (Buy after scan)
+        # =========================
+        st.markdown("### 🔓 Unlock full report")
+
+        u1, u2, u3 = st.columns([1.4, 1.2, 1.2])
+
+        with u1:
+            unlock_email = st.text_input(
+                "Email for unlock",
+                value=st.session_state.pro_email,
+                placeholder="admin@company.com",
+                help="Use the same email you use at checkout.",
+                key="unlock_email_main",
+            ).strip().lower()
+            st.session_state.pro_email = unlock_email
+
+            if not base and not pro_mode:
+                st.markdown("<div class='za-pill-warn'>⚠️ Paywall not configured (missing WORKER_BASE_URL secret).</div>", unsafe_allow_html=True)
+            else:
+                st.markdown("<div class='za-subtle'>Run scan first. Pay only if you want the full XLSX export.</div>", unsafe_allow_html=True)
+
+        with u2:
+            link_cta("💳 Buy full report ($20)", pay_url)
+
+        with u3:
+            unlock_btn = st.button(
+                "✅ I paid — unlock",
+                use_container_width=True,
+                disabled=(not bool(st.session_state.pro_email)) or ((not base) and (not pro_mode)),
+                key="btn_unlock_paid",
+            )
+            if unlock_btn:
+                if pro_mode:
+                    st.session_state.pro_unlocked = True
+                    st.session_state.pro_available_scans = max(1, int(st.session_state.pro_available_scans or 1))
+                    st.session_state.pro_last_status_error = ""
+                    st.session_state.xlsx_consumed_local = False
+                    st.toast("Unlocked (dev) ✅", icon="✅")
+                else:
+                    try_unlock_from_status(st.session_state.pro_email)
+                    if st.session_state.pro_unlocked:
+                        st.toast("Unlocked ✅", icon="✅")
+
+        # Status pill
+        if pro_mode:
+            st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — full export unlocked.</div>", unsafe_allow_html=True)
+        else:
+            if st.session_state.pro_unlocked:
+                st.markdown(
+                    f"<div class='za-pill-ok'>✅ Unlocked • Remaining scans: {st.session_state.pro_available_scans}</div>",
+                    unsafe_allow_html=True,
+                )
+            else:
+                if st.session_state.pro_email:
+                    msg = st.session_state.pro_last_status_error or "No scan credit found for this email yet. If you just paid, wait a few seconds and click unlock again."
+                    st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
+
+        # =========================
+        # EXPORTS (consume only on XLSX download)
+        # =========================
         export_df = df_findings if pro_access else df_preview
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(export_df)
 
@@ -839,7 +848,7 @@ with tab_audit:
             if st.session_state.xlsx_consumed_local:
                 return
             if not st.session_state.pro_email:
-                st.warning("Enter your email in Step 2 to consume a scan.")
+                st.warning("Enter your email above to consume a scan.")
                 return
 
             ok, avail, err = worker_consume(st.session_state.pro_email)
@@ -851,14 +860,14 @@ with tab_audit:
             else:
                 st.warning(err or "Could not consume scan (try again).")
 
-        c_exp1, c_exp2 = st.columns([1, 1])
-        with c_exp1:
+        e1, e2 = st.columns([1, 1])
+        with e1:
             if total_findings <= 0:
                 st.button("📥 Download XLSX", disabled=True, use_container_width=True)
             else:
                 if not pro_access:
-                    st.button("📥 Download XLSX (Pro)", disabled=True, use_container_width=True)
-                    st.caption("⚠️ One-time Excel download. Buy + verify access to unlock.")
+                    st.button("📥 Download XLSX (locked)", disabled=True, use_container_width=True)
+                    st.caption("Unlock full report to download XLSX.")
                 else:
                     if xlsx_bytes:
                         if not pro_mode:
@@ -872,10 +881,10 @@ with tab_audit:
                             on_click=_consume_once,
                         )
                     else:
-                        st.button("📥 Download XLSX (Pro)", disabled=True, use_container_width=True)
+                        st.button("📥 Download XLSX", disabled=True, use_container_width=True)
                         st.caption(xlsx_err or "XLSX export unavailable.")
 
-        with c_exp2:
+        with e2:
             if total_findings > 0:
                 st.download_button(
                     "📥 Download CSV",
@@ -908,7 +917,8 @@ with tab_privacy:
         """
 ### Data handling
 - Direct HTTPS calls to your Zendesk subdomain
-- Tokens are not written into export
+- Tokens are used only during the scan to fetch Help Center content
+- Tokens are not written into exports
 - Results live in Streamlit session state and reset when you clear or rerun
 """
     )
@@ -919,17 +929,15 @@ with tab_pro:
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("Free")
-        st.write("✅ Unlimited article scanning")
-        st.write("✅ Preview first 50 findings")
+        st.write("✅ Run scans anytime")
+        st.write(f"✅ Preview first {FREE_FINDING_LIMIT} findings")
         st.write("✅ CSV export (preview)")
-        st.write("✅ XLSX export (preview)")
 
     with c2:
-        st.subheader("Pro (1 scan)")
-        st.write("🚀 Full findings (beyond 50)")
+        st.subheader("Paid ($20)")
+        st.write("🚀 Full findings (beyond preview)")
         st.write("📥 One-time Excel download (counts as 1 scan)")
-        st.write("🛠 Manual override supported (admin grant)")
-        link_cta("💳 Buy 1 scan", pay_url)
+        link_cta("💳 Buy full report ($20)", pay_url)
 
     st.divider()
-    st.caption("To unlock Pro export, use the **3-step flow** on the **Audit** tab.")
+    st.caption("Flow: Run scan → review preview → buy only if you want the full export.")
