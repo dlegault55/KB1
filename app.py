@@ -129,7 +129,7 @@ st.markdown(
 
     .za-subtle { color:#9FB1CC; font-size: 0.85rem; }
 
-    /* Small alignment helper so buttons sit closer to input baseline */
+    /* Alignment helper so the button row aligns with the input control */
     .za-btnrow { padding-top: 26px; }
     .za-btnrow small { display:block; margin-top: 6px; color:#9FB1CC; font-size:0.78rem; }
 </style>
@@ -771,8 +771,8 @@ with tab_audit:
 
         st.markdown("### 🔓 Unlock full report")
 
-        # Email gets more space; buttons are compact columns
-        u1, u2, u3 = st.columns([2.2, 0.9, 0.9])
+        # Left: email. Right: both buttons in one row (side-by-side).
+        u1, uR = st.columns([2.2, 1.8])
 
         with u1:
             unlock_email = st.text_input(
@@ -787,23 +787,27 @@ with tab_audit:
             st.markdown("<div class='za-subtle'>Use the same email you use at checkout.</div>", unsafe_allow_html=True)
 
             if (not base) and (not pro_mode):
-                st.markdown("<div class='za-pill-warn'>⚠️ Paywall not configured (missing WORKER_BASE_URL secret).</div>", unsafe_allow_html=True)
+                st.markdown(
+                    "<div class='za-pill-warn'>⚠️ Paywall not configured (missing WORKER_BASE_URL secret).</div>",
+                    unsafe_allow_html=True,
+                )
 
-        with u2:
+        with uR:
             st.markdown("<div class='za-btnrow'>", unsafe_allow_html=True)
-            link_cta("💳 Buy full report", pay_url)
-            st.markdown("<small>Opens checkout</small>", unsafe_allow_html=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+            bL, bR = st.columns([1, 1], gap="small")
 
-        with u3:
-            st.markdown("<div class='za-btnrow'>", unsafe_allow_html=True)
-            unlock_btn = st.button(
-                "✅ I paid",
-                use_container_width=False,
-                disabled=(not bool(st.session_state.pro_email)) or ((not base) and (not pro_mode)),
-                key="btn_unlock_paid",
-            )
-            st.markdown("<small>Unlock report</small>", unsafe_allow_html=True)
+            with bL:
+                link_cta("💳 Buy full report", pay_url)
+
+            with bR:
+                unlock_btn = st.button(
+                    "✅ I paid",
+                    use_container_width=True,
+                    disabled=(not bool(st.session_state.pro_email)) or ((not base) and (not pro_mode)),
+                    key="btn_unlock_paid",
+                )
+
+            st.markdown("<small>After paying, click “I paid” to unlock.</small>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
             if unlock_btn:
