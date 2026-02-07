@@ -43,53 +43,6 @@ st.markdown(
         margin-right: 6px;
     }
 
-    /* Step cards */
-    .za-stepgrid { display: grid; grid-template-columns: 1.05fr 1.7fr 1.1fr; gap: 14px; }
-    .za-card {
-        background: rgba(15,26,46,0.90);
-        border: 1px solid #1F2A44;
-        border-radius: 16px;
-
-        /* PRO POLISH: tighten vertical padding a bit so cards feel less bulky */
-        padding: 12px 14px 10px 14px;
-
-        box-shadow: 0 10px 24px rgba(0,0,0,0.25);
-    }
-
-    /* Card header row: aligns STEP chip + title */
-    .za-cardhead{
-      display:flex;
-      align-items:center;
-      gap:10px;
-
-      /* PRO POLISH: slightly tighter spacing below header row */
-      margin: 0 0 8px 0;
-    }
-
-    .za-stepchip {
-        display:inline-block;
-        padding: 4px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(56,189,248,0.22);
-        background: rgba(56,189,248,0.08);
-        color: #BBD2F3;
-        font-size: 0.78rem;
-        font-weight: 800;
-        letter-spacing: 0.3px;
-        margin-bottom: 8px; /* (overridden by margin:0 !important below) */
-    }
-    .za-cardtitle {
-        font-size: 1.05rem;
-        font-weight: 850;
-        margin: 0 0 10px 0; /* (overridden by margin:0 !important below) */
-        color: #E6EEF8;
-    }
-    .za-subtle { color:#9FB1CC; font-size: 0.85rem; }
-
-    /* Alignment fix */
-    .za-stepchip{ margin: 0 !important; line-height: 1 !important; }
-    .za-cardtitle{ margin: 0 !important; line-height: 1.1 !important; }
-
     /* Premium primary button (Run scan) */
     button[kind="primary"] {
         background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%) !important;
@@ -146,7 +99,7 @@ st.markdown(
     a.za-linkbtn:hover { filter: brightness(1.04); }
 
     .za-pill-ok {
-        margin-top: 10px;
+        margin-top: 8px;
         padding: 10px 12px;
         border-radius: 12px;
         background: rgba(34,197,94,0.12);
@@ -155,7 +108,7 @@ st.markdown(
         font-weight: 750;
     }
     .za-pill-info {
-        margin-top: 10px;
+        margin-top: 8px;
         padding: 10px 12px;
         border-radius: 12px;
         background: rgba(56,189,248,0.08);
@@ -163,6 +116,26 @@ st.markdown(
         color:#BBD2F3;
         font-weight: 650;
     }
+
+    /* Step heading (compact, no cards) */
+    .za-steps-title{
+        font-weight: 850;
+        font-size: 1.0rem;
+        margin: 0 0 6px 0;
+    }
+    .za-step-label{
+        display:inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(56,189,248,0.22);
+        background: rgba(56,189,248,0.08);
+        color: #BBD2F3;
+        font-size: 0.78rem;
+        font-weight: 850;
+        letter-spacing: 0.3px;
+        margin-bottom: 8px;
+    }
+    .za-subtle { color:#9FB1CC; font-size: 0.85rem; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -330,6 +303,13 @@ def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str
 # 4b) PRO PAYWALL HELPERS (Worker)
 # =========================
 def _worker_cfg() -> Tuple[Optional[str], str]:
+    """
+    Current worker supports:
+      GET /status?email=...
+      GET /consume?email=...
+      GET /grant?email=...&n=...   (temp)
+    No token headers required right now.
+    """
     base = st.secrets.get("WORKER_BASE_URL")
     pay = st.secrets.get("PAYMENT_LINK_URL", "") or ""
     if not base:
@@ -585,33 +565,23 @@ with tab_audit:
 
     st.markdown("### ✅ 3-step flow")
 
+    # Compact (no cards): 3 columns
     s1, s2, s3 = st.columns([1.05, 1.7, 1.1])
 
+    # Step 1
     with s1:
-        st.markdown("<div class='za-card'>", unsafe_allow_html=True)
-        st.markdown(
-            "<div class='za-cardhead'>"
-            "<div class='za-stepchip'>STEP 1</div>"
-            "<div class='za-cardtitle'>Buy</div>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("<span class='za-step-label'>STEP 1</span>", unsafe_allow_html=True)
+        st.markdown("<div class='za-steps-title'>Buy</div>", unsafe_allow_html=True)
         link_cta("💳 Buy 1 scan", pay_url)
         st.markdown(
-            "<div class='za-subtle' style='margin-top:8px;'>Only needed for full XLSX export beyond the free preview.</div>",
+            "<div class='za-subtle' style='margin-top:6px;'>Only needed for full XLSX export beyond the free preview.</div>",
             unsafe_allow_html=True,
         )
-        st.markdown("</div>", unsafe_allow_html=True)
 
+    # Step 2
     with s2:
-        st.markdown("<div class='za-card'>", unsafe_allow_html=True)
-        st.markdown(
-            "<div class='za-cardhead'>"
-            "<div class='za-stepchip'>STEP 2</div>"
-            "<div class='za-cardtitle'>Verify access</div>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("<span class='za-step-label'>STEP 2</span>", unsafe_allow_html=True)
+        st.markdown("<div class='za-steps-title'>Verify access</div>", unsafe_allow_html=True)
 
         pro_email_top = st.text_input(
             "Email",
@@ -649,23 +619,15 @@ with tab_audit:
                 msg = st.session_state.pro_last_status_error or "No scan credit found for this email yet."
                 st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
+    # Step 3
     with s3:
-        st.markdown("<div class='za-card'>", unsafe_allow_html=True)
-        st.markdown(
-            "<div class='za-cardhead'>"
-            "<div class='za-stepchip'>STEP 3</div>"
-            "<div class='za-cardtitle'>Run scan</div>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
+        st.markdown("<span class='za-step-label'>STEP 3</span>", unsafe_allow_html=True)
+        st.markdown("<div class='za-steps-title'>Run scan</div>", unsafe_allow_html=True)
         run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
         clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown(
-        "<div class='za-subtle' style='margin-top:8px;'>Tip: disable Broken Links/Images for a faster first pass.</div>",
+        "<div class='za-subtle' style='margin-top:10px;'>Tip: disable Broken Links/Images for a faster first pass.</div>",
         unsafe_allow_html=True,
     )
     st.divider()
@@ -865,7 +827,7 @@ with tab_audit:
         if gated:
             st.warning(
                 f"Free preview shows first **{FREE_FINDING_LIMIT}** findings. "
-                f"Purchase + Verify access above to unlock the one-time Excel export."
+                f"Buy + verify access above to unlock the one-time Excel export."
             )
 
         export_df = df_findings if pro_access else df_preview
