@@ -201,6 +201,7 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
         elif status >= 500:
             result = {"ok": False, "status": status, "kind": "server_error", "severity": "warning"}
         elif status in (401, 403, 429):
+            # Inconclusive - often blocked/auth/rate-limited.
             result = {"ok": None, "status": status, "kind": "blocked_or_rate_limited", "severity": "info"}
         elif status >= 400:
             result = {"ok": False, "status": status, "kind": "client_error", "severity": "warning"}
@@ -258,7 +259,7 @@ def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str
     return bio.getvalue(), None
 
 # =========================
-# 4b) PRO PAYWALL HELPERS (Worker) — UPDATED for your current Worker
+# 4b) PRO PAYWALL HELPERS (Worker)
 # =========================
 def _worker_cfg() -> Tuple[Optional[str], str]:
     """
@@ -280,11 +281,7 @@ def worker_get_status(email: str) -> Tuple[bool, int, str]:
         return False, 0, "Missing WORKER_BASE_URL in Streamlit secrets."
 
     try:
-        r = requests.get(
-            f"{base}/status",
-            params={"email": email},
-            timeout=10,
-        )
+        r = requests.get(f"{base}/status", params={"email": email}, timeout=10)
         if r.status_code != 200:
             return False, 0, f"Status check failed ({r.status_code})."
         data = r.json()
@@ -295,7 +292,6 @@ def worker_get_status(email: str) -> Tuple[bool, int, str]:
 
 def worker_claim(email: str) -> Tuple[bool, int, str]:
     # Claim is not implemented in your Worker yet (no Stripe webhook + claim endpoint).
-    # We leave the UI but avoid crashing.
     return False, 0, "Claim is not enabled yet. (Next step: Stripe webhook + /claim.)"
 
 def worker_consume(email: str) -> Tuple[bool, int, str]:
@@ -304,12 +300,7 @@ def worker_consume(email: str) -> Tuple[bool, int, str]:
         return False, 0, "Missing WORKER_BASE_URL in Streamlit secrets."
 
     try:
-        # Current worker: GET /consume?email=...
-        r = requests.get(
-            f"{base}/consume",
-            params={"email": email},
-            timeout=15,
-        )
+        r = requests.get(f"{base}/consume", params={"email": email}, timeout=15)
         if r.status_code != 200:
             if r.status_code == 409:
                 return False, 0, "No scans available to consume."
@@ -530,37 +521,42 @@ tab_audit, tab_method, tab_privacy, tab_pro = st.tabs(["Audit", "Methodology", "
 # 8) AUDIT TAB
 # =========================
 with tab_audit:
-    a1, a2, a3 = st.columns([1.2, 1.2, 2.2])
-    with a1:
-        run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
-    with a2:
-        clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
-    with a3:
-        st.caption("Tip: turn off Broken Links/Images for a faster first pass.")
-
+    # --- NEW: Step-by-step flow with grouped buttons ---
     base, pay_url = _worker_cfg()
-    with st.expander("🔓 Pro export (1 Excel download)", expanded=True):
-        st.caption("Purchase 1 scan, then check access for the email that should be allowed to download the Excel report.")
+
+    st.markdown("### ✅ 3-step flow")
+    s1, s2, s3 = st.columns([1.05, 1.7, 1.1])
+
+    # STEP 1: Buy
+    with s1:
+        st.markdown("#### Step 1 — Buy scan")
+        link_cta("💳 Buy 1 scan", pay_url)
+        st.caption("Only needed for full XLSX export beyond the free preview.")
+
+    # STEP 2: Claim + Check access
+    with s2:
+        st.markdown("#### Step 2 — Claim / check access")
 
         pro_email_top = st.text_input(
             "Claim email",
             value=st.session_state.pro_email,
             placeholder="admin@company.com",
-            help="For now: enter the same email you granted scans to (Stripe claim comes next).",
-            key="pro_claim_email_audit",
+            help="For now: enter the email you granted scans to (Stripe claim comes next).",
+            key="pro_claim_email_step2",
         )
         st.session_state.pro_email = (pro_email_top or "").strip().lower()
 
         if not base:
             st.warning("Paywall not configured: missing WORKER_BASE_URL secret.")
         else:
-            b1, b2, b3 = st.columns([1, 1, 1.2])
+            b1, b2 = st.columns([1, 1])
+
             with b1:
                 if st.button(
                     "🔓 Claim scan",
                     use_container_width=True,
                     disabled=not bool(st.session_state.pro_email),
-                    key="btn_claim_scan_audit",
+                    key="btn_claim_scan_step2",
                 ):
                     ok, avail, err = worker_claim(st.session_state.pro_email)
                     st.session_state.pro_unlocked = ok
@@ -577,7 +573,7 @@ with tab_audit:
                     "🔄 Check access",
                     use_container_width=True,
                     disabled=not bool(st.session_state.pro_email),
-                    key="btn_check_access_audit",
+                    key="btn_check_access_step2",
                 ):
                     ok, avail, err = worker_get_status(st.session_state.pro_email)
                     st.session_state.pro_unlocked = ok
@@ -588,19 +584,25 @@ with tab_audit:
                     else:
                         st.info(err or "No scan available for that email.")
 
-            with b3:
-                link_cta("💳 Buy 1 scan", pay_url)
+        if st.session_state.pro_last_status_error:
+            st.caption(st.session_state.pro_last_status_error)
 
-            if st.session_state.pro_last_status_error:
-                st.caption(st.session_state.pro_last_status_error)
+        if st.session_state.pro_unlocked:
+            st.success(
+                f"✅ Scan available for {st.session_state.pro_email} "
+                f"(remaining: {st.session_state.pro_available_scans})"
+            )
+        else:
+            st.info("No scan available yet. (For now: use Worker /grant to test. Stripe claim comes next.)")
 
-            if st.session_state.pro_unlocked:
-                st.success(
-                    f"✅ Scan available for {st.session_state.pro_email} "
-                    f"(remaining: {st.session_state.pro_available_scans})"
-                )
-            else:
-                st.info("No scan available yet. (For now: use Worker /grant to test. Stripe claim comes next.)")
+    # STEP 3: Run + Clear grouped
+    with s3:
+        st.markdown("#### Step 3 — Run scan")
+        run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
+        clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
+        st.caption("Tip: turn off Broken Links/Images for a faster first pass.")
+
+    st.divider()
 
     if clear_btn:
         st.session_state.scan_results = []
@@ -611,6 +613,7 @@ with tab_audit:
         st.session_state.connected_ok = False
         st.toast("Cleared.", icon="🧼")
 
+    # Metrics row
     m1, m2, m3, m4, m5 = st.columns(5)
     met_scanned = m1.empty()
     met_critical = m2.empty()
@@ -749,7 +752,10 @@ with tab_audit:
 
         if not df_findings.empty:
             df_findings["_sev_rank"] = df_findings["Severity"].map(lambda s: severity_rank(str(s)))
-            df_findings = df_findings.sort_values(by=["_sev_rank", "Type"], ascending=[True, True]).drop(columns=["_sev_rank"])
+            df_findings = (
+                df_findings.sort_values(by=["_sev_rank", "Type"], ascending=[True, True])
+                .drop(columns=["_sev_rank"])
+            )
 
         total_findings = len(df_findings)
 
@@ -760,7 +766,11 @@ with tab_audit:
 
         f1, f2, f3 = st.columns([1.2, 1.2, 2.6])
         with f1:
-            sev_filter = st.multiselect("Severity", ["critical", "warning", "info"], default=["critical", "warning", "info"])
+            sev_filter = st.multiselect(
+                "Severity",
+                ["critical", "warning", "info"],
+                default=["critical", "warning", "info"],
+            )
         with f2:
             type_opts = sorted(df_preview["Type"].unique().tolist()) if not df_preview.empty else []
             type_filter = st.multiselect("Type", type_opts, default=type_opts)
@@ -795,7 +805,6 @@ with tab_audit:
             )
 
         export_df = df_findings if pro_access else df_preview
-
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(export_df)
 
         def _consume_once():
@@ -863,7 +872,7 @@ with tab_method:
 - **Broken links/images:** HTTP status:
   - 404/410 → critical
   - 5xx/timeout/request errors → warning
-  - 401/403/429 → *inconclusive* (often blocked/auth/rate-limited) and excluded from findings by default
+  - 401/403/429 → inconclusive (often blocked/auth/rate-limited)
 """
     )
 
@@ -897,4 +906,4 @@ with tab_pro:
         link_cta("💳 Buy 1 scan", pay_url)
 
     st.divider()
-    st.caption("To unlock Pro export, use the **Pro export** panel under **Run scan** on the Audit tab.")
+    st.caption("To unlock Pro export, use the **3-step flow** on the **Audit** tab.")
