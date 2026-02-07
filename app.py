@@ -52,6 +52,15 @@ st.markdown(
         padding: 14px 14px 12px 14px;
         box-shadow: 0 10px 24px rgba(0,0,0,0.25);
     }
+
+    /* Card header row: aligns STEP chip + title */
+    .za-cardhead{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin: 0 0 10px 0;
+    }
+
     .za-stepchip {
         display:inline-block;
         padding: 4px 10px;
@@ -71,6 +80,13 @@ st.markdown(
         color: #E6EEF8;
     }
     .za-subtle { color:#9FB1CC; font-size: 0.85rem; }
+
+    /* Remove default margins that can cause misalignment */
+    .za-stepchip{ margin: 0 !important; line-height: 1 !important; }
+    .za-cardtitle{ margin: 0 !important; line-height: 1.1 !important; }
+
+    /* Streamlit markdown wrappers sometimes add spacing */
+    .za-card .stMarkdown { margin: 0 !important; padding: 0 !important; }
 
     /* Premium primary button (Run scan) */
     button[kind="primary"] {
@@ -576,23 +592,35 @@ with tab_audit:
 
     st.markdown("### ✅ 3-step flow")
 
-    # Step cards (visual wrapper)
     s1, s2, s3 = st.columns([1.05, 1.7, 1.1])
 
     # STEP 1: Buy
     with s1:
         st.markdown("<div class='za-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='za-stepchip'>STEP 1</div>", unsafe_allow_html=True)
-        st.markdown("<div class='za-cardtitle'>Buy</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='za-cardhead'>"
+            "<div class='za-stepchip'>STEP 1</div>"
+            "<div class='za-cardtitle'>Buy</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
         link_cta("💳 Buy 1 scan", pay_url)
-        st.markdown("<div class='za-subtle' style='margin-top:8px;'>Only needed for full XLSX export beyond the free preview.</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='za-subtle' style='margin-top:8px;'>Only needed for full XLSX export beyond the free preview.</div>",
+            unsafe_allow_html=True,
+        )
         st.markdown("</div>", unsafe_allow_html=True)
 
     # STEP 2: Verify access (single button)
     with s2:
         st.markdown("<div class='za-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='za-stepchip'>STEP 2</div>", unsafe_allow_html=True)
-        st.markdown("<div class='za-cardtitle'>Verify access</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='za-cardhead'>"
+            "<div class='za-stepchip'>STEP 2</div>"
+            "<div class='za-cardtitle'>Verify access</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
         pro_email_top = st.text_input(
             "Email",
@@ -620,7 +648,6 @@ with tab_audit:
                 st.session_state.pro_last_status_error = err
                 st.session_state.xlsx_consumed_local = False
 
-        # Compact status pill (instead of big blocks)
         if st.session_state.pro_email:
             if st.session_state.pro_unlocked:
                 st.markdown(
@@ -629,23 +656,24 @@ with tab_audit:
                 )
             else:
                 msg = st.session_state.pro_last_status_error or "No scan credit found for this email yet."
-                st.markdown(
-                    f"<div class='za-pill-info'>ℹ️ {msg}</div>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
     # STEP 3: Run + Clear grouped
     with s3:
         st.markdown("<div class='za-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='za-stepchip'>STEP 3</div>", unsafe_allow_html=True)
-        st.markdown("<div class='za-cardtitle'>Run scan</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='za-cardhead'>"
+            "<div class='za-stepchip'>STEP 3</div>"
+            "<div class='za-cardtitle'>Run scan</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
         run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
         clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # One helper line under the whole stepper
     st.markdown(
         "<div class='za-subtle' style='margin-top:8px;'>Tip: disable Broken Links/Images for a faster first pass.</div>",
         unsafe_allow_html=True,
