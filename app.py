@@ -28,8 +28,6 @@ spell = SpellChecker()
 # =========================
 st.markdown(
     """
-st.markdown(
-    """
 <style>
 .stApp {
     background: #0B1220;
@@ -171,10 +169,6 @@ a.za-linkbtn {
     font-size: 0.78rem;
 }
 </style>
-""",
-    unsafe_allow_html=True,
-)
-
 """,
     unsafe_allow_html=True,
 )
@@ -747,21 +741,20 @@ with tab_audit:
 
     refresh_metrics()
 
-if st.session_state.scan_results:
-    st.divider()
+    if st.session_state.scan_results:
+        st.divider()
 
-    st.markdown(
-        """
+        st.markdown(
+            """
 <div class="za-next">
   👉 <b>Next step</b><br>
   <span>Review the free preview below. Unlock the full report after the table if you want the complete export.</span>
 </div>
 """,
-        unsafe_allow_html=True,
-    )
+            unsafe_allow_html=True,
+        )
 
-    st.subheader("Findings")
-
+        st.subheader("Findings")
 
         df_findings = (
             pd.DataFrame(st.session_state.findings)
@@ -826,7 +819,7 @@ if st.session_state.scan_results:
         st.markdown("### 🔓 Unlock full report")
 
         st.markdown(
-    """
+            """
 <div class="za-subtle">
 <b>How it works</b>
 <ul style="margin:6px 0 0 18px;">
@@ -836,9 +829,8 @@ if st.session_state.scan_results:
 </ul>
 </div>
 """,
-    unsafe_allow_html=True,
-)
-
+            unsafe_allow_html=True,
+        )
 
         # Left: email. Right: both buttons in one row (side-by-side).
         u1, uR = st.columns([2.2, 1.8])
