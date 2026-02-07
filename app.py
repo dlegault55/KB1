@@ -168,6 +168,44 @@ a.za-linkbtn {
     color: #9FB1CC;
     font-size: 0.78rem;
 }
+
+/* Pricing explainer */
+.za-pricing {
+    margin: 10px 0 16px 0;
+    padding: 14px 14px;
+    border-radius: 14px;
+    background: rgba(56,189,248,0.06);
+    border: 1px solid rgba(56,189,248,0.22);
+}
+
+.za-pricing .za-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 850;
+    font-size: 0.78rem;
+    letter-spacing: 0.4px;
+    color: #081221;
+    background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%);
+    margin-bottom: 8px;
+}
+
+.za-pricing .za-title {
+    font-weight: 900;
+    font-size: 1.05rem;
+    margin: 2px 0 4px 0;
+    color: #E6EEF8;
+}
+
+.za-pricing .za-line {
+    color: #BBD2F3;
+    font-size: 0.92rem;
+    line-height: 1.35rem;
+}
+
+.za-pricing b {
+    color: #E6EEF8;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -466,7 +504,7 @@ def run_scan(
 
             alt_miss = 0
             if do_alt:
-                alt_miss = len([img for img in soup.find_all("img") if not (img.get("alt") or "").strip()])
+                alt_miss = len([img for img in soup.find_all("img") if not (img.get("alt") or "").strip())])
 
             st.session_state.scan_results.append(
                 {"Title": title, "URL": article_url, "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "ID": art.get("id")}
@@ -607,18 +645,22 @@ with tab_audit:
         clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
     with a3:
         st.markdown("<div class='za-subtle'>Tip: Disable Broken Links/Images for a faster first pass.</div>", unsafe_allow_html=True)
-            # Pricing explainer (shown before scan so the flow is obvious)
+
+    # Pricing explainer (shown before scan so the flow is obvious)
     st.markdown(
         f"""
-<div class="za-subtle" style="margin: 6px 0 14px 0;">
-  <b>How pricing works</b><br>
-  Running a scan is free and includes a preview of up to <b>{FREE_FINDING_LIMIT}</b> findings.
-  After the scan completes, you can unlock the full report (all findings + Excel export) for a <b>one-time $30 fee</b>.
+<div class="za-pricing">
+  <div class="za-badge">FREE SCAN • PAID UNLOCK</div>
+  <div class="za-title">Scan first. Pay only if you want the full report.</div>
+  <div class="za-line">
+    Running a scan is <b>free</b> and includes a preview of up to <b>{FREE_FINDING_LIMIT}</b> findings.
+    After the scan completes, you can unlock the <b>full report</b> (all findings + Excel export) for a
+    <b>one-time $30 fee</b>.
+  </div>
 </div>
 """,
         unsafe_allow_html=True,
     )
-
 
     if clear_btn:
         st.session_state.scan_results = []
