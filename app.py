@@ -705,4 +705,252 @@ with tab_audit:
 
         scanned = len(res)
         critical = sum(1 for x in fnd if x.get("Severity") == "critical")
-        warning = sum(1 for x
+        warning = sum(1 for x in fnd if x.get("Severity") == "warning")
+        alt_missing = sum(d.get("Alt", 0) for d in res) if res else 0
+        stale_count = sum(1 for d in res if d.get("Stale")) if res else 0
+
+        met_scanned.metric("Scanned", scanned)
+        met_critical.metric("Critical", critical)
+        met_warn.metric("Warnings", warning)
+        met_alt.metric("Alt missing", alt_missing)
+        met_stale.metric("Stale", stale_count)
+
+        if st.session_state.connected_ok:
+            conn_ph.success("✅ Connected to Zendesk")
+        else:
+            conn_ph.info("Waiting to start")
+
+        title = st.session_state.last_scanned_title or "—"
+        now_ph.write(f"**Now scanning:** {title}")
+
+        crit_ph.metric("Critical", critical)
+        warn_ph.metric("Warnings", warning)
+        alt_ph.metric("Missing alt", alt_missing)
+        stale_ph.metric("Stale", stale_count)
+
+    def progress_cb(scanned_count: int):
+        if max_articles:
+            pct = min(1.0, scanned_count / int(max_articles))
+            progress.progress(pct, text=f"Scanning… {scanned_count}/{int(max_articles)}")
+        else:
+            pct = (scanned_count % 100) / 100
+            progress.progress(pct, text=f"Scanning… {scanned_count} (unknown total)")
+
+        refresh_metrics()
+
+        logs = "<br>".join(st.session_state.last_logs) if st.session_state.last_logs else "—"
+        console.markdown(f"### Live log\n{logs}", unsafe_allow_html=True)
+
+    def status_cb(_scanned_count: int):
+        refresh_metrics()
+
+    def finalize_progress(scanned_count: int):
+        progress.progress(1.0, text=f"Complete ✅ ({scanned_count} articles)")
+
+    if run_btn:
+        if not all([subdomain, email, token]):
+            st.error("Missing credentials in the sidebar.")
+        else:
+            try:
+                with st.status("Running scan…", expanded=True) as s:
+                    run_scan(
+                        subdomain=subdomain,
+                        email=email,
+                        token=token,
+                        do_stale=do_stale,
+                        do_typo=do_typo,
+                        do_alt=do_alt,
+                        do_links=do_links,
+                        do_images=do_images,
+                        max_articles=int(max_articles),
+                        progress_cb=progress_cb,
+                        status_cb=status_cb,
+                    )
+                    finalize_progress(len(st.session_state.scan_results))
+                    s.update(label="Scan complete ✅", state="complete", expanded=False)
+
+                st.toast("Scan complete", icon="✅")
+            except Exception as e:
+                st.session_state.scan_running = False
+                st.error(f"Scan failed: {e}")
+
+    refresh_metrics()
+
+    if st.session_state.scan_results:
+        st.divider()
+        st.subheader("Findings")
+
+        df_findings = (
+            pd.DataFrame(st.session_state.findings)
+            if st.session_state.findings
+            else pd.DataFrame(
+                columns=[
+                    "Severity",
+                    "Type",
+                    "Article Title",
+                    "Article URL",
+                    "Target URL",
+                    "HTTP Status",
+                    "Detail",
+                    "Suggested Fix",
+                ]
+            )
+        )
+
+        if not df_findings.empty:
+            df_findings["_sev_rank"] = df_findings["Severity"].map(lambda s: severity_rank(str(s)))
+            df_findings = (
+                df_findings.sort_values(by=["_sev_rank", "Type"], ascending=[True, True])
+                .drop(columns=["_sev_rank"])
+            )
+
+        total_findings = len(df_findings)
+
+        pro_access = pro_access_active(pro_mode)
+
+        gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
+        df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
+
+        f1, f2, f3 = st.columns([1.2, 1.2, 2.6])
+        with f1:
+            sev_filter = st.multiselect(
+                "Severity",
+                ["critical", "warning", "info"],
+                default=["critical", "warning", "info"],
+            )
+        with f2:
+            type_opts = sorted(df_preview["Type"].unique().tolist()) if not df_preview.empty else []
+            type_filter = st.multiselect("Type", type_opts, default=type_opts)
+        with f3:
+            q = st.text_input("Search (title/url contains)", placeholder="e.g. billing, /hc/en-us, image.png")
+
+        view = df_preview.copy()
+        if not view.empty:
+            view = view[view["Severity"].isin(sev_filter)]
+            if type_filter:
+                view = view[view["Type"].isin(type_filter)]
+            if q.strip():
+                qq = q.strip().lower()
+                view = view[
+                    view["Article Title"].fillna("").str.lower().str.contains(qq)
+                    | view["Article URL"].fillna("").str.lower().str.contains(qq)
+                    | view["Target URL"].fillna("").str.lower().str.contains(qq)
+                ]
+
+        col_cfg = build_column_config()
+        df_kwargs = dict(use_container_width=True, hide_index=True)
+        if col_cfg:
+            df_kwargs["column_config"] = col_cfg
+
+        st.dataframe(view, **df_kwargs)
+
+        st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
+        if gated:
+            st.warning(
+                f"Free preview shows first **{FREE_FINDING_LIMIT}** findings. "
+                f"Purchase + Verify access above to unlock the one-time Excel export."
+            )
+
+        export_df = df_findings if pro_access else df_preview
+        xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(export_df)
+
+        def _consume_once():
+            if pro_mode:
+                return
+            if st.session_state.xlsx_consumed_local:
+                return
+            if not st.session_state.pro_email:
+                st.warning("Enter your email in Step 2 to consume a scan.")
+                return
+
+            ok, avail, err = worker_consume(st.session_state.pro_email)
+            if ok:
+                st.session_state.xlsx_consumed_local = True
+                st.session_state.pro_unlocked = False
+                st.session_state.pro_available_scans = avail
+                st.toast("Scan used ✅ (Excel download)", icon="✅")
+            else:
+                st.warning(err or "Could not consume scan (try again).")
+
+        c_exp1, c_exp2 = st.columns([1, 1])
+        with c_exp1:
+            if total_findings <= 0:
+                st.button("📥 Download XLSX", disabled=True, use_container_width=True)
+            else:
+                if not pro_access:
+                    st.button("📥 Download XLSX (Pro)", disabled=True, use_container_width=True)
+                    st.caption("⚠️ One-time Excel download. Buy + verify access to unlock.")
+                else:
+                    if xlsx_bytes:
+                        if not pro_mode:
+                            st.caption("⚠️ One-time download. Save the file after downloading.")
+                        st.download_button(
+                            "📥 Download XLSX" + ("" if pro_mode else " (uses 1 scan)"),
+                            data=xlsx_bytes,
+                            file_name="zenaudit_report.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                            on_click=_consume_once,
+                        )
+                    else:
+                        st.button("📥 Download XLSX (Pro)", disabled=True, use_container_width=True)
+                        st.caption(xlsx_err or "XLSX export unavailable.")
+
+        with c_exp2:
+            if total_findings > 0:
+                st.download_button(
+                    "📥 Download CSV",
+                    data=export_df.to_csv(index=False),
+                    file_name="zenaudit_report.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+
+# =========================
+# 9) OTHER TABS
+# =========================
+with tab_method:
+    st.markdown(
+        """
+### Metric definitions
+- **Stale Content:** Articles not updated in **365 days**
+- **Typo detection:** `pyspellchecker`, filtering short/non-alpha noise
+- **Alt-text:** `<img>` tags missing meaningful `alt`
+- **Broken links/images:** HTTP status:
+  - 404/410 → critical
+  - 5xx/timeout/request errors → warning
+  - 401/403/429 → inconclusive (often blocked/auth/rate-limited)
+"""
+    )
+
+with tab_privacy:
+    st.info("ZenAudit is client-side first: credentials are used only to fetch articles during the scan.")
+    st.markdown(
+        """
+### Data handling
+- Direct HTTPS calls to your Zendesk subdomain
+- Tokens are not written into export
+- Results live in Streamlit session state and reset when you clear or rerun
+"""
+    )
+
+with tab_pro:
+    _base, pay_url = _worker_cfg()
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Free")
+        st.write("✅ Unlimited article scanning")
+        st.write("✅ Preview first 50 findings")
+        st.write("✅ CSV export (preview)")
+        st.write("✅ XLSX export (preview)")
+
+    with c2:
+        st.subheader("Pro (1 scan)")
+        st.write("🚀 Full findings (beyond 50)")
+        st.write("📥 One-time Excel download (counts as 1 scan)")
+        st.write("🛠 Manual override supported (admin grant)")
+        link_cta("💳 Buy 1 scan", pay_url)
+
+    st.divider()
+    st.caption("To unlock Pro export, use the **3-step flow** on the **Audit** tab.")
