@@ -28,58 +28,64 @@ spell = SpellChecker()
 # =========================
 st.markdown(
     """
+st.markdown(
+    """
 <style>
-    .stApp { background: #0B1220; color: #E6EEF8; }
-    section[data-testid="stSidebar"] { background: #0F1A2E !important; border-right: 1px solid #1F2A44; }
+.stApp {
+    background: #0B1220;
+    color: #E6EEF8;
+}
 
-    .za-chip {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 999px;
-        border: 1px solid #1F2A44;
-        font-size: 0.8rem;
-        color: #BBD2F3;
-        background: rgba(56,189,248,0.08);
-        margin-right: 6px;
-    }
+section[data-testid="stSidebar"] {
+    background: #0F1A2E !important;
+    border-right: 1px solid #1F2A44;
+}
 
-    /* Premium primary button (Run scan) */
-    button[kind="primary"] {
-        background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%) !important;
-        color: #081221 !important;
-        font-weight: 800 !important;
-        letter-spacing: 0.5px !important;
-        border: 0 !important;
-        border-radius: 12px !important;
-        height: 52px !important;
-        box-shadow:
-            0 10px 30px rgba(56,189,248,0.25),
-            0 6px 18px rgba(34,197,94,0.18) !important;
-        transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease !important;
-    }
-    button[kind="primary"]:hover {
-        transform: translateY(-1px) !important;
-        filter: brightness(1.05) !important;
-        box-shadow:
-            0 14px 38px rgba(56,189,248,0.32),
-            0 8px 22px rgba(34,197,94,0.22) !important;
-    }
-    button[kind="primary"]:active { transform: translateY(0px) scale(0.99) !important; }
+.za-chip {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid #1F2A44;
+    font-size: 0.8rem;
+    color: #BBD2F3;
+    background: rgba(56,189,248,0.08);
+    margin-right: 6px;
+}
 
-    button[kind="secondary"] {
-        border-radius: 12px !important;
-        height: 46px !important;
-        font-weight: 700 !important;
-    }
+/* Primary button (Run scan) */
+button[kind="primary"] {
+    background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%) !important;
+    color: #081221 !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px !important;
+    border: 0 !important;
+    border-radius: 12px !important;
+    height: 52px !important;
+    box-shadow:
+        0 10px 30px rgba(56,189,248,0.25),
+        0 6px 18px rgba(34,197,94,0.18) !important;
+}
 
-    /* Make metrics feel like cards */
-    div[data-testid="metric-container"] {
-        background: #0F1A2E;
-        border: 1px solid #1F2A44;
-        padding: 10px 12px;
-        border-radius: 12px;
-    }
+button[kind="primary"]:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+}
 
+button[kind="secondary"] {
+    border-radius: 12px !important;
+    height: 46px !important;
+    font-weight: 700 !important;
+}
+
+/* Metric cards */
+div[data-testid="metric-container"] {
+    background: #0F1A2E;
+    border: 1px solid #1F2A44;
+    padding: 10px 12px;
+    border-radius: 12px;
+}
+
+/* Buy button (link styled as button) */
 a.za-linkbtn {
     display: inline-block;
     width: 100%;
@@ -97,25 +103,39 @@ a.za-linkbtn {
         0 6px 14px rgba(34,197,94,0.12);
 }
 
-    .za-pill-ok {
-        margin-top: 8px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: rgba(34,197,94,0.12);
-        border: 1px solid rgba(34,197,94,0.30);
-        color:#BFF7D0;
-        font-weight: 750;
-    }
-    .za-pill-info {
-        margin-top: 8px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: rgba(56,189,248,0.08);
-        border: 1px solid rgba(56,189,248,0.20);
-        color:#BBD2F3;
-        font-weight: 650;
-    }
-    .za-next {
+/* Status pills */
+.za-pill-ok {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(34,197,94,0.12);
+    border: 1px solid rgba(34,197,94,0.30);
+    color: #BFF7D0;
+    font-weight: 750;
+}
+
+.za-pill-info {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(56,189,248,0.08);
+    border: 1px solid rgba(56,189,248,0.20);
+    color: #BBD2F3;
+    font-weight: 650;
+}
+
+.za-pill-warn {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(251,191,36,0.10);
+    border: 1px solid rgba(251,191,36,0.25);
+    color: #FDE68A;
+    font-weight: 650;
+}
+
+/* “Next step” callout */
+.za-next {
     margin: 14px 0 10px 0;
     padding: 12px 14px;
     border-radius: 12px;
@@ -128,27 +148,33 @@ a.za-linkbtn {
     color: #E6EEF8;
     font-weight: 650;
 }
+
 .za-next span {
     color: #9FB1CC;
     font-weight: 500;
 }
 
-    .za-pill-warn {
-        margin-top: 8px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: rgba(251,191,36,0.10);
-        border: 1px solid rgba(251,191,36,0.25);
-        color:#FDE68A;
-        font-weight: 650;
-    }
+.za-subtle {
+    color: #9FB1CC;
+    font-size: 0.85rem;
+}
 
-    .za-subtle { color:#9FB1CC; font-size: 0.85rem; }
+/* Align unlock buttons with email field */
+.za-btnrow {
+    padding-top: 26px;
+}
 
-    /* Alignment helper so the button row aligns with the input control */
-    .za-btnrow { padding-top: 26px; }
-    .za-btnrow small { display:block; margin-top: 6px; color:#9FB1CC; font-size:0.78rem; }
+.za-btnrow small {
+    display: block;
+    margin-top: 6px;
+    color: #9FB1CC;
+    font-size: 0.78rem;
+}
 </style>
+""",
+    unsafe_allow_html=True,
+)
+
 """,
     unsafe_allow_html=True,
 )
