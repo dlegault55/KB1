@@ -1261,7 +1261,7 @@ with tab_audit:
 
     with uL:
         st.markdown("**Step 1 — Buy 1 export credit**")
-        link_cta("💳 Buy 1 export credit ($29)", pay_url)
+        link_cta("💳 Buy 1 export credit ($19)", pay_url)
         st.markdown("<div class='za-subtle' style='margin-top:6px;'>Only buy if you want to download exports.</div>", unsafe_allow_html=True)
 
     with uR:
