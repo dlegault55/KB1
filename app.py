@@ -673,20 +673,37 @@ with tab_audit:
 
     # Pricing explainer (shown before scan so the flow is obvious)
     st.markdown(
-        f"""
+st.markdown(
+    f"""
 <div class="za-pricing">
   <div class="za-badge">FREE SCAN • PAID EXPORT</div>
   <div class="za-title">Scan first. Pay only if you want the full report.</div>
+
+  <div class="za-line" style="margin-top:8px;">
+    <b>How to run a scan</b>
+    <ol style="margin:6px 0 10px 18px;">
+      <li>Enter your Help Center <b>subdomain</b> (example: <code>acme</code> for <code>acme.zendesk.com</code>)</li>
+      <li>Enter your Zendesk <b>admin email</b></li>
+      <li>Enter a valid <b>API token</b> (Admin Center → Apps and integrations → APIs → Zendesk API → <i>Add API token</i>)</li>
+    </ol>
+  </div>
+
   <div class="za-line">
     Running a scan is <b>free</b> and includes a preview of up to <b>{FREE_FINDING_LIMIT}</b> findings.
     After the scan completes, you can export the <b>full report</b> (all findings + Excel export) for a
     <b>one-time $29 fee</b>.
     Your export credit is used only when you download the full <b>XLSX</b>.
   </div>
+
+  <div class="za-line" style="margin-top:8px;">
+    <span style="color:#9FB1CC;">
+      Tip: If you just want a quick check, disable Broken Links/Images for a faster first pass.
+    </span>
+  </div>
 </div>
 """,
-        unsafe_allow_html=True,
-    )
+    unsafe_allow_html=True,
+)
 
     if clear_btn:
         st.session_state.scan_results = []
