@@ -338,12 +338,6 @@ def extract_links_images(html: str, base_url: str) -> Tuple[BeautifulSoup, str, 
     return soup, text, links, images
 
 def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
-    """
-    ok:
-      True  -> confirmed working
-      False -> confirmed broken
-      None  -> inconclusive (blocked / auth / rate-limited)
-    """
     cache = st.session_state.url_cache
     if url in cache:
         return cache[url]
@@ -982,6 +976,9 @@ with tab_audit:
 
         st.markdown("### 🔓 Export full report")
 
+        # ────────────────────────────────────────────────
+        # Email + Verify + Buy credit row
+        # ────────────────────────────────────────────────
         u1, uR = st.columns([2.2, 1.8])
 
         with u1:
@@ -1072,8 +1069,12 @@ with tab_audit:
             else:
                 st.warning(err or "Could not use export credit (try again).")
 
-        e1, e2 = st.columns([1, 1])
-        with e1:
+        # ────────────────────────────────────────────────
+        # Download buttons — now using SAME column ratio
+        # ────────────────────────────────────────────────
+        d1, d2 = st.columns([2.2, 1.8])
+
+        with d1:
             if total_findings <= 0:
                 st.button("📥 Download XLSX", disabled=True, use_container_width=True)
             else:
@@ -1089,12 +1090,13 @@ with tab_audit:
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             use_container_width=True,
                             on_click=_consume_once,
+                            key="download_xlsx_btn"
                         )
                     else:
                         st.button("📥 Download XLSX", disabled=True, use_container_width=True)
                         st.caption(xlsx_err or "XLSX export unavailable.")
 
-        with e2:
+        with d2:
             if total_findings <= 0:
                 st.button("📥 Download CSV", disabled=True, use_container_width=True)
             else:
@@ -1108,6 +1110,7 @@ with tab_audit:
                         file_name="zenaudit_report.csv",
                         mime="text/csv",
                         use_container_width=True,
+                        key="download_csv_btn"
                     )
 
 # =========================
