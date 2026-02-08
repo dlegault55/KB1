@@ -647,7 +647,7 @@ with st.sidebar:
     st.write("")
     st.markdown(
         "<span class='za-chip'>Broken links</span>"
-        "<span class='za-chip'>Alt text</span>"
+        "<span class='za-chip'>Alt text</span>"       
         "<span class='za-chip'>Stale</span>",
         unsafe_allow_html=True,
     )
@@ -664,13 +664,13 @@ with st.sidebar:
         )
         email_in = st.text_input("Admin Email", value=st.session_state.zd_email)
         token_in = st.text_input("API Token", type="password", value=st.session_state.zd_token)
-        save_creds = st.form_submit_button("✅ Save credentials")
+        save_creds = st.form_submit_button("✅ Connect to Zendesk")
 
     if save_creds:
         st.session_state.zd_subdomain = (subdomain_in or "").strip()
         st.session_state.zd_email = (email_in or "").strip()
         st.session_state.zd_token = (token_in or "").strip()
-        st.toast("Credentials saved.", icon="✅")
+        st.toast("Connection Established.", icon="✅")
 
     subdomain = (st.session_state.zd_subdomain or "").strip()
     email = (st.session_state.zd_email or "").strip()
@@ -859,7 +859,7 @@ with tab_audit:
 
     if run_btn:
         if not all([subdomain, email, token]):
-            st.error("Missing credentials in the sidebar. Click “Save credentials” first.")
+            st.error("Missing credentials in the sidebar. Click “Connect to Zendesk” first.")
         else:
             try:
                 st.toast("Scan started…", icon="🚀")
