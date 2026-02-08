@@ -690,7 +690,7 @@ with tab_audit:
       <li>Enter your Zendesk <b>admin email</b></li>
       <li>
         Enter a valid <b>API token</b> (required to securely access your Help Center content via the Zendesk API)
-        <br><br>
+        <br>
         <span style="color:#9FB1CC;">
           Admin Center → Apps and integrations → APIs → Zendesk API → Add API token
         </span>
