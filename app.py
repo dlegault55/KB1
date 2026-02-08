@@ -672,7 +672,7 @@ with tab_audit:
   <div class="za-badge">FREE SCAN • PAID EXPORT</div>
   <div class="za-title">Scan first. Pay only if you want the full report.</div>
 
-  <div class="za-line" style="margin-top:8px;">
+   <div class="za-line" style="margin-top:8px;">
     <b>How to run a scan</b>
     <ol style="margin:6px 0 10px 18px;">
       <li>Enter your Help Center <b>subdomain</b> (example: <code>acme</code> for <code>acme.zendesk.com</code>)</li>
@@ -686,7 +686,7 @@ with tab_audit:
       </li>
     </ol>
     <div style="margin-top:6px; color:#9FB1CC;">
-      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.
+      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.<br>
     </div>
   </div>
 
@@ -881,6 +881,7 @@ with tab_audit:
 
         total_findings = len(df_findings)
 
+        # Preview gating (unchanged)
         pro_access = pro_access_active(pro_mode)
         gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
         df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
@@ -908,11 +909,15 @@ with tab_audit:
                 ]
 
         col_cfg = build_column_config()
-        df_kwargs = dict(use_container_width=True, hide_index=True)
-        if col_cfg:
-            df_kwargs["column_config"] = col_cfg
 
-        st.dataframe(view, **df_kwargs)
+        # Removes Streamlit's dataframe toolbar download/search/fullscreen
+        st.data_editor(
+            view,
+            use_container_width=True,
+            hide_index=True,
+            disabled=True,
+            column_config=col_cfg if col_cfg else None,
+        )
 
         st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
         if gated:
@@ -934,9 +939,7 @@ with tab_audit:
             unsafe_allow_html=True,
         )
 
-        # =========================
-        # CHANGED: Move "I paid" under email field (left column)
-        # =========================
+        # Left: email + I paid under it. Right: buy button.
         u1, uR = st.columns([2.2, 1.8])
 
         with u1:
@@ -977,6 +980,7 @@ with tab_audit:
             link_cta("💳 Buy 1 export credit ($29)", pay_url)
             st.markdown("</div>", unsafe_allow_html=True)
 
+        # ✅ Recommended fix: force rerun after successful unlock so buttons immediately unlock
         if unlock_btn:
             if pro_mode:
                 st.session_state.pro_unlocked = True
@@ -984,10 +988,12 @@ with tab_audit:
                 st.session_state.pro_last_status_error = ""
                 st.session_state.xlsx_consumed_local = False
                 st.toast("Export credit available (dev) ✅", icon="✅")
+                st.rerun()
             else:
                 try_unlock_from_status(st.session_state.pro_email)
                 if st.session_state.pro_unlocked:
                     st.toast("Export credit available ✅", icon="✅")
+                    st.rerun()
 
         # Status pill
         if pro_mode:
@@ -1006,7 +1012,13 @@ with tab_audit:
                     )
                     st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
 
-        # For exports: always generate FULL export bytes, but only allow downloads when pro_access=True
+        # ✅ Spacing between status pill and download buttons
+        st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
+
+        # ✅ Recompute access after any state changes (belt + suspenders)
+        pro_access = pro_access_active(pro_mode)
+
+        # Exports: generate full bytes, but only allow downloads when pro_access=True
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(df_findings)
 
         def _consume_once():
