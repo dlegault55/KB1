@@ -603,9 +603,6 @@ with st.sidebar:
     )
     st.write("")
     st.markdown(
-        "<span class='za-chip'>Broken links</span>"
-        "<span class='za-chip'>Alt text</span>"
-        "<span class='za-chip'>Stale</span>",
         unsafe_allow_html=True,
     )
     st.divider()
