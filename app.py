@@ -157,16 +157,9 @@ a.za-linkbtn {
     font-size: 0.85rem;
 }
 
-/* Align unlock buttons with email field */
+/* Align buy button with email field */
 .za-btnrow {
     padding-top: 26px;
-}
-
-.za-btnrow small {
-    display: block;
-    margin-top: 6px;
-    color: #9FB1CC;
-    font-size: 0.78rem;
 }
 
 /* Pricing explainer */
@@ -941,6 +934,9 @@ with tab_audit:
             unsafe_allow_html=True,
         )
 
+        # =========================
+        # CHANGED: Move "I paid" under email field (left column)
+        # =========================
         u1, uR = st.columns([2.2, 1.8])
 
         with u1:
@@ -954,6 +950,21 @@ with tab_audit:
             st.session_state.pro_email = unlock_email
 
             st.markdown("<div class='za-subtle'>Use the same email you used at checkout.</div>", unsafe_allow_html=True)
+            st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+
+            unlock_btn = st.button(
+                "✅ I paid",
+                use_container_width=True,
+                disabled=(not bool(st.session_state.pro_email)) or ((not base) and (not pro_mode)),
+                key="btn_unlock_paid",
+            )
+
+            st.markdown(
+                "<div class='za-subtle' style='margin-top:6px;'>"
+                "I paid checks your email for export credits. Downloading uses 1 export credit."
+                "</div>",
+                unsafe_allow_html=True,
+            )
 
             if (not base) and (not pro_mode):
                 st.markdown(
@@ -963,34 +974,22 @@ with tab_audit:
 
         with uR:
             st.markdown("<div class='za-btnrow'>", unsafe_allow_html=True)
-            bL, bR = st.columns([1, 1], gap="small")
-
-            with bL:
-                link_cta("💳 Buy 1 export credit ($29)", pay_url)
-
-            with bR:
-                unlock_btn = st.button(
-                    "✅ I paid",
-                    use_container_width=True,
-                    disabled=(not bool(st.session_state.pro_email)) or ((not base) and (not pro_mode)),
-                    key="btn_unlock_paid",
-                )
-
-            st.markdown("<small>I paid checks your email for export credits.</small>", unsafe_allow_html=True)
+            link_cta("💳 Buy 1 export credit ($29)", pay_url)
             st.markdown("</div>", unsafe_allow_html=True)
 
-            if unlock_btn:
-                if pro_mode:
-                    st.session_state.pro_unlocked = True
-                    st.session_state.pro_available_scans = max(1, int(st.session_state.pro_available_scans or 1))
-                    st.session_state.pro_last_status_error = ""
-                    st.session_state.xlsx_consumed_local = False
-                    st.toast("Export credit available (dev) ✅", icon="✅")
-                else:
-                    try_unlock_from_status(st.session_state.pro_email)
-                    if st.session_state.pro_unlocked:
-                        st.toast("Export credit available ✅", icon="✅")
+        if unlock_btn:
+            if pro_mode:
+                st.session_state.pro_unlocked = True
+                st.session_state.pro_available_scans = max(1, int(st.session_state.pro_available_scans or 1))
+                st.session_state.pro_last_status_error = ""
+                st.session_state.xlsx_consumed_local = False
+                st.toast("Export credit available (dev) ✅", icon="✅")
+            else:
+                try_unlock_from_status(st.session_state.pro_email)
+                if st.session_state.pro_unlocked:
+                    st.toast("Export credit available ✅", icon="✅")
 
+        # Status pill
         if pro_mode:
             st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — export available.</div>", unsafe_allow_html=True)
         else:
@@ -1052,7 +1051,6 @@ with tab_audit:
                         st.button("📥 Download XLSX", disabled=True, use_container_width=True)
                         st.caption(xlsx_err or "XLSX export unavailable.")
 
-        # ✅ CSV is now gated the same as XLSX, and removed for free preview
         with e2:
             if total_findings <= 0:
                 st.button("📥 Download CSV", disabled=True, use_container_width=True)
