@@ -899,14 +899,6 @@ tab_audit, tab_method, tab_privacy, tab_pro = st.tabs(["Audit", "Methodology", "
 with tab_audit:
     base, pay_url = _worker_cfg()
 
-    a1, a2, a3 = st.columns([1.15, 1.0, 2.2])
-    with a1:
-        run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
-    with a2:
-        clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
-    with a3:
-        st.markdown("<div class='za-subtle'>Tip: Disable Broken Links/Images for a faster first pass.</div>", unsafe_allow_html=True)
-
     st.markdown(
         f"""
 <div class="za-pricing">
@@ -954,6 +946,15 @@ with tab_audit:
 """,
         unsafe_allow_html=True,
     )
+
+    # ✅ Moved controls under instructions
+    a1, a2, a3 = st.columns([1.15, 1.0, 2.2])
+    with a1:
+        run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
+    with a2:
+        clear_btn = st.button("🧹 Clear results", type="secondary", use_container_width=True)
+    with a3:
+        st.markdown("<div class='za-subtle'>Tip: Disable Broken Links/Images for a faster first pass.</div>", unsafe_allow_html=True)
 
     if clear_btn:
         st.session_state.scan_results = []
