@@ -502,7 +502,6 @@ def run_scan(
             typos = 0
             if do_typo:
                 text = (text_raw or "").lower()
-                # Safer than spell.split_words (varies by pyspellchecker version)
                 words = re.findall(r"[a-zA-Z']+", text)
                 candidates = [w for w in spell.unknown(words) if len(w) > 2 and w.isalpha()]
                 typos = len(candidates)
@@ -613,7 +612,6 @@ with st.sidebar:
 
     st.subheader("Connection")
 
-    # ✅ Use a form so the Run Scan click isn't lost to sidebar reruns
     with st.form("zd_conn_form", clear_on_submit=False):
         subdomain_in = st.text_input(
             "Subdomain",
@@ -631,7 +629,6 @@ with st.sidebar:
         st.session_state.zd_token = (token_in or "").strip()
         st.toast("Credentials saved.", icon="✅")
 
-    # Always read creds from session (stable)
     subdomain = (st.session_state.zd_subdomain or "").strip()
     email = (st.session_state.zd_email or "").strip()
     token = (st.session_state.zd_token or "").strip()
@@ -676,14 +673,13 @@ with tab_audit:
     with a3:
         st.markdown("<div class='za-subtle'>Tip: Disable Broken Links/Images for a faster first pass.</div>", unsafe_allow_html=True)
 
-    # Pricing explainer (shown before scan so the flow is obvious)
     st.markdown(
         f"""
 <div class="za-pricing">
   <div class="za-badge">FREE SCAN • PAID EXPORT</div>
   <div class="za-title">Scan first. Pay only if you want the full report.</div>
 
-   <div class="za-line" style="margin-top:8px;">
+  <div class="za-line" style="margin-top:8px;">
     <b>How to run a scan</b>
     <ol style="margin:6px 0 10px 18px;">
       <li>Enter your Help Center <b>subdomain</b> (example: <code>acme</code> for <code>acme.zendesk.com</code>)</li>
@@ -697,10 +693,9 @@ with tab_audit:
       </li>
     </ol>
     <div style="margin-top:6px; color:#9FB1CC;">
-      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.<br>
+      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.
     </div>
   </div>
-
 
   <div class="za-line">
     Running a scan is <b>free</b> and includes a preview of up to
@@ -820,14 +815,12 @@ with tab_audit:
         progress.progress(1.0, text=f"Complete ✅ ({scanned_count} articles)")
 
     if run_btn:
-        # ✅ Scan is always allowed; paywall is export-only
         if not all([subdomain, email, token]):
             st.error("Missing credentials in the sidebar. Click “Save credentials” first.")
         else:
             try:
                 st.toast("Scan started…", icon="🚀")
 
-                # Reset export state on a new scan (fine), but never blocks scan
                 st.session_state.pro_unlocked = False
                 st.session_state.pro_available_scans = 0
                 st.session_state.pro_last_status_error = ""
@@ -895,7 +888,6 @@ with tab_audit:
 
         total_findings = len(df_findings)
 
-        # ✅ Export gating only
         pro_access = pro_access_active(pro_mode)
         gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
         df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
@@ -949,7 +941,6 @@ with tab_audit:
             unsafe_allow_html=True,
         )
 
-        # Left: email. Right: both buttons in one row (side-by-side).
         u1, uR = st.columns([2.2, 1.8])
 
         with u1:
@@ -985,7 +976,7 @@ with tab_audit:
                     key="btn_unlock_paid",
                 )
 
-            st.markdown("<small>After paying, click “I paid” to check your export credits.</small>", unsafe_allow_html=True)
+            st.markdown("<small>I paid checks your email for export credits.</small>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
             if unlock_btn:
@@ -1000,7 +991,6 @@ with tab_audit:
                     if st.session_state.pro_unlocked:
                         st.toast("Export credit available ✅", icon="✅")
 
-        # Status pill
         if pro_mode:
             st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — export available.</div>", unsafe_allow_html=True)
         else:
@@ -1011,11 +1001,14 @@ with tab_audit:
                 )
             else:
                 if st.session_state.pro_email:
-                    msg = st.session_state.pro_last_status_error or "No export credit found for this email yet. If you just paid, wait a few seconds and click “I paid”."
+                    msg = st.session_state.pro_last_status_error or (
+                        "No export credit found for this email yet. "
+                        "Use the same email as Stripe checkout, wait 10–30 seconds, then click “I paid” again."
+                    )
                     st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
 
-        export_df = df_findings if pro_access else df_preview
-        xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(export_df)
+        # For exports: always generate FULL export bytes, but only allow downloads when pro_access=True
+        xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(df_findings)
 
         def _consume_once():
             if pro_mode:
@@ -1031,7 +1024,7 @@ with tab_audit:
                 st.session_state.xlsx_consumed_local = True
                 st.session_state.pro_unlocked = False
                 st.session_state.pro_available_scans = avail
-                st.toast("Export credit used ✅ (XLSX download)", icon="✅")
+                st.toast("Export credit used ✅ (download)", icon="✅")
             else:
                 st.warning(err or "Could not use export credit (try again).")
 
@@ -1042,11 +1035,11 @@ with tab_audit:
             else:
                 if not pro_access:
                     st.button("📥 Download XLSX (locked)", disabled=True, use_container_width=True)
-                    st.caption("Buy 1 export credit to download the full XLSX.")
+                    st.caption("Buy 1 export credit to download exports.")
                 else:
                     if xlsx_bytes:
                         if not pro_mode:
-                            st.caption("⚠️ One-time download. Save the file after downloading.")
+                            st.caption("Downloading uses 1 export credit. Save the file after downloading.")
                         st.download_button(
                             "📥 Download XLSX" + ("" if pro_mode else " (uses 1 export credit)"),
                             data=xlsx_bytes,
@@ -1059,15 +1052,22 @@ with tab_audit:
                         st.button("📥 Download XLSX", disabled=True, use_container_width=True)
                         st.caption(xlsx_err or "XLSX export unavailable.")
 
+        # ✅ CSV is now gated the same as XLSX, and removed for free preview
         with e2:
-            if total_findings > 0:
-                st.download_button(
-                    "📥 Download CSV",
-                    data=export_df.to_csv(index=False),
-                    file_name="zenaudit_report.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                )
+            if total_findings <= 0:
+                st.button("📥 Download CSV", disabled=True, use_container_width=True)
+            else:
+                if not pro_access:
+                    st.button("📥 Download CSV (locked)", disabled=True, use_container_width=True)
+                    st.caption("Buy 1 export credit to download exports.")
+                else:
+                    st.download_button(
+                        "📥 Download CSV",
+                        data=df_findings.to_csv(index=False),
+                        file_name="zenaudit_report.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
 
 # =========================
 # 9) OTHER TABS
@@ -1098,24 +1098,19 @@ with tab_privacy:
 """
     )
 
-
 with tab_pro:
-    base, pay_url = _worker_cfg()
-    st.caption(f"DEBUG: base={base!r} email={st.session_state.pro_email!r}")
-
-
+    _base, pay_url = _worker_cfg()
 
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("Free")
         st.write("✅ Run scans anytime")
-        st.write(f"✅ Preview first {FREE_FINDING_LIMIT} findings")
-        st.write("✅ CSV export (preview)")
+        st.write(f"✅ Preview first {FREE_FINDING_LIMIT} findings (in-app)")
 
     with c2:
         st.subheader("Paid ($29 / export credit)")
         st.write("🚀 Full findings (beyond preview)")
-        st.write("📥 One-time Excel download (uses 1 export credit)")
+        st.write("📥 XLSX + CSV exports (uses 1 export credit)")
         link_cta("💳 Buy 1 export credit ($29)", pay_url)
 
     st.divider()
