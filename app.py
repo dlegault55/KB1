@@ -1011,7 +1011,7 @@ with tab_audit:
     Running a scan is <b>free</b> and includes a preview of up to
     <b>{FREE_FINDING_LIMIT}</b> findings.
     After the scan completes, you can export the <b>full report</b>
-    (all findings + Excel export) for a <b>one-time $29 fee</b>.
+    (all findings + Excel export) for a <b>one-time $19 fee</b>.
     Your export credit is used only when you download the full <b>XLSX</b> or <b>CSV</b>.
   </div>
 
