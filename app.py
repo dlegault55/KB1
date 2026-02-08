@@ -391,7 +391,6 @@ def render_obfuscated_email(email_user: str, email_domain: str, label: str = "Su
         unsafe_allow_html=True,
     )
 
-# ✅ New: input validation + real connection check
 def normalize_subdomain_input(raw: str) -> Tuple[Optional[str], Optional[str]]:
     """
     Accepts:
@@ -404,20 +403,14 @@ def normalize_subdomain_input(raw: str) -> Tuple[Optional[str], Optional[str]]:
     if not s:
         return None, "Subdomain is required."
 
-    # Strip protocol if user pasted a URL
     s = re.sub(r"^https?://", "", s)
-
-    # Remove everything after first slash
     s = s.split("/", 1)[0]
 
-    # If they pasted acme.zendesk.com, extract acme
     if s.endswith(".zendesk.com"):
         s = s.replace(".zendesk.com", "")
-    # If they pasted something like support.mycompany.com -> reject
     elif "." in s:
         return None, "Enter only the Zendesk subdomain (e.g. 'acme'), not a full URL."
 
-    # Strict slug check
     if not re.match(r"^[a-z0-9-]{2,63}$", s):
         return None, "Subdomain must be 2–63 chars (letters/numbers/hyphen only). Example: acme"
 
@@ -429,8 +422,8 @@ def is_valid_email_format(raw: str) -> bool:
 
 def verify_zendesk_connection(subdomain: str, email: str, token: str) -> Tuple[bool, str]:
     """
-    Makes a lightweight Zendesk API call to confirm creds.
-    Returns (ok, message)
+    ✅ IMPORTANT: validate against the SAME endpoint used by the scan,
+    to avoid false 403s from other admin-only endpoints.
     """
     if not subdomain or not email or not token:
         return False, "Missing subdomain/email/token."
@@ -439,13 +432,18 @@ def verify_zendesk_connection(subdomain: str, email: str, token: str) -> Tuple[b
     auth = (f"{email}/token", token)
 
     try:
-        r = requests.get(f"{base_url}/api/v2/account.json", auth=auth, timeout=REQUEST_TIMEOUT)
+        test_url = f"{base_url}/api/v2/help_center/articles.json?per_page=1"
+        r = requests.get(test_url, auth=auth, timeout=REQUEST_TIMEOUT)
+
         if r.status_code == 200:
             return True, "✅ Connected to Zendesk"
         if r.status_code == 401:
             return False, "Auth failed (401). Check your admin email + API token."
         if r.status_code == 403:
-            return False, "Forbidden (403). Ensure the user has permissions and API access is enabled."
+            return False, (
+                "Forbidden (403). Your user/token can’t access Help Center content via API. "
+                "Confirm permissions and Help Center settings."
+            )
         if r.status_code == 404:
             return False, "Not found (404). Double-check the Zendesk subdomain."
         return False, f"Connection failed ({r.status_code})."
@@ -915,7 +913,6 @@ with st.sidebar:
         token_in = st.text_input("API Token", type="password", value=st.session_state.zd_token)
         save_creds = st.form_submit_button("✅ Connect to Zendesk")
 
-    # ✅ Updated: validate + actually verify connection before “success”
     if save_creds:
         sub_norm, sub_err = normalize_subdomain_input(subdomain_in)
         email_norm = (email_in or "").strip()
@@ -964,7 +961,7 @@ with st.sidebar:
 
     st.caption("Zendesk® is a trademark of Zendesk, Inc.")
 
-    # ✅ Obfuscated support footer (edit domain if needed)
+    # ✅ Obfuscated support footer (edit these values)
     st.divider()
     render_obfuscated_email("support", "yourdomain.com", label="Need help?")
 
@@ -1030,7 +1027,6 @@ with tab_audit:
         unsafe_allow_html=True,
     )
 
-    # ✅ Controls under instructions
     a1, a2, a3 = st.columns([1.15, 1.0, 2.2])
     with a1:
         run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
@@ -1285,10 +1281,14 @@ with tab_audit:
             ).strip().lower()
             st.session_state.pro_email = unlock_email
 
+            purchase_email_ok = bool(unlock_email) and is_valid_email_format(unlock_email)
+            if unlock_email and not purchase_email_ok:
+                st.error("Enter a valid checkout email (example: admin@company.com).")
+
             unlock_btn = st.button(
                 "✅ Verify purchase",
                 use_container_width=True,
-                disabled=(not bool(st.session_state.pro_email)) or ((not base) and (not pro_mode)),
+                disabled=(not purchase_email_ok) or ((not base) and (not pro_mode)),
                 key="btn_unlock_paid",
             )
 
