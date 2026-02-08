@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 import pandas as pd
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from bs4 import BeautifulSoup
 from spellchecker import SpellChecker
 
@@ -29,6 +30,26 @@ REQUEST_TIMEOUT = 12
 ZENDESK_PER_PAGE = 100
 
 st.set_page_config(page_title=f"{APP_TITLE} Pro", page_icon=APP_ICON, layout="wide")
+
+# =========================
+# Google Ads tag (gtag.js)
+# =========================
+components.html(
+    """
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-17940611899"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'AW-17940611899');
+</script>
+""",
+    height=0,
+    width=0,
+)
+
 spell = SpellChecker()
 
 # =========================
