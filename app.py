@@ -299,7 +299,6 @@ def ss_init():
 
 ss_init()
 
-# ✅ Internal-only dev controls flag (default OFF)
 SHOW_DEV_CONTROLS = bool(st.secrets.get("SHOW_DEV_CONTROLS", False))
 
 # =========================
@@ -328,7 +327,6 @@ def _safe_domain(email: str) -> str:
     return ""
 
 def log_event(event: str, scan_id: str, **fields):
-    # IMPORTANT: never log tokens/auth headers
     payload = {
         "event": event,
         "scan_id": scan_id,
@@ -364,13 +362,12 @@ class timed_phase:
             )
         else:
             log_event("scan_phase_ok", self.scan_id, phase=self.phase, elapsed_ms=elapsed_ms, **self.base_fields)
-        return False  # don't suppress exceptions
+        return False
 
 # =========================
 # 4) INPUT + UI HELPERS
 # =========================
 def link_cta(label: str, url: str):
-    """Compatible replacement for st.link_button across Streamlit versions."""
     if not url:
         st.button(label, disabled=True)
         return
@@ -380,9 +377,6 @@ def link_cta(label: str, url: str):
     )
 
 def render_obfuscated_email(email_user: str, email_domain: str, label: str = "Support"):
-    """
-    Obfuscated text (no raw user@domain string, no mailto:) to reduce basic scraper pickup.
-    """
     safe = f"{email_user} [at] {email_domain.replace('.', ' [dot] ')}"
     st.markdown(
         f"<div class='za-subtle'>{label}: <span style='unicode-bidi:bidi-override; direction:ltr;'>{safe}</span></div>",
@@ -390,13 +384,6 @@ def render_obfuscated_email(email_user: str, email_domain: str, label: str = "Su
     )
 
 def normalize_subdomain_input(raw: str) -> Tuple[Optional[str], Optional[str]]:
-    """
-    Accepts:
-      - acme
-      - acme.zendesk.com
-      - https://acme.zendesk.com/hc/en-us
-    Returns (subdomain, error)
-    """
     s = (raw or "").strip().lower()
     if not s:
         return None, "Subdomain is required."
@@ -419,10 +406,6 @@ def is_valid_email_format(raw: str) -> bool:
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", e))
 
 def verify_zendesk_connection(subdomain: str, email: str, token: str) -> Tuple[bool, str]:
-    """
-    ✅ Validate against the SAME endpoint used by the scan.
-    This avoids false 403s from other admin-only endpoints.
-    """
     if not subdomain or not email or not token:
         return False, "Missing subdomain/email/token."
 
@@ -557,7 +540,7 @@ def _make_clickable(v: Any) -> str:
 
 def render_table_no_toolbar(df: pd.DataFrame) -> None:
     if df is None or df.empty:
-        st.info("No findings to display.")
+        st.info("No findings to display yet. Run a scan to generate results.")
         return
 
     show = df.copy()
@@ -956,7 +939,6 @@ with st.sidebar:
 
     st.caption("Zendesk® is a trademark of Zendesk, Inc.")
 
-    # ✅ Obfuscated support footer (edit these values)
     st.divider()
     render_obfuscated_email("support", "yourdomain.com", label="Need help?")
 
@@ -1022,7 +1004,7 @@ with tab_audit:
         unsafe_allow_html=True,
     )
 
-    # ✅ Run scan + clear results moved under instructions
+    # Buttons under instructions
     a1, a2, a3 = st.columns([1.15, 1.0, 2.2])
     with a1:
         run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
@@ -1169,9 +1151,10 @@ with tab_audit:
 
     refresh_metrics()
 
-    if st.session_state.scan_results:
-        st.divider()
+    # ✅ ALWAYS show Findings + Export section (locked preview restored)
+    st.divider()
 
+    if st.session_state.scan_results:
         st.markdown(
             """
 <div class="za-next">
@@ -1181,36 +1164,48 @@ with tab_audit:
 """,
             unsafe_allow_html=True,
         )
-
-        st.subheader("Findings")
-
-        df_findings = (
-            pd.DataFrame(st.session_state.findings)
-            if st.session_state.findings
-            else pd.DataFrame(
-                columns=[
-                    "Severity",
-                    "Type",
-                    "Article Title",
-                    "Article URL",
-                    "Target URL",
-                    "HTTP Status",
-                    "Detail",
-                    "Suggested Fix",
-                ]
-            )
+    else:
+        st.markdown(
+            """
+<div class="za-next">
+  👉 <b>Next step</b><br>
+  <span>Run a scan to generate a free preview. You can buy an export credit anytime to unlock downloads.</span>
+</div>
+""",
+            unsafe_allow_html=True,
         )
 
-        if not df_findings.empty:
-            df_findings["_sev_rank"] = df_findings["Severity"].map(lambda s: severity_rank(str(s)))
-            df_findings = df_findings.sort_values(by=["_sev_rank", "Type"], ascending=[True, True]).drop(columns=["_sev_rank"])
+    st.subheader("Findings")
 
-        total_findings = len(df_findings)
+    df_findings = (
+        pd.DataFrame(st.session_state.findings)
+        if st.session_state.findings
+        else pd.DataFrame(
+            columns=[
+                "Severity",
+                "Type",
+                "Article Title",
+                "Article URL",
+                "Target URL",
+                "HTTP Status",
+                "Detail",
+                "Suggested Fix",
+            ]
+        )
+    )
 
-        pro_access = pro_access_active(pro_mode)
-        gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
-        df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
+    if not df_findings.empty:
+        df_findings["_sev_rank"] = df_findings["Severity"].map(lambda s: severity_rank(str(s)))
+        df_findings = df_findings.sort_values(by=["_sev_rank", "Type"], ascending=[True, True]).drop(columns=["_sev_rank"])
 
+    total_findings = len(df_findings)
+
+    pro_access = pro_access_active(pro_mode)
+    gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
+    df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
+
+    # Filters only when there is data
+    if not df_preview.empty:
         f1, f2, f3 = st.columns([1.2, 1.2, 2.6])
         with f1:
             sev_filter = st.multiselect("Severity", ["critical", "warning", "info"], default=["critical", "warning", "info"])
@@ -1221,158 +1216,156 @@ with tab_audit:
             q = st.text_input("Search (title/url contains)", placeholder="e.g. billing, /hc/en-us, image.png")
 
         view = df_preview.copy()
-        if not view.empty:
-            view = view[view["Severity"].isin(sev_filter)]
-            if type_filter:
-                view = view[view["Type"].isin(type_filter)]
-            if q.strip():
-                qq = q.strip().lower()
-                view = view[
-                    view["Article Title"].fillna("").str.lower().str.contains(qq)
-                    | view["Article URL"].fillna("").str.lower().str.contains(qq)
-                    | view["Target URL"].fillna("").str.lower().str.contains(qq)
-                ]
-
+        view = view[view["Severity"].isin(sev_filter)]
+        if type_filter:
+            view = view[view["Type"].isin(type_filter)]
+        if q.strip():
+            qq = q.strip().lower()
+            view = view[
+                view["Article Title"].fillna("").str.lower().str.contains(qq)
+                | view["Article URL"].fillna("").str.lower().str.contains(qq)
+                | view["Target URL"].fillna("").str.lower().str.contains(qq)
+            ]
         render_table_no_toolbar(view)
+    else:
+        render_table_no_toolbar(df_preview)
 
+    if st.session_state.scan_results:
         st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
         if gated:
             st.warning(f"Free preview shows the first **{FREE_FINDING_LIMIT}** findings. Export the full report by purchasing an export credit.")
+    else:
+        st.info("No scan results yet. Run a scan above to populate the preview table.")
 
-        # ✅ RESTORED: locked-but-visible export section (always shows options/buttons)
-        st.markdown("### 🔓 Export full report")
+    st.markdown("### 🔓 Export full report")
 
-        # Buy first, then email/verify
-        uL, uR = st.columns([1.8, 2.2])
+    uL, uR = st.columns([1.8, 2.2])
 
-        with uL:
-            st.markdown("**Step 1 — Buy 1 export credit**")
-            link_cta("💳 Buy 1 export credit ($29)", pay_url)
-            st.markdown("<div class='za-subtle' style='margin-top:6px;'>Only buy if you want to download exports.</div>", unsafe_allow_html=True)
+    with uL:
+        st.markdown("**Step 1 — Buy 1 export credit**")
+        link_cta("💳 Buy 1 export credit ($29)", pay_url)
+        st.markdown("<div class='za-subtle' style='margin-top:6px;'>Only buy if you want to download exports.</div>", unsafe_allow_html=True)
 
-        with uR:
-            st.markdown("**Step 2 — Verify purchase**")
-            unlock_email = st.text_input(
-                "Email used at checkout",
-                value=st.session_state.pro_email,
-                placeholder="admin@company.com",
-                label_visibility="visible",
-                key="unlock_email_main",
-            ).strip().lower()
-            st.session_state.pro_email = unlock_email
+    with uR:
+        st.markdown("**Step 2 — Verify purchase**")
+        unlock_email = st.text_input(
+            "Email used at checkout",
+            value=st.session_state.pro_email,
+            placeholder="admin@company.com",
+            label_visibility="visible",
+            key="unlock_email_main",
+        ).strip().lower()
+        st.session_state.pro_email = unlock_email
 
-            purchase_email_ok = (not unlock_email) or is_valid_email_format(unlock_email)
-            if unlock_email and not purchase_email_ok:
-                st.error("Enter a valid checkout email (example: admin@company.com).")
+        if unlock_email and not is_valid_email_format(unlock_email):
+            st.error("Enter a valid checkout email (example: admin@company.com).")
 
-            unlock_btn = st.button(
-                "✅ Verify purchase",
-                use_container_width=True,
-                disabled=(not bool(unlock_email)) or (not is_valid_email_format(unlock_email)) or ((not base) and (not pro_mode)),
-                key="btn_unlock_paid",
-            )
+        unlock_btn = st.button(
+            "✅ Verify purchase",
+            use_container_width=True,
+            disabled=(not bool(unlock_email)) or (not is_valid_email_format(unlock_email)) or ((not base) and (not pro_mode)),
+            key="btn_unlock_paid",
+        )
 
-            st.markdown("<div class='za-subtle'>Use the same email you used at Stripe checkout.</div>", unsafe_allow_html=True)
+        st.markdown("<div class='za-subtle'>Use the same email you used at Stripe checkout.</div>", unsafe_allow_html=True)
 
-            if (not base) and (not pro_mode):
-                st.markdown("<div class='za-pill-warn'>⚠️ Paywall not configured (missing WORKER_BASE_URL secret).</div>", unsafe_allow_html=True)
+        if (not base) and (not pro_mode):
+            st.markdown("<div class='za-pill-warn'>⚠️ Paywall not configured (missing WORKER_BASE_URL secret).</div>", unsafe_allow_html=True)
 
-        if unlock_btn:
-            if pro_mode:
-                st.session_state.pro_unlocked = True
-                st.session_state.pro_available_scans = max(1, int(st.session_state.pro_available_scans or 1))
-                st.session_state.pro_last_status_error = ""
-                st.session_state.xlsx_consumed_local = False
-                st.toast("Export credit available (dev) ✅", icon="✅")
-                st.rerun()
-            else:
-                try_unlock_from_status(st.session_state.pro_email)
-                if st.session_state.pro_unlocked:
-                    st.toast("Export credit available ✅", icon="✅")
-                    st.rerun()
-
-        # Status pill (includes download note) — restored behavior
+    if unlock_btn:
         if pro_mode:
-            st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — export available.</div>", unsafe_allow_html=True)
+            st.session_state.pro_unlocked = True
+            st.session_state.pro_available_scans = max(1, int(st.session_state.pro_available_scans or 1))
+            st.session_state.pro_last_status_error = ""
+            st.session_state.xlsx_consumed_local = False
+            st.toast("Export credit available (dev) ✅", icon="✅")
+            st.rerun()
         else:
+            try_unlock_from_status(st.session_state.pro_email)
             if st.session_state.pro_unlocked:
-                st.markdown(
-                    f"<div class='za-pill-ok'>✅ Export credit available • Credits remaining: {st.session_state.pro_available_scans}"
-                    f"<br><span style='color:#9FB1CC; font-weight:600;'>Downloading uses 1 export credit. Save the file after downloading.</span></div>",
-                    unsafe_allow_html=True,
-                )
+                st.toast("Export credit available ✅", icon="✅")
+                st.rerun()
+
+    if pro_mode:
+        st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — export available.</div>", unsafe_allow_html=True)
+    else:
+        if st.session_state.pro_unlocked:
+            st.markdown(
+                f"<div class='za-pill-ok'>✅ Export credit available • Credits remaining: {st.session_state.pro_available_scans}"
+                f"<br><span style='color:#9FB1CC; font-weight:600;'>Downloading uses 1 export credit. Save the file after downloading.</span></div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            msg = st.session_state.pro_last_status_error or (
+                "Buy 1 export credit, then verify with your checkout email to unlock downloads."
+            )
+            st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
+
+    pro_access = pro_access_active(pro_mode)
+    xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(df_findings) if total_findings > 0 else (None, None)
+
+    def _consume_once():
+        if pro_mode:
+            return
+        if st.session_state.xlsx_consumed_local:
+            return
+        if not st.session_state.pro_email:
+            st.warning("Enter your email above to use an export credit.")
+            return
+
+        ok, avail, err = worker_consume(st.session_state.pro_email)
+        if ok:
+            st.session_state.xlsx_consumed_local = True
+            st.session_state.pro_unlocked = False
+            st.session_state.pro_available_scans = avail
+            st.toast("Export credit used ✅ (download)", icon="✅")
+        else:
+            st.warning(err or "Could not use export credit (try again).")
+
+    d1, d2 = st.columns([2.2, 1.8])
+
+    with d1:
+        if total_findings <= 0:
+            st.button("📥 Download XLSX (locked)", disabled=True, use_container_width=True)
+            st.caption("Run a scan to generate a report preview.")
+        else:
+            if not pro_access:
+                st.button("📥 Download XLSX (locked)", disabled=True, use_container_width=True)
+                st.caption("Buy 1 export credit to download exports.")
             else:
-                msg = st.session_state.pro_last_status_error or (
-                    "Buy 1 export credit, then verify with your checkout email to unlock downloads."
-                )
-                st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
-
-        st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
-
-        # Recompute access after state changes
-        pro_access = pro_access_active(pro_mode)
-
-        xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(df_findings)
-
-        def _consume_once():
-            if pro_mode:
-                return
-            if st.session_state.xlsx_consumed_local:
-                return
-            if not st.session_state.pro_email:
-                st.warning("Enter your email above to use an export credit.")
-                return
-
-            ok, avail, err = worker_consume(st.session_state.pro_email)
-            if ok:
-                st.session_state.xlsx_consumed_local = True
-                st.session_state.pro_unlocked = False
-                st.session_state.pro_available_scans = avail
-                st.toast("Export credit used ✅ (download)", icon="✅")
-            else:
-                st.warning(err or "Could not use export credit (try again).")
-
-        # Download buttons — locked preview restored
-        d1, d2 = st.columns([2.2, 1.8])
-
-        with d1:
-            if total_findings <= 0:
-                st.button("📥 Download XLSX", disabled=True, use_container_width=True)
-            else:
-                if not pro_access:
-                    st.button("📥 Download XLSX (locked)", disabled=True, use_container_width=True)
-                    st.caption("Buy 1 export credit to download exports.")
-                else:
-                    if xlsx_bytes:
-                        st.download_button(
-                            "📥 Download XLSX" + ("" if pro_mode else " (uses 1 export credit)"),
-                            data=xlsx_bytes,
-                            file_name="zenaudit_report.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
-                            on_click=_consume_once,
-                            key="download_xlsx_btn",
-                        )
-                    else:
-                        st.button("📥 Download XLSX", disabled=True, use_container_width=True)
-                        st.caption(xlsx_err or "XLSX export unavailable.")
-
-        with d2:
-            if total_findings <= 0:
-                st.button("📥 Download CSV", disabled=True, use_container_width=True)
-            else:
-                if not pro_access:
-                    st.button("📥 Download CSV (locked)", disabled=True, use_container_width=True)
-                    st.caption("Buy 1 export credit to download exports.")
-                else:
+                if xlsx_bytes:
                     st.download_button(
-                        "📥 Download CSV",
-                        data=df_findings.to_csv(index=False),
-                        file_name="zenaudit_report.csv",
-                        mime="text/csv",
+                        "📥 Download XLSX" + ("" if pro_mode else " (uses 1 export credit)"),
+                        data=xlsx_bytes,
+                        file_name="zenaudit_report.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         use_container_width=True,
-                        key="download_csv_btn",
+                        on_click=_consume_once,
+                        key="download_xlsx_btn",
                     )
+                else:
+                    st.button("📥 Download XLSX", disabled=True, use_container_width=True)
+                    st.caption(xlsx_err or "XLSX export unavailable.")
+
+    with d2:
+        if total_findings <= 0:
+            st.button("📥 Download CSV (locked)", disabled=True, use_container_width=True)
+            st.caption("Run a scan to generate a report preview.")
+        else:
+            if not pro_access:
+                st.button("📥 Download CSV (locked)", disabled=True, use_container_width=True)
+                st.caption("Buy 1 export credit to download exports.")
+            else:
+                st.download_button(
+                    "📥 Download CSV",
+                    data=df_findings.to_csv(index=False),
+                    file_name="zenaudit_report.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    key="download_csv_btn",
+                )
 
 # =========================
 # 9) OTHER TABS
