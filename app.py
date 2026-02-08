@@ -303,6 +303,42 @@ def link_cta(label: str, url: str):
         unsafe_allow_html=True,
     )
 
+# ✅ NEW (only change): consistent full-width download buttons in all states
+def download_cta(
+    label: str,
+    data,
+    file_name: str,
+    mime: str,
+    enabled: bool,
+    on_click=None,
+):
+    """
+    Consistent full-width download button for both locked and unlocked states.
+    Keeps XLSX / CSV perfectly aligned.
+    """
+    try:
+        return st.download_button(
+            label,
+            data=data if enabled else b"",
+            file_name=file_name,
+            mime=mime,
+            use_container_width=True,
+            on_click=on_click if enabled else None,
+            disabled=not enabled,
+        )
+    except TypeError:
+        # Older Streamlit fallback
+        if enabled:
+            return st.download_button(
+                label,
+                data=data,
+                file_name=file_name,
+                mime=mime,
+                use_container_width=True,
+                on_click=on_click,
+            )
+        return st.button(label, disabled=True, use_container_width=True)
+
 def safe_parse_updated_at(s: str) -> Optional[datetime]:
     try:
         return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
@@ -733,28 +769,28 @@ with tab_audit:
   <div class="za-badge">FREE SCAN • PAID EXPORT</div>
   <div class="za-title">Scan first. Pay only if you want the full report.</div>
 
-  <div class="za-line" style="margin-top:8px;">
-    <b>How to run a scan</b>
-    <ol style="margin:6px 0 10px 18px;">
-      <li>
-        Enter your Help Center <b>subdomain</b>
-        (example: <code>acme</code> for <code>acme.zendesk.com</code>)
-      </li>
-      <li>Enter your Zendesk <b>admin email</b></li>
-      <li>
-        Enter a valid <b>API token</b>
-        (required to securely access your Help Center content via the Zendesk API)
-        <br>
-        <span style="color:#9FB1CC;">
-          Admin Center → Apps and integrations → APIs → Zendesk API → Add API token
-        </span>
-      </li>
-      <li>Click <b>Connect to Zendesk</b> to verify access</li>
-      <li>Click <b>Run scan</b> to start the audit</li>
-    </ol>
-<div style="margin-top:6px; color:#9FB1CC;">
-  We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.<br>
-</div>
+<b>How to run a scan</b>
+<ol style="margin:6px 0 10px 18px;">
+  <li>
+    Enter your Help Center <b>subdomain</b>
+    (example: <code>acme</code> for <code>acme.zendesk.com</code>)
+  </li>
+  <li>Enter your Zendesk <b>admin email</b></li>
+  <li>
+    Enter a valid <b>API token</b>
+    (required to securely access your Help Center content via the Zendesk API)
+    <br>
+    <span style="color:#9FB1CC;">
+      Admin Center → Apps and integrations → APIs → Zendesk API → Add API token
+    </span>
+  </li>
+  <li>Click <b>Connect to Zendesk</b> to verify access</li>
+  <li>Click <b>Run scan</b> to start the audit</li>
+</ol>
+
+    <div style="margin-top:6px; color:#9FB1CC;">
+      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.<br>
+    </div>
   </div>
 
   <div class="za-line">
@@ -1072,42 +1108,74 @@ with tab_audit:
             else:
                 st.warning(err or "Could not use export credit (try again).")
 
+        # ✅ UPDATED (only change): consistent buttons/widths in all states
         e1, e2 = st.columns([1, 1])
+
         with e1:
             if total_findings <= 0:
-                st.button("📥 Download XLSX", disabled=True, use_container_width=True)
+                download_cta(
+                    "📥 Download XLSX",
+                    data=b"",
+                    file_name="zenaudit_report.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    enabled=False,
+                )
             else:
                 if not pro_access:
-                    st.button("📥 Download XLSX (locked)", disabled=True, use_container_width=True)
+                    download_cta(
+                        "📥 Download XLSX (locked)",
+                        data=b"",
+                        file_name="zenaudit_report.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        enabled=False,
+                    )
                     st.caption("Buy 1 export credit to download exports.")
                 else:
                     if xlsx_bytes:
-                        st.download_button(
+                        download_cta(
                             "📥 Download XLSX" + ("" if pro_mode else " (uses 1 export credit)"),
                             data=xlsx_bytes,
                             file_name="zenaudit_report.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            use_container_width=True,
+                            enabled=True,
                             on_click=_consume_once,
                         )
                     else:
-                        st.button("📥 Download XLSX", disabled=True, use_container_width=True)
+                        download_cta(
+                            "📥 Download XLSX",
+                            data=b"",
+                            file_name="zenaudit_report.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            enabled=False,
+                        )
                         st.caption(xlsx_err or "XLSX export unavailable.")
 
         with e2:
             if total_findings <= 0:
-                st.button("📥 Download CSV", disabled=True, use_container_width=True)
+                download_cta(
+                    "📥 Download CSV",
+                    data="",
+                    file_name="zenaudit_report.csv",
+                    mime="text/csv",
+                    enabled=False,
+                )
             else:
                 if not pro_access:
-                    st.button("📥 Download CSV (locked)", disabled=True, use_container_width=True)
+                    download_cta(
+                        "📥 Download CSV (locked)",
+                        data="",
+                        file_name="zenaudit_report.csv",
+                        mime="text/csv",
+                        enabled=False,
+                    )
                     st.caption("Buy 1 export credit to download exports.")
                 else:
-                    st.download_button(
+                    download_cta(
                         "📥 Download CSV",
                         data=df_findings.to_csv(index=False),
                         file_name="zenaudit_report.csv",
                         mime="text/csv",
-                        use_container_width=True,
+                        enabled=True,
                     )
 
 # =========================
