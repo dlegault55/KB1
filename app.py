@@ -379,6 +379,18 @@ def link_cta(label: str, url: str):
         unsafe_allow_html=True,
     )
 
+def render_obfuscated_email(email_user: str, email_domain: str, label: str = "Support"):
+    """
+    Renders an obfuscated email as readable text without ever including a raw 'user@domain.tld'
+    substring in the HTML (reduces basic scraper pickup). Avoids mailto: links.
+    Example output: Support: support [at] example [dot] com
+    """
+    safe = f"{email_user} [at] {email_domain.replace('.', ' [dot] ')}"
+    st.markdown(
+        f"<div class='za-subtle'>{label}: <span style='unicode-bidi:bidi-override; direction:ltr;'>{safe}</span></div>",
+        unsafe_allow_html=True,
+    )
+
 def safe_parse_updated_at(s: str) -> Optional[datetime]:
     try:
         return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
@@ -884,6 +896,10 @@ with st.sidebar:
     max_articles = st.number_input("Max Articles (0 = all)", min_value=0, value=0, step=50)
 
     st.caption("Zendesk® is a trademark of Zendesk, Inc.")
+
+    # ✅ Obfuscated support footer (edit domain if needed)
+    st.divider()
+    render_obfuscated_email("support", "hello@supportzen.net", label="Need help?")
 
 # =========================
 # 7) TOP-LEVEL UI
