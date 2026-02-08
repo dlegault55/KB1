@@ -391,6 +391,69 @@ def render_obfuscated_email(email_user: str, email_domain: str, label: str = "Su
         unsafe_allow_html=True,
     )
 
+# ✅ New: input validation + real connection check
+def normalize_subdomain_input(raw: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Accepts:
+      - acme
+      - acme.zendesk.com
+      - https://acme.zendesk.com/hc/en-us
+    Returns (subdomain, error)
+    """
+    s = (raw or "").strip().lower()
+    if not s:
+        return None, "Subdomain is required."
+
+    # Strip protocol if user pasted a URL
+    s = re.sub(r"^https?://", "", s)
+
+    # Remove everything after first slash
+    s = s.split("/", 1)[0]
+
+    # If they pasted acme.zendesk.com, extract acme
+    if s.endswith(".zendesk.com"):
+        s = s.replace(".zendesk.com", "")
+    # If they pasted something like support.mycompany.com -> reject
+    elif "." in s:
+        return None, "Enter only the Zendesk subdomain (e.g. 'acme'), not a full URL."
+
+    # Strict slug check
+    if not re.match(r"^[a-z0-9-]{2,63}$", s):
+        return None, "Subdomain must be 2–63 chars (letters/numbers/hyphen only). Example: acme"
+
+    return s, None
+
+def is_valid_email_format(raw: str) -> bool:
+    e = (raw or "").strip()
+    return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", e))
+
+def verify_zendesk_connection(subdomain: str, email: str, token: str) -> Tuple[bool, str]:
+    """
+    Makes a lightweight Zendesk API call to confirm creds.
+    Returns (ok, message)
+    """
+    if not subdomain or not email or not token:
+        return False, "Missing subdomain/email/token."
+
+    base_url = f"https://{subdomain}.zendesk.com"
+    auth = (f"{email}/token", token)
+
+    try:
+        r = requests.get(f"{base_url}/api/v2/account.json", auth=auth, timeout=REQUEST_TIMEOUT)
+        if r.status_code == 200:
+            return True, "✅ Connected to Zendesk"
+        if r.status_code == 401:
+            return False, "Auth failed (401). Check your admin email + API token."
+        if r.status_code == 403:
+            return False, "Forbidden (403). Ensure the user has permissions and API access is enabled."
+        if r.status_code == 404:
+            return False, "Not found (404). Double-check the Zendesk subdomain."
+        return False, f"Connection failed ({r.status_code})."
+    except requests.Timeout:
+        return False, "Connection timed out. Try again, or check your network/Zendesk availability."
+    except Exception as e:
+        return False, f"Connection error: {str(e)[:200]}"
+
 def safe_parse_updated_at(s: str) -> Optional[datetime]:
     try:
         return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
@@ -532,7 +595,6 @@ def worker_get_status(email: str) -> Tuple[bool, int, str]:
     try:
         r = requests.get(f"{base}/status", params={"email": email}, timeout=10)
         if r.status_code != 200:
-            # ✅ log worker status failures (no PII besides hash/domain)
             log_event(
                 "worker_status_fail",
                 st.session_state.scan_id or "",
@@ -623,7 +685,6 @@ def run_scan(
     progress_cb,
     status_cb,
 ):
-    # ✅ new scan id each run
     scan_id = str(uuid.uuid4())
     st.session_state.scan_id = scan_id
     st.session_state.scan_started_at = datetime.utcnow().isoformat() + "Z"
@@ -636,7 +697,6 @@ def run_scan(
     st.session_state.last_scanned_title = ""
     st.session_state.connected_ok = False
 
-    # never log raw email/token
     user_hash = _hash_email(email)
     user_domain = _safe_domain(email)
 
@@ -665,7 +725,6 @@ def run_scan(
     try:
         with timed_phase(scan_id, "zendesk_list_articles", zd_subdomain=subdomain):
             while url:
-                # Per-page fetch
                 with timed_phase(scan_id, "zendesk_fetch_page", page_url=url[:200]):
                     r = requests.get(url, auth=auth, timeout=REQUEST_TIMEOUT)
 
@@ -679,7 +738,6 @@ def run_scan(
                     )
                     raise RuntimeError("Auth failed (401). Check email/token and Zendesk API settings.")
 
-                # Raise other HTTP errors with context
                 if r.status_code >= 400:
                     log_event(
                         "zendesk_http_error",
@@ -698,7 +756,6 @@ def run_scan(
                 data = r.json()
                 articles = data.get("articles", [])
 
-                # process articles
                 for art in articles:
                     scanned += 1
                     if max_articles and scanned > max_articles:
@@ -711,7 +768,6 @@ def run_scan(
                     body = art.get("body", "") or ""
                     article_url = art.get("html_url") or f"{base_url}/hc/articles/{art.get('id')}"
 
-                    # Parse HTML
                     with timed_phase(scan_id, "parse_article", article_id=art.get("id"), article_url=article_url[:200]):
                         soup, text_raw, links, images = extract_links_images(body, base_url=base_url)
 
@@ -753,7 +809,6 @@ def run_scan(
                                     }
                                 )
 
-                    # Link checks
                     if do_links and links:
                         with timed_phase(scan_id, "check_links", article_id=art.get("id"), link_count=len(links)):
                             for lk in list(dict.fromkeys(links)):
@@ -772,7 +827,6 @@ def run_scan(
                                         }
                                     )
 
-                    # Image checks
                     if do_images and images:
                         with timed_phase(scan_id, "check_images", article_id=art.get("id"), image_count=len(images)):
                             for img in images:
@@ -824,8 +878,6 @@ def run_scan(
 
     except Exception as e:
         st.session_state.scan_running = False
-
-        # Server-side details for you; user gets scan_id
         log_event(
             "scan_failed",
             scan_id,
@@ -863,11 +915,27 @@ with st.sidebar:
         token_in = st.text_input("API Token", type="password", value=st.session_state.zd_token)
         save_creds = st.form_submit_button("✅ Connect to Zendesk")
 
+    # ✅ Updated: validate + actually verify connection before “success”
     if save_creds:
-        st.session_state.zd_subdomain = (subdomain_in or "").strip()
-        st.session_state.zd_email = (email_in or "").strip()
-        st.session_state.zd_token = (token_in or "").strip()
-        st.toast("Connection Established.", icon="✅")
+        sub_norm, sub_err = normalize_subdomain_input(subdomain_in)
+        email_norm = (email_in or "").strip()
+        token_norm = (token_in or "").strip()
+
+        if sub_err:
+            st.error(sub_err)
+        elif not is_valid_email_format(email_norm):
+            st.error("Enter a valid admin email (example: admin@company.com).")
+        elif not token_norm:
+            st.error("API token is required.")
+        else:
+            ok, msg = verify_zendesk_connection(sub_norm, email_norm, token_norm)
+            if ok:
+                st.session_state.zd_subdomain = sub_norm
+                st.session_state.zd_email = email_norm
+                st.session_state.zd_token = token_norm
+                st.toast("Connection Established.", icon="✅")
+            else:
+                st.error(msg)
 
     subdomain = (st.session_state.zd_subdomain or "").strip()
     email = (st.session_state.zd_email or "").strip()
@@ -887,7 +955,6 @@ with st.sidebar:
     st.divider()
     st.subheader("Limits & gating")
 
-    # ✅ Hide Pro Mode from end users (internal only)
     if SHOW_DEV_CONTROLS:
         pro_mode = st.checkbox("Pro Mode (dev)", value=False)
     else:
@@ -899,7 +966,7 @@ with st.sidebar:
 
     # ✅ Obfuscated support footer (edit domain if needed)
     st.divider()
-    render_obfuscated_email("support", "hello@supportzen.net", label="Need help?")
+    render_obfuscated_email("support", "yourdomain.com", label="Need help?")
 
 # =========================
 # 7) TOP-LEVEL UI
@@ -963,7 +1030,7 @@ with tab_audit:
         unsafe_allow_html=True,
     )
 
-    # ✅ Moved controls under instructions
+    # ✅ Controls under instructions
     a1, a2, a3 = st.columns([1.15, 1.0, 2.2])
     with a1:
         run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
@@ -1182,7 +1249,6 @@ with tab_audit:
 
         st.markdown("### 🔓 Export full report")
 
-        # ✅ New: clearer post-scan export instructions + Buy first, Email second
         st.markdown(
             """
 <div class="za-next">
@@ -1197,9 +1263,6 @@ with tab_audit:
             unsafe_allow_html=True,
         )
 
-        # ────────────────────────────────────────────────
-        # Buy first (left) → Verify second (right)
-        # ────────────────────────────────────────────────
         b1, b2 = st.columns([1.8, 2.2])
 
         with b1:
@@ -1254,7 +1317,6 @@ with tab_audit:
                     st.toast("Export credit available ✅", icon="✅")
                     st.rerun()
 
-        # Status pill (includes download note)
         if pro_mode:
             st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — export available.</div>", unsafe_allow_html=True)
         else:
@@ -1279,9 +1341,7 @@ with tab_audit:
 
         st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
 
-        # Recompute access after state changes
         pro_access = pro_access_active(pro_mode)
-
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(df_findings)
 
         def _consume_once():
@@ -1302,9 +1362,6 @@ with tab_audit:
             else:
                 st.warning(err or "Could not use export credit (try again).")
 
-        # ────────────────────────────────────────────────
-        # Download buttons — now using SAME column ratio
-        # ────────────────────────────────────────────────
         d1, d2 = st.columns([2.2, 1.8])
 
         with d1:
@@ -1323,7 +1380,7 @@ with tab_audit:
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             use_container_width=True,
                             on_click=_consume_once,
-                            key="download_xlsx_btn"
+                            key="download_xlsx_btn",
                         )
                     else:
                         st.button("📥 Download XLSX", disabled=True, use_container_width=True)
@@ -1343,7 +1400,7 @@ with tab_audit:
                         file_name="zenaudit_report.csv",
                         mime="text/csv",
                         use_container_width=True,
-                        key="download_csv_btn"
+                        key="download_csv_btn",
                     )
 
 # =========================
