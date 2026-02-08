@@ -50,7 +50,7 @@ section[data-testid="stSidebar"] {
     margin-right: 6px;
 }
 
-/* ✅ New: Sidebar tagline */
+/* ✅ Sidebar tagline */
 .za-tagline {
     color: #9FB1CC;
     font-size: 0.88rem;
@@ -166,11 +166,6 @@ a.za-linkbtn {
     font-size: 0.85rem;
 }
 
-/* Align buy button with email field */
-.za-btnrow {
-    padding-top: 26px;
-}
-
 /* Pricing explainer */
 .za-pricing {
     margin: 10px 0 16px 0;
@@ -254,6 +249,30 @@ a.za-linkbtn {
     color: #BBD2F3;
     text-decoration: underline;
 }
+
+/* ✅ Export section: force uniform full-width controls (buttons + link button) */
+.za-export [data-testid="stButton"] button,
+.za-export [data-testid="stDownloadButton"] button {
+    width: 100% !important;
+    height: 46px !important;
+    border-radius: 12px !important;
+    font-weight: 800 !important;
+}
+
+.za-export a.za-linkbtn {
+    width: 100% !important;
+    height: 46px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 12px !important;
+}
+
+.za-export .za-export-caption {
+    margin-top: 8px;
+    color: #9FB1CC;
+    font-size: 0.86rem;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -302,37 +321,6 @@ def link_cta(label: str, url: str):
         f'<a class="za-linkbtn" href="{url}" target="_blank" rel="noopener">{label}</a>',
         unsafe_allow_html=True,
     )
-
-# ✅ Consistent full-width download buttons in all states (keeps XLSX / CSV aligned)
-def download_cta(
-    label: str,
-    data,
-    file_name: str,
-    mime: str,
-    enabled: bool,
-    on_click=None,
-):
-    try:
-        return st.download_button(
-            label,
-            data=data if enabled else b"",
-            file_name=file_name,
-            mime=mime,
-            use_container_width=True,
-            on_click=on_click if enabled else None,
-            disabled=not enabled,
-        )
-    except TypeError:
-        if enabled:
-            return st.download_button(
-                label,
-                data=data,
-                file_name=file_name,
-                mime=mime,
-                use_container_width=True,
-                on_click=on_click,
-            )
-        return st.button(label, disabled=True, use_container_width=True)
 
 def safe_parse_updated_at(s: str) -> Optional[datetime]:
     try:
@@ -726,6 +714,7 @@ with st.sidebar:
     st.divider()
     st.subheader("Limits & gating")
 
+    # ✅ Hide Pro Mode from end users (internal only)
     if SHOW_DEV_CONTROLS:
         pro_mode = st.checkbox("Pro Mode (dev)", value=False)
     else:
@@ -757,7 +746,7 @@ with tab_audit:
     with a3:
         st.markdown("<div class='za-subtle'>Tip: Disable Broken Links/Images for a faster first pass.</div>", unsafe_allow_html=True)
 
-    # ✅ FIX (only change): clean, valid HTML (no stray/unmatched </div>) so raw <div> never renders
+    # ✅ FIXED: Properly wrapped HTML so no raw <div> shows up
     st.markdown(
         f"""
 <div class="za-pricing">
@@ -789,7 +778,7 @@ with tab_audit:
     </div>
   </div>
 
-  <div class="za-line" style="margin-top:10px;">
+  <div class="za-line">
     Running a scan is <b>free</b> and includes a preview of up to
     <b>{FREE_FINDING_LIMIT}</b> findings.
     After the scan completes, you can export the <b>full report</b>
@@ -1014,6 +1003,9 @@ with tab_audit:
 
         st.markdown("### 🔓 Export full report")
 
+        # ✅ Scope the export UI so CSS can force uniform button sizing reliably
+        st.markdown("<div class='za-export'>", unsafe_allow_html=True)
+
         u1, uR = st.columns([2.2, 1.8])
 
         with u1:
@@ -1043,9 +1035,7 @@ with tab_audit:
                 )
 
         with uR:
-            st.markdown("<div class='za-btnrow'>", unsafe_allow_html=True)
             link_cta("💳 Buy 1 export credit ($29)", pay_url)
-            st.markdown("</div>", unsafe_allow_html=True)
 
         if unlock_btn:
             if pro_mode:
@@ -1061,6 +1051,7 @@ with tab_audit:
                     st.toast("Export credit available ✅", icon="✅")
                     st.rerun()
 
+        # Status pill (includes download note)
         if pro_mode:
             st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — export available.</div>", unsafe_allow_html=True)
         else:
@@ -1080,6 +1071,7 @@ with tab_audit:
 
         st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
 
+        # Recompute access after state changes
         pro_access = pro_access_active(pro_mode)
 
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(df_findings)
@@ -1102,74 +1094,55 @@ with tab_audit:
             else:
                 st.warning(err or "Could not use export credit (try again).")
 
-        e1, e2 = st.columns([1, 1])
+        # ✅ Uniform bottom row: no per-column captions (they cause uneven height / “jumbled” look)
+        export_help = ""
+        if total_findings <= 0:
+            export_help = ""
+        elif not pro_access:
+            export_help = "Buy 1 export credit to download exports."
+        elif (not xlsx_bytes) and (xlsx_err):
+            export_help = xlsx_err
 
+        e1, e2 = st.columns([1, 1])
         with e1:
             if total_findings <= 0:
-                download_cta(
-                    "📥 Download XLSX",
-                    data=b"",
-                    file_name="zenaudit_report.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    enabled=False,
-                )
+                st.button("📥 Download XLSX", disabled=True, use_container_width=True)
             else:
                 if not pro_access:
-                    download_cta(
-                        "📥 Download XLSX (locked)",
-                        data=b"",
-                        file_name="zenaudit_report.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        enabled=False,
-                    )
-                    st.caption("Buy 1 export credit to download exports.")
+                    st.button("📥 Download XLSX (locked)", disabled=True, use_container_width=True)
                 else:
                     if xlsx_bytes:
-                        download_cta(
+                        st.download_button(
                             "📥 Download XLSX" + ("" if pro_mode else " (uses 1 export credit)"),
                             data=xlsx_bytes,
                             file_name="zenaudit_report.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            enabled=True,
+                            use_container_width=True,
                             on_click=_consume_once,
                         )
                     else:
-                        download_cta(
-                            "📥 Download XLSX",
-                            data=b"",
-                            file_name="zenaudit_report.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            enabled=False,
-                        )
-                        st.caption(xlsx_err or "XLSX export unavailable.")
+                        st.button("📥 Download XLSX", disabled=True, use_container_width=True)
 
         with e2:
             if total_findings <= 0:
-                download_cta(
-                    "📥 Download CSV",
-                    data="",
-                    file_name="zenaudit_report.csv",
-                    mime="text/csv",
-                    enabled=False,
-                )
+                st.button("📥 Download CSV", disabled=True, use_container_width=True)
             else:
                 if not pro_access:
-                    download_cta(
-                        "📥 Download CSV (locked)",
-                        data="",
-                        file_name="zenaudit_report.csv",
-                        mime="text/csv",
-                        enabled=False,
-                    )
-                    st.caption("Buy 1 export credit to download exports.")
+                    st.button("📥 Download CSV (locked)", disabled=True, use_container_width=True)
                 else:
-                    download_cta(
+                    st.download_button(
                         "📥 Download CSV",
                         data=df_findings.to_csv(index=False),
                         file_name="zenaudit_report.csv",
                         mime="text/csv",
-                        enabled=True,
+                        use_container_width=True,
                     )
+
+        if export_help:
+            st.markdown(f"<div class='za-export-caption'>{export_help}</div>", unsafe_allow_html=True)
+
+        # ✅ close export scope
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================
 # 9) OTHER TABS
