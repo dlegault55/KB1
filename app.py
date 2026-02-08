@@ -966,7 +966,7 @@ with st.sidebar:
 # =========================
 # 7) TOP-LEVEL UI
 # =========================
-st.markdown("## Knowledge Base Intelligence")
+st.markdown("## Zendesk® Knowledge Base Intelligence")
 st.caption("Scan your Help Center for broken links, broken images, missing alt text, typos, and stale content.")
 
 tab_audit, tab_method, tab_privacy, tab_pro = st.tabs(["Audit", "Methodology", "Privacy", "Pro"])
