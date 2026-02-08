@@ -981,7 +981,7 @@ with tab_audit:
         f"""
 <div class="za-pricing">
   <div class="za-badge">FREE SCAN • PAID EXPORT</div>
-  <div class="za-title">Scan first. Pay only if you want the full report.</div>
+  <div class="za-title">Scan first. Initial 50 results are free - Pay only to unlock the full report.</div>
 
   <div class="za-line" style="margin-top:8px;">
     <b>How to run a scan</b>
