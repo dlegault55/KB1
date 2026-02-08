@@ -50,6 +50,15 @@ section[data-testid="stSidebar"] {
     margin-right: 6px;
 }
 
+/* ✅ New: Sidebar tagline */
+.za-tagline {
+    color: #9FB1CC;
+    font-size: 0.88rem;
+    line-height: 1.25rem;
+    margin-top: 6px;
+    margin-bottom: 10px;
+}
+
 /* Primary button (Run scan) */
 button[kind="primary"] {
     background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%) !important;
@@ -277,6 +286,9 @@ def ss_init():
     st.session_state.setdefault("zd_token", "")
 
 ss_init()
+
+# ✅ Internal-only dev controls flag (default OFF)
+SHOW_DEV_CONTROLS = bool(st.secrets.get("SHOW_DEV_CONTROLS", False))
 
 # =========================
 # 4) HELPERS
@@ -641,14 +653,7 @@ def run_scan(
 with st.sidebar:
     st.markdown(
         f"## {APP_ICON} {APP_TITLE}\n"
-        f"<span style='color:#9FB1CC;'>Zendesk Help Center Auditor</span>",
-        unsafe_allow_html=True,
-    )
-    st.write("")
-    st.markdown(
-        "<span class='za-chip'>Broken links</span>"
-        "<span class='za-chip'>Alt text</span>"       
-        "<span class='za-chip'>Stale</span>",
+        f"<div class='za-tagline'>Premium Zendesk Help Center audits — in minutes.</div>",
         unsafe_allow_html=True,
     )
     st.divider()
@@ -689,7 +694,13 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Limits & gating")
-    pro_mode = st.checkbox("Pro Mode (dev)", value=False)
+
+    # ✅ Hide Pro Mode from end users (internal only)
+    if SHOW_DEV_CONTROLS:
+        pro_mode = st.checkbox("Pro Mode (dev)", value=False)
+    else:
+        pro_mode = False
+
     max_articles = st.number_input("Max Articles (0 = all)", min_value=0, value=0, step=50)
 
     st.caption("Zendesk® is a trademark of Zendesk, Inc.")
@@ -1012,7 +1023,7 @@ with tab_audit:
                     st.toast("Export credit available ✅", icon="✅")
                     st.rerun()
 
-        # Status pill (UPDATED: includes download note)
+        # Status pill (includes download note)
         if pro_mode:
             st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — export available.</div>", unsafe_allow_html=True)
         else:
@@ -1026,7 +1037,7 @@ with tab_audit:
                 if st.session_state.pro_email:
                     msg = st.session_state.pro_last_status_error or (
                         "No export credit found for this email yet. "
-                        "Use the same email as Stripe checkout, wait 10–30 seconds, then click “verify purchase” again."
+                        "Use the same email as Stripe checkout, wait 10–30 seconds, then click “Verify purchase” again."
                     )
                     st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
 
