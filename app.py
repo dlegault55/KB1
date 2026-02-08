@@ -727,33 +727,34 @@ with tab_audit:
     with a3:
         st.markdown("<div class='za-subtle'>Tip: Disable Broken Links/Images for a faster first pass.</div>", unsafe_allow_html=True)
 
-    st.markdown(
-        f"""
+st.markdown(
+    f"""
 <div class="za-pricing">
   <div class="za-badge">FREE SCAN • PAID EXPORT</div>
   <div class="za-title">Scan first. Pay only if you want the full report.</div>
 
-<b>How to run a scan</b>
-<ol style="margin:6px 0 10px 18px;">
-  <li>
-    Enter your Help Center <b>subdomain</b>
-    (example: <code>acme</code> for <code>acme.zendesk.com</code>)
-  </li>
-  <li>Enter your Zendesk <b>admin email</b></li>
-  <li>
-    Enter a valid <b>API token</b>
-    (required to securely access your Help Center content via the Zendesk API)
-    <br>
-    <span style="color:#9FB1CC;">
-      Admin Center → Apps and integrations → APIs → Zendesk API → Add API token
-    </span>
-  </li>
-  <li>Click <b>Connect to Zendesk</b> to verify access</li>
-  <li>Click <b>Run scan</b> to start the audit</li>
-</ol>
+  <div class="za-line" style="margin-top:8px;">
+    <b>How to run a scan</b>
+    <ol style="margin:6px 0 10px 18px;">
+      <li>
+        Enter your Help Center <b>subdomain</b>
+        (example: <code>acme</code> for <code>acme.zendesk.com</code>)
+      </li>
+      <li>Enter your Zendesk <b>admin email</b></li>
+      <li>
+        Enter a valid <b>API token</b>
+        (required to securely access your Help Center content via the Zendesk API)
+        <br>
+        <span style="color:#9FB1CC;">
+          Admin Center → Apps and integrations → APIs → Zendesk API → Add API token
+        </span>
+      </li>
+      <li>Click <b>Connect to Zendesk</b> to verify access</li>
+      <li>Click <b>Run scan</b> to start the audit</li>
+    </ol>
 
     <div style="margin-top:6px; color:#9FB1CC;">
-      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.<br>
+      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.
     </div>
   </div>
 
@@ -772,8 +773,8 @@ with tab_audit:
   </div>
 </div>
 """,
-        unsafe_allow_html=True,
-    )
+    unsafe_allow_html=True,
+)
 
     if clear_btn:
         st.session_state.scan_results = []
