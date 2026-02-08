@@ -752,10 +752,9 @@ with tab_audit:
       <li>Click <b>Connect to Zendesk</b> to verify access</li>
       <li>Click <b>Run scan</b> to start the audit</li>
     </ol>
-
-    <div style="margin-top:6px; color:#9FB1CC;">
-      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.
-    </div>
+<div style="margin-top:6px; color:#9FB1CC;">
+  We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.<br>
+</div>
   </div>
 
   <div class="za-line">
@@ -979,10 +978,7 @@ with tab_audit:
 
         st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
         if gated:
-            st.warning(
-                f"Free preview shows the first **{FREE_FINDING_LIMIT}** findings. "
-                "Export the full report by purchasing an export credit."
-            )
+            st.warning(f"Free preview shows the first **{FREE_FINDING_LIMIT}** findings. Export the full report by purchasing an export credit.")
 
         st.markdown("### 🔓 Export full report")
 
@@ -1040,8 +1036,7 @@ with tab_audit:
             if st.session_state.pro_unlocked:
                 st.markdown(
                     f"<div class='za-pill-ok'>✅ Export credit available • Credits remaining: {st.session_state.pro_available_scans}"
-                    f"<br><span style='color:#9FB1CC; font-weight:600;'>Downloading uses 1 export credit. "
-                    f"Save the file after downloading.</span></div>",
+                    f"<br><span style='color:#9FB1CC; font-weight:600;'>Downloading uses 1 export credit. Save the file after downloading.</span></div>",
                     unsafe_allow_html=True,
                 )
             else:
