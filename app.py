@@ -727,8 +727,8 @@ with tab_audit:
     with a3:
         st.markdown("<div class='za-subtle'>Tip: Disable Broken Links/Images for a faster first pass.</div>", unsafe_allow_html=True)
 
-st.markdown(
-    f"""
+    st.markdown(
+        f"""
 <div class="za-pricing">
   <div class="za-badge">FREE SCAN • PAID EXPORT</div>
   <div class="za-title">Scan first. Pay only if you want the full report.</div>
@@ -773,8 +773,8 @@ st.markdown(
   </div>
 </div>
 """,
-    unsafe_allow_html=True,
-)
+        unsafe_allow_html=True,
+    )
 
     if clear_btn:
         st.session_state.scan_results = []
@@ -979,7 +979,10 @@ st.markdown(
 
         st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
         if gated:
-            st.warning(f"Free preview shows the first **{FREE_FINDING_LIMIT}** findings. Export the full report by purchasing an export credit.")
+            st.warning(
+                f"Free preview shows the first **{FREE_FINDING_LIMIT}** findings. "
+                "Export the full report by purchasing an export credit."
+            )
 
         st.markdown("### 🔓 Export full report")
 
@@ -1037,7 +1040,8 @@ st.markdown(
             if st.session_state.pro_unlocked:
                 st.markdown(
                     f"<div class='za-pill-ok'>✅ Export credit available • Credits remaining: {st.session_state.pro_available_scans}"
-                    f"<br><span style='color:#9FB1CC; font-weight:600;'>Downloading uses 1 export credit. Save the file after downloading.</span></div>",
+                    f"<br><span style='color:#9FB1CC; font-weight:600;'>Downloading uses 1 export credit. "
+                    f"Save the file after downloading.</span></div>",
                     unsafe_allow_html=True,
                 )
             else:
