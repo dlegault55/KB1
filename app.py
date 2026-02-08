@@ -873,7 +873,7 @@ def run_scan(
 with st.sidebar:
     st.markdown(
         f"## {APP_ICON} {APP_TITLE}\n"
-        f"<div class='za-tagline'>Boost deflection by fixing Help Center issues fast.</div>",
+        f"<div class='za-tagline'>Premium Zendesk Help Center audits — in minutes.</div>",
         unsafe_allow_html=True,
     )
     st.divider()
@@ -940,7 +940,7 @@ with st.sidebar:
     st.caption("Zendesk® is a trademark of Zendesk, Inc.")
 
     st.divider()
-    render_obfuscated_email("hello", "supportzen.net", label="Need help?")
+    render_obfuscated_email("support", "yourdomain.com", label="Need help?")
 
 # =========================
 # 7) TOP-LEVEL UI
@@ -960,7 +960,7 @@ with tab_audit:
         f"""
 <div class="za-pricing">
   <div class="za-badge">FREE SCAN • PAID EXPORT</div>
-  <div class="za-title">Scan first. Pay only if you want the full report. No subscription or commitment.</div>
+  <div class="za-title">Scan first. Pay only if you want the full report.</div>
 
   <div class="za-line" style="margin-top:8px;">
     <b>How to run a scan</b>
@@ -991,7 +991,7 @@ with tab_audit:
     <b>{FREE_FINDING_LIMIT}</b> findings.
     After the scan completes, you can export the <b>full report</b>
     (all findings + Excel export) for a <b>one-time $29 fee</b>.
-    Your export credit is used only when you download the full <b>XLSX</b>.
+    Your export credit is used only when you download the full <b>XLSX</b> or <b>CSV</b>.
   </div>
 
   <div class="za-line" style="margin-top:8px;">
@@ -1004,7 +1004,6 @@ with tab_audit:
         unsafe_allow_html=True,
     )
 
-    # Buttons under instructions
     a1, a2, a3 = st.columns([1.15, 1.0, 2.2])
     with a1:
         run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
@@ -1104,7 +1103,6 @@ with tab_audit:
             progress.progress(pct, text=f"Scanning… {scanned_count} (unknown total)")
 
         refresh_metrics()
-
         logs = "<br>".join(st.session_state.last_logs) if st.session_state.last_logs else "—"
         console.markdown(f"### Live log\n{logs}", unsafe_allow_html=True)
 
@@ -1151,7 +1149,7 @@ with tab_audit:
 
     refresh_metrics()
 
-    # ✅ ALWAYS show Findings + Export section (locked preview restored)
+    # ✅ ALWAYS show Findings + Export section
     st.divider()
 
     if st.session_state.scan_results:
@@ -1204,7 +1202,6 @@ with tab_audit:
     gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
     df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
 
-    # Filters only when there is data
     if not df_preview.empty:
         f1, f2, f3 = st.columns([1.2, 1.2, 2.6])
         with f1:
@@ -1358,12 +1355,14 @@ with tab_audit:
                 st.button("📥 Download CSV (locked)", disabled=True, use_container_width=True)
                 st.caption("Buy 1 export credit to download exports.")
             else:
+                # ✅ UPDATED: CSV now consumes 1 export credit too
                 st.download_button(
-                    "📥 Download CSV",
+                    "📥 Download CSV" + ("" if pro_mode else " (uses 1 export credit)"),
                     data=df_findings.to_csv(index=False),
                     file_name="zenaudit_report.csv",
                     mime="text/csv",
                     use_container_width=True,
+                    on_click=_consume_once,
                     key="download_csv_btn",
                 )
 
