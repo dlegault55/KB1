@@ -1099,8 +1099,9 @@ with tab_privacy:
     )
 
 with tab_pro:
- base, pay_url = _worker_cfg()
-st.caption(f"DEBUG: base={base!r} email={st.session_state.pro_email!r}")
+_base, pay_url = _worker_cfg()
+st.caption(f"DEBUG: base={_base!r} email={st.session_state.pro_email!r}")
+
 
 
     c1, c2 = st.columns(2)
