@@ -50,7 +50,7 @@ section[data-testid="stSidebar"] {
     margin-right: 6px;
 }
 
-/* ✅ Sidebar tagline */
+/* ✅ New: Sidebar tagline */
 .za-tagline {
     color: #9FB1CC;
     font-size: 0.88rem;
@@ -166,6 +166,11 @@ a.za-linkbtn {
     font-size: 0.85rem;
 }
 
+/* Align buy button with email field */
+.za-btnrow {
+    padding-top: 26px;
+}
+
 /* Pricing explainer */
 .za-pricing {
     margin: 10px 0 16px 0;
@@ -248,30 +253,6 @@ a.za-linkbtn {
 .za-table a {
     color: #BBD2F3;
     text-decoration: underline;
-}
-
-/* ✅ Export section: force uniform full-width controls (buttons + link button) */
-.za-export [data-testid="stButton"] button,
-.za-export [data-testid="stDownloadButton"] button {
-    width: 100% !important;
-    height: 46px !important;
-    border-radius: 12px !important;
-    font-weight: 800 !important;
-}
-
-.za-export a.za-linkbtn {
-    width: 100% !important;
-    height: 46px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: 12px !important;
-}
-
-.za-export .za-export-caption {
-    margin-top: 8px;
-    color: #9FB1CC;
-    font-size: 0.86rem;
 }
 </style>
 """,
@@ -746,7 +727,6 @@ with tab_audit:
     with a3:
         st.markdown("<div class='za-subtle'>Tip: Disable Broken Links/Images for a faster first pass.</div>", unsafe_allow_html=True)
 
-    # ✅ FIXED: Properly wrapped HTML so no raw <div> shows up
     st.markdown(
         f"""
 <div class="za-pricing">
@@ -772,10 +752,9 @@ with tab_audit:
       <li>Click <b>Connect to Zendesk</b> to verify access</li>
       <li>Click <b>Run scan</b> to start the audit</li>
     </ol>
-
-    <div style="margin-top:6px; color:#9FB1CC;">
-      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.
-    </div>
+<div style="margin-top:6px; color:#9FB1CC;">
+  We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.<br>
+</div>
   </div>
 
   <div class="za-line">
@@ -1003,9 +982,6 @@ with tab_audit:
 
         st.markdown("### 🔓 Export full report")
 
-        # ✅ Scope the export UI so CSS can force uniform button sizing reliably
-        st.markdown("<div class='za-export'>", unsafe_allow_html=True)
-
         u1, uR = st.columns([2.2, 1.8])
 
         with u1:
@@ -1035,7 +1011,9 @@ with tab_audit:
                 )
 
         with uR:
+            st.markdown("<div class='za-btnrow'>", unsafe_allow_html=True)
             link_cta("💳 Buy 1 export credit ($29)", pay_url)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         if unlock_btn:
             if pro_mode:
@@ -1094,15 +1072,6 @@ with tab_audit:
             else:
                 st.warning(err or "Could not use export credit (try again).")
 
-        # ✅ Uniform bottom row: no per-column captions (they cause uneven height / “jumbled” look)
-        export_help = ""
-        if total_findings <= 0:
-            export_help = ""
-        elif not pro_access:
-            export_help = "Buy 1 export credit to download exports."
-        elif (not xlsx_bytes) and (xlsx_err):
-            export_help = xlsx_err
-
         e1, e2 = st.columns([1, 1])
         with e1:
             if total_findings <= 0:
@@ -1110,6 +1079,7 @@ with tab_audit:
             else:
                 if not pro_access:
                     st.button("📥 Download XLSX (locked)", disabled=True, use_container_width=True)
+                    st.caption("Buy 1 export credit to download exports.")
                 else:
                     if xlsx_bytes:
                         st.download_button(
@@ -1122,6 +1092,7 @@ with tab_audit:
                         )
                     else:
                         st.button("📥 Download XLSX", disabled=True, use_container_width=True)
+                        st.caption(xlsx_err or "XLSX export unavailable.")
 
         with e2:
             if total_findings <= 0:
@@ -1129,6 +1100,7 @@ with tab_audit:
             else:
                 if not pro_access:
                     st.button("📥 Download CSV (locked)", disabled=True, use_container_width=True)
+                    st.caption("Buy 1 export credit to download exports.")
                 else:
                     st.download_button(
                         "📥 Download CSV",
@@ -1137,12 +1109,6 @@ with tab_audit:
                         mime="text/csv",
                         use_container_width=True,
                     )
-
-        if export_help:
-            st.markdown(f"<div class='za-export-caption'>{export_help}</div>", unsafe_allow_html=True)
-
-        # ✅ close export scope
-        st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================
 # 9) OTHER TABS
