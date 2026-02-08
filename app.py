@@ -502,7 +502,8 @@ def run_scan(
             typos = 0
             if do_typo:
                 text = (text_raw or "").lower()
-                words = spell.split_words(text)
+                # Safer than spell.split_words (varies by pyspellchecker version)
+                words = re.findall(r"[a-zA-Z']+", text)
                 candidates = [w for w in spell.unknown(words) if len(w) > 2 and w.isalpha()]
                 typos = len(candidates)
 
@@ -614,7 +615,12 @@ with st.sidebar:
 
     # ✅ Use a form so the Run Scan click isn't lost to sidebar reruns
     with st.form("zd_conn_form", clear_on_submit=False):
-        subdomain_in = st.text_input("Subdomain", value=st.session_state.zd_subdomain, placeholder="acme", help="e.g. acme for acme.zendesk.com")
+        subdomain_in = st.text_input(
+            "Subdomain",
+            value=st.session_state.zd_subdomain,
+            placeholder="acme",
+            help="e.g. acme for acme.zendesk.com",
+        )
         email_in = st.text_input("Admin Email", value=st.session_state.zd_email)
         token_in = st.text_input("API Token", type="password", value=st.session_state.zd_token)
         save_creds = st.form_submit_button("✅ Save credentials")
@@ -643,7 +649,6 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Limits & gating")
-    # ✅ Must-do: default OFF
     pro_mode = st.checkbox("Pro Mode (dev)", value=False)
     max_articles = st.number_input("Max Articles (0 = all)", min_value=0, value=0, step=50)
 
@@ -673,9 +678,7 @@ with tab_audit:
 
     # Pricing explainer (shown before scan so the flow is obvious)
     st.markdown(
-st.markdown(
-  st.markdown(
-    f"""
+        f"""
 <div class="za-pricing">
   <div class="za-badge">FREE SCAN • PAID EXPORT</div>
   <div class="za-title">Scan first. Pay only if you want the full report.</div>
@@ -686,8 +689,7 @@ st.markdown(
       <li>Enter your Help Center <b>subdomain</b> (example: <code>acme</code> for <code>acme.zendesk.com</code>)</li>
       <li>Enter your Zendesk <b>admin email</b></li>
       <li>
-        Enter a valid <b>API token</b>
-        <br>
+        Enter a valid <b>API token</b><br>
         <span style="color:#9FB1CC;">
           Admin Center → Apps and integrations → APIs → Zendesk API → Add API token
         </span>
@@ -699,8 +701,7 @@ st.markdown(
     Running a scan is <b>free</b> and includes a preview of up to
     <b>{FREE_FINDING_LIMIT}</b> findings.
     After the scan completes, you can export the <b>full report</b>
-    (all findings + Excel export) for a
-    <b>one-time $29 fee</b>.
+    (all findings + Excel export) for a <b>one-time $29 fee</b>.
     Your export credit is used only when you download the full <b>XLSX</b>.
   </div>
 
@@ -711,9 +712,8 @@ st.markdown(
   </div>
 </div>
 """,
-    unsafe_allow_html=True,
-)
-
+        unsafe_allow_html=True,
+    )
 
     if clear_btn:
         st.session_state.scan_results = []
