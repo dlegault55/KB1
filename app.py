@@ -199,6 +199,52 @@ a.za-linkbtn {
 .za-pricing b {
     color: #E6EEF8;
 }
+
+/* Custom table (no Streamlit toolbar) */
+.za-tablewrap {
+    border: 1px solid #1F2A44;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0F1A2E;
+}
+
+.za-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.za-table th {
+    text-align: left;
+    padding: 10px 10px;
+    background: #0B1220;
+    color: #E6EEF8;
+    border-bottom: 1px solid #1F2A44;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.za-table td {
+    padding: 10px 10px;
+    border-bottom: 1px solid rgba(31,42,68,0.55);
+    color: #BBD2F3;
+    vertical-align: top;
+}
+
+.za-table tr:hover td {
+    background: rgba(56,189,248,0.05);
+}
+
+.za-scroll {
+    max-height: 520px;
+    overflow: auto;
+}
+
+.za-table a {
+    color: #BBD2F3;
+    text-decoration: underline;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -337,19 +383,6 @@ def log_connection_established():
     st.session_state.connected_ok = True
     push_log("✅ Connected to Zendesk")
 
-def build_column_config():
-    cc = getattr(st, "column_config", None)
-    if not cc:
-        return {}
-
-    if hasattr(cc, "LinkColumn") and hasattr(cc, "NumberColumn"):
-        return {"Article URL": cc.LinkColumn("Article"), "Target URL": cc.LinkColumn("Target"), "HTTP Status": cc.NumberColumn("Status")}
-
-    if hasattr(cc, "Link_Column") and hasattr(cc, "Number_Column"):
-        return {"Article URL": cc.Link_Column("Article"), "Target URL": cc.Link_Column("Target"), "HTTP Status": cc.Number_Column("Status")}
-
-    return {}
-
 def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str]]:
     try:
         import openpyxl  # noqa: F401
@@ -360,16 +393,38 @@ def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str
         df.to_excel(writer, index=False, sheet_name="Findings")
     return bio.getvalue(), None
 
+def _make_clickable(v: Any) -> str:
+    s = "" if v is None else str(v)
+    if s.startswith("http://") or s.startswith("https://"):
+        return f'<a href="{s}" target="_blank" rel="noopener">{s}</a>'
+    return s
+
+def render_table_no_toolbar(df: pd.DataFrame) -> None:
+    if df is None or df.empty:
+        st.info("No findings to display.")
+        return
+
+    show = df.copy()
+    for col in ("Article URL", "Target URL"):
+        if col in show.columns:
+            show[col] = show[col].map(_make_clickable)
+
+    html = show.to_html(index=False, escape=False, classes="za-table")
+    st.markdown(
+        f"""
+<div class="za-tablewrap">
+  <div class="za-scroll">
+    {html}
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
 # =========================
 # 4b) PAYWALL / WORKER
 # =========================
 def _worker_cfg() -> Tuple[Optional[str], str]:
-    """
-    Worker supports:
-      GET /status?email=...
-      GET /consume?email=...
-      GET /grant?email=...&n=...   (temp/dev)
-    """
     base = st.secrets.get("WORKER_BASE_URL")
     pay = st.secrets.get("PAYMENT_LINK_URL", "") or ""
     if not base:
@@ -407,11 +462,6 @@ def worker_consume(email: str) -> Tuple[bool, int, str]:
         return False, 0, f"Consume error: {e}"
 
 def pro_access_active(pro_mode: bool) -> bool:
-    """
-    IMPORTANT:
-    - Scanning must ALWAYS be allowed (free).
-    - Paywall only gates EXPORTS.
-    """
     if pro_mode:
         return True
     return bool(st.session_state.pro_unlocked) and (not st.session_state.xlsx_consumed_local)
@@ -881,7 +931,6 @@ with tab_audit:
 
         total_findings = len(df_findings)
 
-        # Preview gating (unchanged)
         pro_access = pro_access_active(pro_mode)
         gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
         df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
@@ -908,16 +957,7 @@ with tab_audit:
                     | view["Target URL"].fillna("").str.lower().str.contains(qq)
                 ]
 
-        col_cfg = build_column_config()
-
-        # Removes Streamlit's dataframe toolbar download/search/fullscreen
-        st.data_editor(
-            view,
-            use_container_width=True,
-            hide_index=True,
-            disabled=True,
-            column_config=col_cfg if col_cfg else None,
-        )
+        render_table_no_toolbar(view)
 
         st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
         if gated:
@@ -925,21 +965,6 @@ with tab_audit:
 
         st.markdown("### 🔓 Export full report")
 
-        st.markdown(
-            """
-<div class="za-subtle">
-<b>How it works</b>
-<ul style="margin:6px 0 0 18px;">
-  <li>Run your scan (free preview shows up to 50 findings).</li>
-  <li>Buy only if you want the full export.</li>
-  <li>After paying, use the same checkout email and click <b>I paid</b> to check for an export credit.</li>
-</ul>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
-
-        # Left: email + I paid under it. Right: buy button.
         u1, uR = st.columns([2.2, 1.8])
 
         with u1:
@@ -956,17 +981,10 @@ with tab_audit:
             st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
             unlock_btn = st.button(
-                "✅ I paid",
+                "✅ Verify purchase",
                 use_container_width=True,
                 disabled=(not bool(st.session_state.pro_email)) or ((not base) and (not pro_mode)),
                 key="btn_unlock_paid",
-            )
-
-            st.markdown(
-                "<div class='za-subtle' style='margin-top:6px;'>"
-                "I paid checks your email for export credits. Downloading uses 1 export credit."
-                "</div>",
-                unsafe_allow_html=True,
             )
 
             if (not base) and (not pro_mode):
@@ -980,7 +998,6 @@ with tab_audit:
             link_cta("💳 Buy 1 export credit ($29)", pay_url)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # ✅ Recommended fix: force rerun after successful unlock so buttons immediately unlock
         if unlock_btn:
             if pro_mode:
                 st.session_state.pro_unlocked = True
@@ -995,30 +1012,29 @@ with tab_audit:
                     st.toast("Export credit available ✅", icon="✅")
                     st.rerun()
 
-        # Status pill
+        # Status pill (UPDATED: includes download note)
         if pro_mode:
             st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — export available.</div>", unsafe_allow_html=True)
         else:
             if st.session_state.pro_unlocked:
                 st.markdown(
-                    f"<div class='za-pill-ok'>✅ Export credit available • Credits remaining: {st.session_state.pro_available_scans}</div>",
+                    f"<div class='za-pill-ok'>✅ Export credit available • Credits remaining: {st.session_state.pro_available_scans}"
+                    f"<br><span style='color:#9FB1CC; font-weight:600;'>Downloading uses 1 export credit. Save the file after downloading.</span></div>",
                     unsafe_allow_html=True,
                 )
             else:
                 if st.session_state.pro_email:
                     msg = st.session_state.pro_last_status_error or (
                         "No export credit found for this email yet. "
-                        "Use the same email as Stripe checkout, wait 10–30 seconds, then click “I paid” again."
+                        "Use the same email as Stripe checkout, wait 10–30 seconds, then click “verify purchase” again."
                     )
                     st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
 
-        # ✅ Spacing between status pill and download buttons
         st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
 
-        # ✅ Recompute access after any state changes (belt + suspenders)
+        # Recompute access after state changes
         pro_access = pro_access_active(pro_mode)
 
-        # Exports: generate full bytes, but only allow downloads when pro_access=True
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(df_findings)
 
         def _consume_once():
@@ -1049,8 +1065,6 @@ with tab_audit:
                     st.caption("Buy 1 export credit to download exports.")
                 else:
                     if xlsx_bytes:
-                        if not pro_mode:
-                            st.caption("Downloading uses 1 export credit. Save the file after downloading.")
                         st.download_button(
                             "📥 Download XLSX" + ("" if pro_mode else " (uses 1 export credit)"),
                             data=xlsx_bytes,
