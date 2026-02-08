@@ -367,7 +367,7 @@ class timed_phase:
         return False  # don't suppress exceptions
 
 # =========================
-# 4) HELPERS
+# 4) INPUT + UI HELPERS
 # =========================
 def link_cta(label: str, url: str):
     """Compatible replacement for st.link_button across Streamlit versions."""
@@ -381,9 +381,7 @@ def link_cta(label: str, url: str):
 
 def render_obfuscated_email(email_user: str, email_domain: str, label: str = "Support"):
     """
-    Renders an obfuscated email as readable text without ever including a raw 'user@domain.tld'
-    substring in the HTML (reduces basic scraper pickup). Avoids mailto: links.
-    Example output: Support: support [at] example [dot] com
+    Obfuscated text (no raw user@domain string, no mailto:) to reduce basic scraper pickup.
     """
     safe = f"{email_user} [at] {email_domain.replace('.', ' [dot] ')}"
     st.markdown(
@@ -422,8 +420,8 @@ def is_valid_email_format(raw: str) -> bool:
 
 def verify_zendesk_connection(subdomain: str, email: str, token: str) -> Tuple[bool, str]:
     """
-    ✅ IMPORTANT: validate against the SAME endpoint used by the scan,
-    to avoid false 403s from other admin-only endpoints.
+    ✅ Validate against the SAME endpoint used by the scan.
+    This avoids false 403s from other admin-only endpoints.
     """
     if not subdomain or not email or not token:
         return False, "Missing subdomain/email/token."
@@ -452,6 +450,9 @@ def verify_zendesk_connection(subdomain: str, email: str, token: str) -> Tuple[b
     except Exception as e:
         return False, f"Connection error: {str(e)[:200]}"
 
+# =========================
+# 4) SCAN HELPERS
+# =========================
 def safe_parse_updated_at(s: str) -> Optional[datetime]:
     try:
         return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
@@ -727,13 +728,7 @@ def run_scan(
                     r = requests.get(url, auth=auth, timeout=REQUEST_TIMEOUT)
 
                 if r.status_code == 401:
-                    log_event(
-                        "zendesk_auth_fail",
-                        scan_id,
-                        user_hash=user_hash,
-                        user_domain=user_domain,
-                        http_status=401,
-                    )
+                    log_event("zendesk_auth_fail", scan_id, user_hash=user_hash, user_domain=user_domain, http_status=401)
                     raise RuntimeError("Auth failed (401). Check email/token and Zendesk API settings.")
 
                 if r.status_code >= 400:
@@ -1027,6 +1022,7 @@ with tab_audit:
         unsafe_allow_html=True,
     )
 
+    # ✅ Run scan + clear results moved under instructions
     a1, a2, a3 = st.columns([1.15, 1.0, 2.2])
     with a1:
         run_btn = st.button("🚀 Run scan", type="primary", use_container_width=True)
@@ -1243,35 +1239,19 @@ with tab_audit:
         if gated:
             st.warning(f"Free preview shows the first **{FREE_FINDING_LIMIT}** findings. Export the full report by purchasing an export credit.")
 
+        # ✅ RESTORED: locked-but-visible export section (always shows options/buttons)
         st.markdown("### 🔓 Export full report")
 
-        st.markdown(
-            """
-<div class="za-next">
-  👉 <b>Export steps</b><br>
-  <span>
-    1) Buy 1 export credit •
-    2) Verify purchase with the same email •
-    3) Download the full XLSX/CSV report
-  </span>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
+        # Buy first, then email/verify
+        uL, uR = st.columns([1.8, 2.2])
 
-        b1, b2 = st.columns([1.8, 2.2])
-
-        with b1:
-            st.markdown("**Step 1 — Buy export credit**")
+        with uL:
+            st.markdown("**Step 1 — Buy 1 export credit**")
             link_cta("💳 Buy 1 export credit ($29)", pay_url)
-            st.markdown(
-                "<div class='za-subtle' style='margin-top:6px;'>Only buy if you want to download exports.</div>",
-                unsafe_allow_html=True,
-            )
+            st.markdown("<div class='za-subtle' style='margin-top:6px;'>Only buy if you want to download exports.</div>", unsafe_allow_html=True)
 
-        with b2:
+        with uR:
             st.markdown("**Step 2 — Verify purchase**")
-
             unlock_email = st.text_input(
                 "Email used at checkout",
                 value=st.session_state.pro_email,
@@ -1281,27 +1261,21 @@ with tab_audit:
             ).strip().lower()
             st.session_state.pro_email = unlock_email
 
-            purchase_email_ok = bool(unlock_email) and is_valid_email_format(unlock_email)
+            purchase_email_ok = (not unlock_email) or is_valid_email_format(unlock_email)
             if unlock_email and not purchase_email_ok:
                 st.error("Enter a valid checkout email (example: admin@company.com).")
 
             unlock_btn = st.button(
                 "✅ Verify purchase",
                 use_container_width=True,
-                disabled=(not purchase_email_ok) or ((not base) and (not pro_mode)),
+                disabled=(not bool(unlock_email)) or (not is_valid_email_format(unlock_email)) or ((not base) and (not pro_mode)),
                 key="btn_unlock_paid",
             )
 
-            st.markdown(
-                "<div class='za-subtle'>Use the same email you used at Stripe checkout.</div>",
-                unsafe_allow_html=True,
-            )
+            st.markdown("<div class='za-subtle'>Use the same email you used at Stripe checkout.</div>", unsafe_allow_html=True)
 
             if (not base) and (not pro_mode):
-                st.markdown(
-                    "<div class='za-pill-warn'>⚠️ Paywall not configured (missing WORKER_BASE_URL secret).</div>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown("<div class='za-pill-warn'>⚠️ Paywall not configured (missing WORKER_BASE_URL secret).</div>", unsafe_allow_html=True)
 
         if unlock_btn:
             if pro_mode:
@@ -1317,6 +1291,7 @@ with tab_audit:
                     st.toast("Export credit available ✅", icon="✅")
                     st.rerun()
 
+        # Status pill (includes download note) — restored behavior
         if pro_mode:
             st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — export available.</div>", unsafe_allow_html=True)
         else:
@@ -1327,21 +1302,16 @@ with tab_audit:
                     unsafe_allow_html=True,
                 )
             else:
-                if st.session_state.pro_email:
-                    msg = st.session_state.pro_last_status_error or (
-                        "No export credit found for this email yet. "
-                        "Use the same email as Stripe checkout, wait 10–30 seconds, then click “Verify purchase” again."
-                    )
-                    st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
-                else:
-                    st.markdown(
-                        "<div class='za-pill-info'>ℹ️ Buy an export credit, then verify with your checkout email to unlock downloads.</div>",
-                        unsafe_allow_html=True,
-                    )
+                msg = st.session_state.pro_last_status_error or (
+                    "Buy 1 export credit, then verify with your checkout email to unlock downloads."
+                )
+                st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
 
         st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
 
+        # Recompute access after state changes
         pro_access = pro_access_active(pro_mode)
+
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(df_findings)
 
         def _consume_once():
@@ -1362,6 +1332,7 @@ with tab_audit:
             else:
                 st.warning(err or "Could not use export credit (try again).")
 
+        # Download buttons — locked preview restored
         d1, d2 = st.columns([2.2, 1.8])
 
         with d1:
