@@ -232,6 +232,11 @@ def ss_init():
     # Local/session guard to prevent double-consume via Streamlit reruns
     st.session_state.setdefault("xlsx_consumed_local", False)
 
+    # Store creds safely so Run Scan doesn't depend on sidebar keystrokes
+    st.session_state.setdefault("zd_subdomain", "")
+    st.session_state.setdefault("zd_email", "")
+    st.session_state.setdefault("zd_token", "")
+
 ss_init()
 
 # =========================
@@ -400,7 +405,7 @@ def worker_consume(email: str) -> Tuple[bool, int, str]:
         r = requests.get(f"{base}/consume", params={"email": email}, timeout=15)
         if r.status_code != 200:
             if r.status_code == 409:
-                return False, 0, "No scans available to consume."
+                return False, 0, "No export credits available."
             return False, 0, f"Consume failed ({r.status_code})."
         data = r.json()
         avail = int(data.get("available_scans") or 0)
@@ -409,6 +414,11 @@ def worker_consume(email: str) -> Tuple[bool, int, str]:
         return False, 0, f"Consume error: {e}"
 
 def pro_access_active(pro_mode: bool) -> bool:
+    """
+    IMPORTANT:
+    - Scanning must ALWAYS be allowed (free).
+    - Paywall only gates EXPORTS.
+    """
     if pro_mode:
         return True
     return bool(st.session_state.pro_unlocked) and (not st.session_state.xlsx_consumed_local)
@@ -421,7 +431,7 @@ def try_unlock_from_status(email: str) -> None:
     if not email:
         st.session_state.pro_unlocked = False
         st.session_state.pro_available_scans = 0
-        st.session_state.pro_last_status_error = "Enter an email to unlock."
+        st.session_state.pro_last_status_error = "Enter an email to check export credits."
         return
 
     ok, avail, err = worker_get_status(email)
@@ -601,9 +611,24 @@ with st.sidebar:
     st.divider()
 
     st.subheader("Connection")
-    subdomain = st.text_input("Subdomain", placeholder="acme", help="e.g. acme for acme.zendesk.com")
-    email = st.text_input("Admin Email")
-    token = st.text_input("API Token", type="password")
+
+    # ✅ Use a form so the Run Scan click isn't lost to sidebar reruns
+    with st.form("zd_conn_form", clear_on_submit=False):
+        subdomain_in = st.text_input("Subdomain", value=st.session_state.zd_subdomain, placeholder="acme", help="e.g. acme for acme.zendesk.com")
+        email_in = st.text_input("Admin Email", value=st.session_state.zd_email)
+        token_in = st.text_input("API Token", type="password", value=st.session_state.zd_token)
+        save_creds = st.form_submit_button("✅ Save credentials")
+
+    if save_creds:
+        st.session_state.zd_subdomain = (subdomain_in or "").strip()
+        st.session_state.zd_email = (email_in or "").strip()
+        st.session_state.zd_token = (token_in or "").strip()
+        st.toast("Credentials saved.", icon="✅")
+
+    # Always read creds from session (stable)
+    subdomain = (st.session_state.zd_subdomain or "").strip()
+    email = (st.session_state.zd_email or "").strip()
+    token = (st.session_state.zd_token or "").strip()
 
     st.divider()
     st.subheader("Audit layers")
@@ -618,7 +643,8 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Limits & gating")
-    pro_mode = st.checkbox("Pro Mode (dev)", value=True)
+    # ✅ Must-do: default OFF
+    pro_mode = st.checkbox("Pro Mode (dev)", value=False)
     max_articles = st.number_input("Max Articles (0 = all)", min_value=0, value=0, step=50)
 
     st.caption("Zendesk® is a trademark of Zendesk, Inc.")
@@ -649,12 +675,13 @@ with tab_audit:
     st.markdown(
         f"""
 <div class="za-pricing">
-  <div class="za-badge">FREE SCAN • PAID UNLOCK</div>
+  <div class="za-badge">FREE SCAN • PAID EXPORT</div>
   <div class="za-title">Scan first. Pay only if you want the full report.</div>
   <div class="za-line">
     Running a scan is <b>free</b> and includes a preview of up to <b>{FREE_FINDING_LIMIT}</b> findings.
-    After the scan completes, you can unlock the <b>full report</b> (all findings + Excel export) for a
-    <b>one-time $30 fee</b>.
+    After the scan completes, you can export the <b>full report</b> (all findings + Excel export) for a
+    <b>one-time $29 fee</b>.
+    Your export credit is used only when you download the full <b>XLSX</b>.
   </div>
 </div>
 """,
@@ -761,10 +788,14 @@ with tab_audit:
         progress.progress(1.0, text=f"Complete ✅ ({scanned_count} articles)")
 
     if run_btn:
+        # ✅ Scan is always allowed; paywall is export-only
         if not all([subdomain, email, token]):
-            st.error("Missing credentials in the sidebar.")
+            st.error("Missing credentials in the sidebar. Click “Save credentials” first.")
         else:
             try:
+                st.toast("Scan started…", icon="🚀")
+
+                # Reset export state on a new scan (fine), but never blocks scan
                 st.session_state.pro_unlocked = False
                 st.session_state.pro_available_scans = 0
                 st.session_state.pro_last_status_error = ""
@@ -801,7 +832,7 @@ with tab_audit:
             """
 <div class="za-next">
   👉 <b>Next step</b><br>
-  <span>Review the free preview below. Unlock the full report after the table if you want the complete export.</span>
+  <span>Review the free preview below. Export the full report after the table if you want the complete export.</span>
 </div>
 """,
             unsafe_allow_html=True,
@@ -831,8 +862,9 @@ with tab_audit:
             df_findings = df_findings.sort_values(by=["_sev_rank", "Type"], ascending=[True, True]).drop(columns=["_sev_rank"])
 
         total_findings = len(df_findings)
-        pro_access = pro_access_active(pro_mode)
 
+        # ✅ Export gating only
+        pro_access = pro_access_active(pro_mode)
         gated = (not pro_access) and (total_findings > FREE_FINDING_LIMIT)
         df_preview = df_findings.head(FREE_FINDING_LIMIT) if gated else df_findings
 
@@ -867,9 +899,9 @@ with tab_audit:
 
         st.info(f"Scanned **{len(st.session_state.scan_results)}** articles. Found **{total_findings}** findings.")
         if gated:
-            st.warning(f"Free preview shows the first **{FREE_FINDING_LIMIT}** findings. Unlock to export the full report.")
+            st.warning(f"Free preview shows the first **{FREE_FINDING_LIMIT}** findings. Export the full report by purchasing an export credit.")
 
-        st.markdown("### 🔓 Unlock full report")
+        st.markdown("### 🔓 Export full report")
 
         st.markdown(
             """
@@ -878,7 +910,7 @@ with tab_audit:
 <ul style="margin:6px 0 0 18px;">
   <li>Run your scan (free preview shows up to 50 findings).</li>
   <li>Buy only if you want the full export.</li>
-  <li>After paying, use the same checkout email and click <b>I paid</b> to unlock.</li>
+  <li>After paying, use the same checkout email and click <b>I paid</b> to check for an export credit.</li>
 </ul>
 </div>
 """,
@@ -898,7 +930,7 @@ with tab_audit:
             ).strip().lower()
             st.session_state.pro_email = unlock_email
 
-            st.markdown("<div class='za-subtle'>Use the same email you use at checkout.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='za-subtle'>Use the same email you used at checkout.</div>", unsafe_allow_html=True)
 
             if (not base) and (not pro_mode):
                 st.markdown(
@@ -911,7 +943,7 @@ with tab_audit:
             bL, bR = st.columns([1, 1], gap="small")
 
             with bL:
-                link_cta("💳 Buy full report", pay_url)
+                link_cta("💳 Buy 1 export credit ($29)", pay_url)
 
             with bR:
                 unlock_btn = st.button(
@@ -921,7 +953,7 @@ with tab_audit:
                     key="btn_unlock_paid",
                 )
 
-            st.markdown("<small>After paying, click “I paid” to unlock.</small>", unsafe_allow_html=True)
+            st.markdown("<small>After paying, click “I paid” to check your export credits.</small>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
             if unlock_btn:
@@ -930,24 +962,24 @@ with tab_audit:
                     st.session_state.pro_available_scans = max(1, int(st.session_state.pro_available_scans or 1))
                     st.session_state.pro_last_status_error = ""
                     st.session_state.xlsx_consumed_local = False
-                    st.toast("Unlocked (dev) ✅", icon="✅")
+                    st.toast("Export credit available (dev) ✅", icon="✅")
                 else:
                     try_unlock_from_status(st.session_state.pro_email)
                     if st.session_state.pro_unlocked:
-                        st.toast("Unlocked ✅", icon="✅")
+                        st.toast("Export credit available ✅", icon="✅")
 
         # Status pill
         if pro_mode:
-            st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — full export unlocked.</div>", unsafe_allow_html=True)
+            st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — export available.</div>", unsafe_allow_html=True)
         else:
             if st.session_state.pro_unlocked:
                 st.markdown(
-                    f"<div class='za-pill-ok'>✅ Unlocked • Remaining scans: {st.session_state.pro_available_scans}</div>",
+                    f"<div class='za-pill-ok'>✅ Export credit available • Credits remaining: {st.session_state.pro_available_scans}</div>",
                     unsafe_allow_html=True,
                 )
             else:
                 if st.session_state.pro_email:
-                    msg = st.session_state.pro_last_status_error or "No scan credit found for this email yet. If you just paid, wait a few seconds and click “I paid”."
+                    msg = st.session_state.pro_last_status_error or "No export credit found for this email yet. If you just paid, wait a few seconds and click “I paid”."
                     st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
 
         export_df = df_findings if pro_access else df_preview
@@ -959,7 +991,7 @@ with tab_audit:
             if st.session_state.xlsx_consumed_local:
                 return
             if not st.session_state.pro_email:
-                st.warning("Enter your email above to consume a scan.")
+                st.warning("Enter your email above to use an export credit.")
                 return
 
             ok, avail, err = worker_consume(st.session_state.pro_email)
@@ -967,9 +999,9 @@ with tab_audit:
                 st.session_state.xlsx_consumed_local = True
                 st.session_state.pro_unlocked = False
                 st.session_state.pro_available_scans = avail
-                st.toast("Scan used ✅ (Excel download)", icon="✅")
+                st.toast("Export credit used ✅ (XLSX download)", icon="✅")
             else:
-                st.warning(err or "Could not consume scan (try again).")
+                st.warning(err or "Could not use export credit (try again).")
 
         e1, e2 = st.columns([1, 1])
         with e1:
@@ -978,13 +1010,13 @@ with tab_audit:
             else:
                 if not pro_access:
                     st.button("📥 Download XLSX (locked)", disabled=True, use_container_width=True)
-                    st.caption("Unlock full report to download XLSX.")
+                    st.caption("Buy 1 export credit to download the full XLSX.")
                 else:
                     if xlsx_bytes:
                         if not pro_mode:
                             st.caption("⚠️ One-time download. Save the file after downloading.")
                         st.download_button(
-                            "📥 Download XLSX" + ("" if pro_mode else " (uses 1 scan)"),
+                            "📥 Download XLSX" + ("" if pro_mode else " (uses 1 export credit)"),
                             data=xlsx_bytes,
                             file_name="zenaudit_report.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1045,10 +1077,10 @@ with tab_pro:
         st.write("✅ CSV export (preview)")
 
     with c2:
-        st.subheader("Paid ($20)")
+        st.subheader("Paid ($29 / export credit)")
         st.write("🚀 Full findings (beyond preview)")
-        st.write("📥 One-time Excel download (counts as 1 scan)")
-        link_cta("💳 Buy full report ($20)", pay_url)
+        st.write("📥 One-time Excel download (uses 1 export credit)")
+        link_cta("💳 Buy 1 export credit ($29)", pay_url)
 
     st.divider()
     st.caption("Flow: Run scan → review preview → buy only if you want the full export.")
