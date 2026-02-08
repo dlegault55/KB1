@@ -873,7 +873,7 @@ def run_scan(
 with st.sidebar:
     st.markdown(
         f"## {APP_ICON} {APP_TITLE}\n"
-        f"<div class='za-tagline'>Premium Zendesk Help Center audits — in minutes.</div>",
+        f"<div class='za-tagline'>Boost deflection by fixing Help Center issues fast.</div>",
         unsafe_allow_html=True,
     )
     st.divider()
@@ -940,7 +940,7 @@ with st.sidebar:
     st.caption("Zendesk® is a trademark of Zendesk, Inc.")
 
     st.divider()
-    render_obfuscated_email("support", "yourdomain.com", label="Need help?")
+    render_obfuscated_email("hello", "supportzen.net", label="Need help?")
 
 # =========================
 # 7) TOP-LEVEL UI
@@ -960,7 +960,7 @@ with tab_audit:
         f"""
 <div class="za-pricing">
   <div class="za-badge">FREE SCAN • PAID EXPORT</div>
-  <div class="za-title">Scan first. Pay only if you want the full report.</div>
+  <div class="za-title">Scan first. Pay only if you want the full report. No subscription or commitment.</div>
 
   <div class="za-line" style="margin-top:8px;">
     <b>How to run a scan</b>
