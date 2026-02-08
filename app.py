@@ -10,6 +10,14 @@ import streamlit as st
 from bs4 import BeautifulSoup
 from spellchecker import SpellChecker
 
+# ✅ Logging
+import json
+import time
+import uuid
+import hashlib
+import logging
+import traceback
+
 # =========================
 # 1) APP CONFIG
 # =========================
@@ -271,6 +279,10 @@ def ss_init():
     st.session_state.setdefault("last_scanned_title", "")
     st.session_state.setdefault("connected_ok", False)
 
+    # ✅ Logging / diagnostics
+    st.session_state.setdefault("scan_id", "")
+    st.session_state.setdefault("scan_started_at", None)
+
     # Pro / Paywall state
     st.session_state.setdefault("pro_email", "")
     st.session_state.setdefault("pro_unlocked", False)
@@ -289,6 +301,70 @@ ss_init()
 
 # ✅ Internal-only dev controls flag (default OFF)
 SHOW_DEV_CONTROLS = bool(st.secrets.get("SHOW_DEV_CONTROLS", False))
+
+# =========================
+# 3b) LOGGING HELPERS
+# =========================
+APP_VERSION = str(st.secrets.get("APP_VERSION", "dev"))
+logger = logging.getLogger("zenaudit")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    _h = logging.StreamHandler()
+    _h.setLevel(logging.INFO)
+    logger.addHandler(_h)
+
+def _hash_email(email: str) -> str:
+    if not email:
+        return ""
+    return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()[:16]
+
+def _safe_domain(email: str) -> str:
+    try:
+        e = (email or "").strip().lower()
+        if "@" in e:
+            return e.split("@", 1)[1]
+    except Exception:
+        pass
+    return ""
+
+def log_event(event: str, scan_id: str, **fields):
+    # IMPORTANT: never log tokens/auth headers
+    payload = {
+        "event": event,
+        "scan_id": scan_id,
+        "app_version": APP_VERSION,
+        "ts": datetime.utcnow().isoformat() + "Z",
+        **fields,
+    }
+    logger.info(json.dumps(payload, default=str))
+
+class timed_phase:
+    def __init__(self, scan_id: str, phase: str, **base_fields):
+        self.scan_id = scan_id
+        self.phase = phase
+        self.base_fields = base_fields
+        self.t0 = None
+
+    def __enter__(self):
+        self.t0 = time.time()
+        log_event("scan_phase_start", self.scan_id, phase=self.phase, **self.base_fields)
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        elapsed_ms = int((time.time() - (self.t0 or time.time())) * 1000)
+        if exc:
+            log_event(
+                "scan_phase_fail",
+                self.scan_id,
+                phase=self.phase,
+                elapsed_ms=elapsed_ms,
+                error_type=getattr(exc_type, "__name__", "Exception"),
+                error_message_short=str(exc)[:300],
+                **self.base_fields,
+            )
+        else:
+            log_event("scan_phase_ok", self.scan_id, phase=self.phase, elapsed_ms=elapsed_ms, **self.base_fields)
+        return False  # don't suppress exceptions
 
 # =========================
 # 4) HELPERS
@@ -444,11 +520,26 @@ def worker_get_status(email: str) -> Tuple[bool, int, str]:
     try:
         r = requests.get(f"{base}/status", params={"email": email}, timeout=10)
         if r.status_code != 200:
+            # ✅ log worker status failures (no PII besides hash/domain)
+            log_event(
+                "worker_status_fail",
+                st.session_state.scan_id or "",
+                user_hash=_hash_email(email),
+                user_domain=_safe_domain(email),
+                http_status=r.status_code,
+            )
             return False, 0, f"Status check failed ({r.status_code})."
         data = r.json()
         avail = int(data.get("available_scans") or 0)
         return (avail > 0), avail, ""
     except Exception as e:
+        log_event(
+            "worker_status_error",
+            st.session_state.scan_id or "",
+            user_hash=_hash_email(email),
+            user_domain=_safe_domain(email),
+            error_message_short=str(e)[:300],
+        )
         return False, 0, f"Status check error: {e}"
 
 def worker_consume(email: str) -> Tuple[bool, int, str]:
@@ -458,6 +549,13 @@ def worker_consume(email: str) -> Tuple[bool, int, str]:
     try:
         r = requests.get(f"{base}/consume", params={"email": email}, timeout=15)
         if r.status_code != 200:
+            log_event(
+                "worker_consume_fail",
+                st.session_state.scan_id or "",
+                user_hash=_hash_email(email),
+                user_domain=_safe_domain(email),
+                http_status=r.status_code,
+            )
             if r.status_code == 409:
                 return False, 0, "No export credits available."
             return False, 0, f"Consume failed ({r.status_code})."
@@ -465,6 +563,13 @@ def worker_consume(email: str) -> Tuple[bool, int, str]:
         avail = int(data.get("available_scans") or 0)
         return True, avail, ""
     except Exception as e:
+        log_event(
+            "worker_consume_error",
+            st.session_state.scan_id or "",
+            user_hash=_hash_email(email),
+            user_domain=_safe_domain(email),
+            error_message_short=str(e)[:300],
+        )
         return False, 0, f"Consume error: {e}"
 
 def pro_access_active(pro_mode: bool) -> bool:
@@ -506,6 +611,11 @@ def run_scan(
     progress_cb,
     status_cb,
 ):
+    # ✅ new scan id each run
+    scan_id = str(uuid.uuid4())
+    st.session_state.scan_id = scan_id
+    st.session_state.scan_started_at = datetime.utcnow().isoformat() + "Z"
+
     st.session_state.scan_results = []
     st.session_state.findings = []
     st.session_state.last_logs = []
@@ -514,6 +624,10 @@ def run_scan(
     st.session_state.last_scanned_title = ""
     st.session_state.connected_ok = False
 
+    # never log raw email/token
+    user_hash = _hash_email(email)
+    user_domain = _safe_domain(email)
+
     auth = (f"{email}/token", token)
     base_url = f"https://{subdomain}.zendesk.com"
     url = f"{base_url}/api/v2/help_center/articles.json?per_page={ZENDESK_PER_PAGE}"
@@ -521,125 +635,197 @@ def run_scan(
     scanned = 0
     connection_logged = False
 
-    while url:
-        r = requests.get(url, auth=auth, timeout=REQUEST_TIMEOUT)
-        if r.status_code == 401:
-            raise RuntimeError("Auth failed (401). Check email/token and Zendesk API settings.")
-        r.raise_for_status()
+    log_event(
+        "scan_start",
+        scan_id,
+        user_hash=user_hash,
+        user_domain=user_domain,
+        zd_subdomain=subdomain,
+        base_url=base_url,
+        do_stale=bool(do_stale),
+        do_typo=bool(do_typo),
+        do_alt=bool(do_alt),
+        do_links=bool(do_links),
+        do_images=bool(do_images),
+        max_articles=int(max_articles or 0),
+    )
 
-        if not connection_logged:
-            log_connection_established()
-            connection_logged = True
+    try:
+        with timed_phase(scan_id, "zendesk_list_articles", zd_subdomain=subdomain):
+            while url:
+                # Per-page fetch
+                with timed_phase(scan_id, "zendesk_fetch_page", page_url=url[:200]):
+                    r = requests.get(url, auth=auth, timeout=REQUEST_TIMEOUT)
 
-        data = r.json()
-        articles = data.get("articles", [])
+                if r.status_code == 401:
+                    log_event(
+                        "zendesk_auth_fail",
+                        scan_id,
+                        user_hash=user_hash,
+                        user_domain=user_domain,
+                        http_status=401,
+                    )
+                    raise RuntimeError("Auth failed (401). Check email/token and Zendesk API settings.")
 
-        for art in articles:
-            scanned += 1
-            if max_articles and scanned > max_articles:
-                url = None
-                break
+                # Raise other HTTP errors with context
+                if r.status_code >= 400:
+                    log_event(
+                        "zendesk_http_error",
+                        scan_id,
+                        user_hash=user_hash,
+                        user_domain=user_domain,
+                        http_status=r.status_code,
+                        page_url=url[:200],
+                    )
+                r.raise_for_status()
 
-            title = art.get("title", "") or ""
-            st.session_state.last_scanned_title = title
+                if not connection_logged:
+                    log_connection_established()
+                    connection_logged = True
 
-            body = art.get("body", "") or ""
-            article_url = art.get("html_url") or f"{base_url}/hc/articles/{art.get('id')}"
+                data = r.json()
+                articles = data.get("articles", [])
 
-            soup, text_raw, links, images = extract_links_images(body, base_url=base_url)
+                # process articles
+                for art in articles:
+                    scanned += 1
+                    if max_articles and scanned > max_articles:
+                        url = None
+                        break
 
-            typos = 0
-            if do_typo:
-                text = (text_raw or "").lower()
-                words = re.findall(r"[a-zA-Z']+", text)
-                candidates = [w for w in spell.unknown(words) if len(w) > 2 and w.isalpha()]
-                typos = len(candidates)
+                    title = art.get("title", "") or ""
+                    st.session_state.last_scanned_title = title
 
-            is_stale = False
-            if do_stale:
-                updated = safe_parse_updated_at(art.get("updated_at", ""))
-                if updated:
-                    is_stale = (datetime.utcnow() - updated) > timedelta(days=365)
+                    body = art.get("body", "") or ""
+                    article_url = art.get("html_url") or f"{base_url}/hc/articles/{art.get('id')}"
 
-            alt_miss = 0
-            if do_alt:
-                alt_miss = len([img for img in soup.find_all("img") if not (img.get("alt") or "").strip()])
-            st.session_state.scan_results.append(
-                {"Title": title, "URL": article_url, "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "ID": art.get("id")}
-            )
+                    # Parse HTML
+                    with timed_phase(scan_id, "parse_article", article_id=art.get("id"), article_url=article_url[:200]):
+                        soup, text_raw, links, images = extract_links_images(body, base_url=base_url)
 
-            if do_alt:
-                for img in images:
-                    if img["missing_alt"]:
+                    typos = 0
+                    if do_typo:
+                        with timed_phase(scan_id, "typo_check", article_id=art.get("id")):
+                            text = (text_raw or "").lower()
+                            words = re.findall(r"[a-zA-Z']+", text)
+                            candidates = [w for w in spell.unknown(words) if len(w) > 2 and w.isalpha()]
+                            typos = len(candidates)
+
+                    is_stale = False
+                    if do_stale:
+                        updated = safe_parse_updated_at(art.get("updated_at", ""))
+                        if updated:
+                            is_stale = (datetime.utcnow() - updated) > timedelta(days=365)
+
+                    alt_miss = 0
+                    if do_alt:
+                        alt_miss = len([img for img in soup.find_all("img") if not (img.get("alt") or "").strip()])
+
+                    st.session_state.scan_results.append(
+                        {"Title": title, "URL": article_url, "Typos": typos, "Stale": is_stale, "Alt": alt_miss, "ID": art.get("id")}
+                    )
+
+                    if do_alt:
+                        for img in images:
+                            if img["missing_alt"]:
+                                st.session_state.findings.append(
+                                    {
+                                        "Severity": "warning",
+                                        "Type": "missing_alt",
+                                        "Article Title": title,
+                                        "Article URL": article_url,
+                                        "Target URL": img["src"],
+                                        "HTTP Status": None,
+                                        "Detail": "missing_alt",
+                                        "Suggested Fix": "Add descriptive alt text to improve accessibility and AI-readiness.",
+                                    }
+                                )
+
+                    # Link checks
+                    if do_links and links:
+                        with timed_phase(scan_id, "check_links", article_id=art.get("id"), link_count=len(links)):
+                            for lk in list(dict.fromkeys(links)):
+                                res = check_url_status(lk, timeout=8)
+                                if res["ok"] is False:
+                                    st.session_state.findings.append(
+                                        {
+                                            "Severity": res["severity"],
+                                            "Type": "broken_link",
+                                            "Article Title": title,
+                                            "Article URL": article_url,
+                                            "Target URL": lk,
+                                            "HTTP Status": res["status"],
+                                            "Detail": res["kind"],
+                                            "Suggested Fix": "Update/remove the link, or replace it with a working destination.",
+                                        }
+                                    )
+
+                    # Image checks
+                    if do_images and images:
+                        with timed_phase(scan_id, "check_images", article_id=art.get("id"), image_count=len(images)):
+                            for img in images:
+                                src = img["src"]
+                                res = check_url_status(src, timeout=8)
+                                if res["ok"] is False:
+                                    st.session_state.findings.append(
+                                        {
+                                            "Severity": res["severity"],
+                                            "Type": "broken_image",
+                                            "Article Title": title,
+                                            "Article URL": article_url,
+                                            "Target URL": src,
+                                            "HTTP Status": res["status"],
+                                            "Detail": res["kind"],
+                                            "Suggested Fix": "Fix the image URL or re-upload the image to a stable location.",
+                                        }
+                                    )
+
+                    if do_stale and is_stale:
                         st.session_state.findings.append(
                             {
-                                "Severity": "warning",
-                                "Type": "missing_alt",
+                                "Severity": "info",
+                                "Type": "stale_content",
                                 "Article Title": title,
                                 "Article URL": article_url,
-                                "Target URL": img["src"],
+                                "Target URL": None,
                                 "HTTP Status": None,
-                                "Detail": "missing_alt",
-                                "Suggested Fix": "Add descriptive alt text to improve accessibility and AI-readiness.",
+                                "Detail": "updated_over_365_days",
+                                "Suggested Fix": "Review/update this article; stale content reduces trust and deflection.",
                             }
                         )
 
-            if do_links and links:
-                for lk in list(dict.fromkeys(links)):
-                    res = check_url_status(lk, timeout=8)
-                    if res["ok"] is False:
-                        st.session_state.findings.append(
-                            {
-                                "Severity": res["severity"],
-                                "Type": "broken_link",
-                                "Article Title": title,
-                                "Article URL": article_url,
-                                "Target URL": lk,
-                                "HTTP Status": res["status"],
-                                "Detail": res["kind"],
-                                "Suggested Fix": "Update/remove the link, or replace it with a working destination.",
-                            }
-                        )
+                    push_log(f"✅ {scanned}: {title[:60]}")
+                    progress_cb(scanned)
+                    status_cb(scanned)
 
-            if do_images and images:
-                for img in images:
-                    src = img["src"]
-                    res = check_url_status(src, timeout=8)
-                    if res["ok"] is False:
-                        st.session_state.findings.append(
-                            {
-                                "Severity": res["severity"],
-                                "Type": "broken_image",
-                                "Article Title": title,
-                                "Article URL": article_url,
-                                "Target URL": src,
-                                "HTTP Status": res["status"],
-                                "Detail": res["kind"],
-                                "Suggested Fix": "Fix the image URL or re-upload the image to a stable location.",
-                            }
-                        )
+                url = data.get("next_page")
 
-            if do_stale and is_stale:
-                st.session_state.findings.append(
-                    {
-                        "Severity": "info",
-                        "Type": "stale_content",
-                        "Article Title": title,
-                        "Article URL": article_url,
-                        "Target URL": None,
-                        "HTTP Status": None,
-                        "Detail": "updated_over_365_days",
-                        "Suggested Fix": "Review/update this article; stale content reduces trust and deflection.",
-                    }
-                )
+        st.session_state.scan_running = False
+        log_event(
+            "scan_success",
+            scan_id,
+            user_hash=user_hash,
+            user_domain=user_domain,
+            scanned_articles=len(st.session_state.scan_results),
+            findings=len(st.session_state.findings),
+        )
 
-            push_log(f"✅ {scanned}: {title[:60]}")
-            progress_cb(scanned)
-            status_cb(scanned)
+    except Exception as e:
+        st.session_state.scan_running = False
 
-        url = data.get("next_page")
-
-    st.session_state.scan_running = False
+        # Server-side details for you; user gets scan_id
+        log_event(
+            "scan_failed",
+            scan_id,
+            user_hash=user_hash,
+            user_domain=user_domain,
+            scanned_so_far=len(st.session_state.scan_results),
+            findings_so_far=len(st.session_state.findings),
+            error_type=e.__class__.__name__,
+            error_message_short=str(e)[:300],
+            traceback=traceback.format_exc()[:4000],
+        )
+        raise
 
 # =========================
 # 6) SIDEBAR
@@ -780,6 +966,8 @@ with tab_audit:
         st.session_state.pro_available_scans = 0
         st.session_state.pro_last_status_error = ""
         st.session_state.xlsx_consumed_local = False
+        st.session_state.scan_id = ""
+        st.session_state.scan_started_at = None
         st.toast("Cleared.", icon="🧼")
 
     m1, m2, m3, m4, m5 = st.columns(5)
@@ -900,7 +1088,8 @@ with tab_audit:
                 st.toast("Scan complete", icon="✅")
             except Exception as e:
                 st.session_state.scan_running = False
-                st.error(f"Scan failed: {e}")
+                sid = st.session_state.scan_id or "unknown"
+                st.error(f"Scan failed (ID: {sid}). Error: {e}")
 
     refresh_metrics()
 
