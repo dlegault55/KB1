@@ -303,7 +303,7 @@ def link_cta(label: str, url: str):
         unsafe_allow_html=True,
     )
 
-# ✅ NEW (only change): consistent full-width download buttons in all states
+# ✅ Consistent full-width download buttons in all states (keeps XLSX / CSV aligned)
 def download_cta(
     label: str,
     data,
@@ -312,10 +312,6 @@ def download_cta(
     enabled: bool,
     on_click=None,
 ):
-    """
-    Consistent full-width download button for both locked and unlocked states.
-    Keeps XLSX / CSV perfectly aligned.
-    """
     try:
         return st.download_button(
             label,
@@ -327,7 +323,6 @@ def download_cta(
             disabled=not enabled,
         )
     except TypeError:
-        # Older Streamlit fallback
         if enabled:
             return st.download_button(
                 label,
@@ -731,7 +726,6 @@ with st.sidebar:
     st.divider()
     st.subheader("Limits & gating")
 
-    # ✅ Hide Pro Mode from end users (internal only)
     if SHOW_DEV_CONTROLS:
         pro_mode = st.checkbox("Pro Mode (dev)", value=False)
     else:
@@ -763,37 +757,39 @@ with tab_audit:
     with a3:
         st.markdown("<div class='za-subtle'>Tip: Disable Broken Links/Images for a faster first pass.</div>", unsafe_allow_html=True)
 
+    # ✅ FIX (only change): clean, valid HTML (no stray/unmatched </div>) so raw <div> never renders
     st.markdown(
         f"""
 <div class="za-pricing">
   <div class="za-badge">FREE SCAN • PAID EXPORT</div>
   <div class="za-title">Scan first. Pay only if you want the full report.</div>
 
-<b>How to run a scan</b>
-<ol style="margin:6px 0 10px 18px;">
-  <li>
-    Enter your Help Center <b>subdomain</b>
-    (example: <code>acme</code> for <code>acme.zendesk.com</code>)
-  </li>
-  <li>Enter your Zendesk <b>admin email</b></li>
-  <li>
-    Enter a valid <b>API token</b>
-    (required to securely access your Help Center content via the Zendesk API)
-    <br>
-    <span style="color:#9FB1CC;">
-      Admin Center → Apps and integrations → APIs → Zendesk API → Add API token
-    </span>
-  </li>
-  <li>Click <b>Connect to Zendesk</b> to verify access</li>
-  <li>Click <b>Run scan</b> to start the audit</li>
-</ol>
+  <div class="za-line" style="margin-top:8px;">
+    <b>How to run a scan</b>
+    <ol style="margin:6px 0 10px 18px;">
+      <li>
+        Enter your Help Center <b>subdomain</b>
+        (example: <code>acme</code> for <code>acme.zendesk.com</code>)
+      </li>
+      <li>Enter your Zendesk <b>admin email</b></li>
+      <li>
+        Enter a valid <b>API token</b>
+        (required to securely access your Help Center content via the Zendesk API)
+        <br>
+        <span style="color:#9FB1CC;">
+          Admin Center → Apps and integrations → APIs → Zendesk API → Add API token
+        </span>
+      </li>
+      <li>Click <b>Connect to Zendesk</b> to verify access</li>
+      <li>Click <b>Run scan</b> to start the audit</li>
+    </ol>
 
     <div style="margin-top:6px; color:#9FB1CC;">
-      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.<br>
+      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.
     </div>
   </div>
 
-  <div class="za-line">
+  <div class="za-line" style="margin-top:10px;">
     Running a scan is <b>free</b> and includes a preview of up to
     <b>{FREE_FINDING_LIMIT}</b> findings.
     After the scan completes, you can export the <b>full report</b>
@@ -1065,7 +1061,6 @@ with tab_audit:
                     st.toast("Export credit available ✅", icon="✅")
                     st.rerun()
 
-        # Status pill (includes download note)
         if pro_mode:
             st.markdown("<div class='za-pill-ok'>✅ Pro Mode enabled (dev) — export available.</div>", unsafe_allow_html=True)
         else:
@@ -1085,7 +1080,6 @@ with tab_audit:
 
         st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
 
-        # Recompute access after state changes
         pro_access = pro_access_active(pro_mode)
 
         xlsx_bytes, xlsx_err = get_xlsx_bytes_safe(df_findings)
@@ -1108,7 +1102,6 @@ with tab_audit:
             else:
                 st.warning(err or "Could not use export credit (try again).")
 
-        # ✅ UPDATED (only change): consistent buttons/widths in all states
         e1, e2 = st.columns([1, 1])
 
         with e1:
