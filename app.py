@@ -697,7 +697,7 @@ with tab_audit:
       </li>
     </ol>
     <div style="margin-top:6px; color:#9FB1CC;">
-      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.
+      We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.<br>
     </div>
   </div>
 
