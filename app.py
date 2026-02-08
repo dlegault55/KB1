@@ -1165,23 +1165,45 @@ with tab_audit:
 
         st.markdown("### 🔓 Export full report")
 
-        # ────────────────────────────────────────────────
-        # Email + Verify + Buy credit row
-        # ────────────────────────────────────────────────
-        u1, uR = st.columns([2.2, 1.8])
+        # ✅ New: clearer post-scan export instructions + Buy first, Email second
+        st.markdown(
+            """
+<div class="za-next">
+  👉 <b>Export steps</b><br>
+  <span>
+    1) Buy 1 export credit •
+    2) Verify purchase with the same email •
+    3) Download the full XLSX/CSV report
+  </span>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
 
-        with u1:
+        # ────────────────────────────────────────────────
+        # Buy first (left) → Verify second (right)
+        # ────────────────────────────────────────────────
+        b1, b2 = st.columns([1.8, 2.2])
+
+        with b1:
+            st.markdown("**Step 1 — Buy export credit**")
+            link_cta("💳 Buy 1 export credit ($29)", pay_url)
+            st.markdown(
+                "<div class='za-subtle' style='margin-top:6px;'>Only buy if you want to download exports.</div>",
+                unsafe_allow_html=True,
+            )
+
+        with b2:
+            st.markdown("**Step 2 — Verify purchase**")
+
             unlock_email = st.text_input(
-                "Email",
+                "Email used at checkout",
                 value=st.session_state.pro_email,
                 placeholder="admin@company.com",
                 label_visibility="visible",
                 key="unlock_email_main",
             ).strip().lower()
             st.session_state.pro_email = unlock_email
-
-            st.markdown("<div class='za-subtle'>Use the same email you used at checkout.</div>", unsafe_allow_html=True)
-            st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
             unlock_btn = st.button(
                 "✅ Verify purchase",
@@ -1190,16 +1212,16 @@ with tab_audit:
                 key="btn_unlock_paid",
             )
 
+            st.markdown(
+                "<div class='za-subtle'>Use the same email you used at Stripe checkout.</div>",
+                unsafe_allow_html=True,
+            )
+
             if (not base) and (not pro_mode):
                 st.markdown(
                     "<div class='za-pill-warn'>⚠️ Paywall not configured (missing WORKER_BASE_URL secret).</div>",
                     unsafe_allow_html=True,
                 )
-
-        with uR:
-            st.markdown("<div class='za-btnrow'>", unsafe_allow_html=True)
-            link_cta("💳 Buy 1 export credit ($29)", pay_url)
-            st.markdown("</div>", unsafe_allow_html=True)
 
         if unlock_btn:
             if pro_mode:
@@ -1232,6 +1254,11 @@ with tab_audit:
                         "Use the same email as Stripe checkout, wait 10–30 seconds, then click “Verify purchase” again."
                     )
                     st.markdown(f"<div class='za-pill-info'>ℹ️ {msg}</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown(
+                        "<div class='za-pill-info'>ℹ️ Buy an export credit, then verify with your checkout email to unlock downloads.</div>",
+                        unsafe_allow_html=True,
+                    )
 
         st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
 
