@@ -1426,7 +1426,7 @@ with tab_pro:
         st.write(f"✅ Preview first {FREE_FINDING_LIMIT} findings (in-app)")
 
     with c2:
-        st.subheader("Paid ($29 / export credit)")
+        st.subheader("Paid ($19 / export credit)")
         st.write("🚀 Full findings (beyond preview)")
         st.write("📥 XLSX + CSV exports (uses 1 export credit)")
         link_cta("💳 Buy 1 export credit ($29)", pay_url)
