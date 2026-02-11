@@ -50,6 +50,35 @@ components.html(
     width=0,
 )
 
+# =========================
+# Google Ads custom event helper (Option 1)
+# =========================
+def gads_event(event_name: str, scan_id: str = "", **params):
+    """
+    Fires a gtag custom event.
+    Dedupes per (event_name, scan_id) to avoid Streamlit rerun duplicates.
+    """
+    st.session_state.setdefault("_gads_sent", set())
+    key = f"{event_name}:{scan_id}" if scan_id else f"{event_name}:{uuid.uuid4()}"
+    if key in st.session_state["_gads_sent"]:
+        return
+    st.session_state["_gads_sent"].add(key)
+
+    clean = {k: v for k, v in params.items() if v is not None and v != ""}
+
+    components.html(
+        f"""
+<script>
+  if (window.gtag) {{
+    gtag('event', '{event_name}', {json.dumps(clean)});
+  }}
+</script>
+""",
+        height=0,
+        width=0,
+    )
+
+
 spell = SpellChecker()
 
 # =========================
@@ -388,12 +417,25 @@ class timed_phase:
 # =========================
 # 4) INPUT + UI HELPERS
 # =========================
-def link_cta(label: str, url: str):
+def link_cta(label: str, url: str, event_name: str = "zenaudit_buy_click"):
+    """
+    Renders a link styled as button.
+    NEW: Fires a Google Ads custom event on click (for funnel tracking).
+    """
     if not url:
         st.button(label, disabled=True)
         return
+
+    scan_id = st.session_state.get("scan_id", "") or ""
+    payload = {"scan_id": scan_id}
+
     st.markdown(
-        f'<a class="za-linkbtn" href="{url}" target="_blank" rel="noopener">{label}</a>',
+        f"""
+<a class="za-linkbtn" href="{url}" target="_blank" rel="noopener"
+   onclick="if(window.gtag){{gtag('event','{event_name}', {json.dumps(payload)});}}">
+  {label}
+</a>
+""",
         unsafe_allow_html=True,
     )
 
@@ -725,6 +767,18 @@ def run_scan(
         max_articles=int(max_articles or 0),
     )
 
+    # ✅ Google Ads event: scan start (Option 1)
+    gads_event(
+        "zenaudit_scan_start",
+        scan_id=scan_id,
+        zd_subdomain=subdomain,
+        do_links=int(bool(do_links)),
+        do_images=int(bool(do_images)),
+        do_alt=int(bool(do_alt)),
+        do_typo=int(bool(do_typo)),
+        do_stale=int(bool(do_stale)),
+    )
+
     try:
         with timed_phase(scan_id, "zendesk_list_articles", zd_subdomain=subdomain):
             while url:
@@ -873,6 +927,15 @@ def run_scan(
             findings=len(st.session_state.findings),
         )
 
+        # ✅ Google Ads event: scan success
+        gads_event(
+            "zenaudit_scan_success",
+            scan_id=scan_id,
+            zd_subdomain=subdomain,
+            scanned_articles=len(st.session_state.scan_results),
+            findings=len(st.session_state.findings),
+        )
+
     except Exception as e:
         st.session_state.scan_running = False
         log_event(
@@ -886,6 +949,15 @@ def run_scan(
             error_message_short=str(e)[:300],
             traceback=traceback.format_exc()[:4000],
         )
+
+        # ✅ Google Ads event: scan failed
+        gads_event(
+            "zenaudit_scan_failed",
+            scan_id=scan_id,
+            zd_subdomain=subdomain,
+            error_type=e.__class__.__name__,
+        )
+
         raise
 
 # =========================
