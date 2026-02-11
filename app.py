@@ -33,8 +33,6 @@ st.set_page_config(page_title=f"{APP_TITLE} Pro", page_icon=APP_ICON, layout="wi
 
 # =========================
 # Google Tag Manager (GTM)
-# NOTE: Streamlit doesn't have "header/body" access like a normal site.
-# This loads GTM on the page; the <noscript> block is typically skipped in Streamlit.
 # =========================
 components.html(
     """
@@ -52,7 +50,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 
 # =========================
 # Google Ads tag (gtag.js)
-# (You can keep this while testing; later you may move Ads tags fully into GTM.)
 # =========================
 components.html(
     """
@@ -437,27 +434,15 @@ class timed_phase:
 # =========================
 # 4) INPUT + UI HELPERS
 # =========================
-def link_cta(label: str, url: str, event_name: str = "zenaudit_buy_click"):
+def link_cta(label: str, url: str):
     """
-    Renders a link styled as button.
-    Fires a Google Ads custom event on click (for funnel tracking).
+    ✅ FIX: Use Streamlit's native link button so no HTML/JS ever renders as text.
+    Track Stripe clicks in GTM (Just Links trigger with Click URL contains buy.stripe.com).
     """
     if not url:
         st.button(label, disabled=True)
         return
-
-    scan_id = st.session_state.get("scan_id", "") or ""
-    payload = {"scan_id": scan_id}
-
-    st.markdown(
-        f"""
-<a class="za-linkbtn" href="{url}" target="_blank" rel="noopener"
-   onclick="if(window.gtag){{gtag('event','{event_name}', {json.dumps(payload)});}}">
-  {label}
-</a>
-""",
-        unsafe_allow_html=True,
-    )
+    st.link_button(label, url, use_container_width=True)
 
 def render_obfuscated_email(email_user: str, email_domain: str, label: str = "Support"):
     safe = f"{email_user} [at] {email_domain.replace('.', ' [dot] ')}"
@@ -1520,7 +1505,7 @@ with tab_pro:
         st.subheader("Paid ($19 / export credit)")
         st.write("🚀 Full findings (beyond preview)")
         st.write("📥 XLSX + CSV exports (uses 1 export credit)")
-        link_cta("💳 Buy 1 export credit ($29)", pay_url)
+        link_cta("💳 Buy 1 export credit ($19)", pay_url)
 
     st.divider()
     st.caption("Flow: Run scan → review preview → buy only if you want the full export.")
