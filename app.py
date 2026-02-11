@@ -32,7 +32,27 @@ ZENDESK_PER_PAGE = 100
 st.set_page_config(page_title=f"{APP_TITLE} Pro", page_icon=APP_ICON, layout="wide")
 
 # =========================
+# Google Tag Manager (GTM)
+# NOTE: Streamlit doesn't have "header/body" access like a normal site.
+# This loads GTM on the page; the <noscript> block is typically skipped in Streamlit.
+# =========================
+components.html(
+    """
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-TJBBWTR2');</script>
+<!-- End Google Tag Manager -->
+""",
+    height=0,
+    width=0,
+)
+
+# =========================
 # Google Ads tag (gtag.js)
+# (You can keep this while testing; later you may move Ads tags fully into GTM.)
 # =========================
 components.html(
     """
@@ -420,7 +440,7 @@ class timed_phase:
 def link_cta(label: str, url: str, event_name: str = "zenaudit_buy_click"):
     """
     Renders a link styled as button.
-    NEW: Fires a Google Ads custom event on click (for funnel tracking).
+    Fires a Google Ads custom event on click (for funnel tracking).
     """
     if not url:
         st.button(label, disabled=True)
@@ -767,7 +787,7 @@ def run_scan(
         max_articles=int(max_articles or 0),
     )
 
-    # ✅ Google Ads event: scan start (Option 1)
+    # ✅ Google Ads event: scan start
     gads_event(
         "zenaudit_scan_start",
         scan_id=scan_id,
@@ -1448,7 +1468,6 @@ with tab_audit:
                 st.button("📥 Download CSV (locked)", disabled=True, use_container_width=True)
                 st.caption("Buy 1 export credit to download exports.")
             else:
-                # ✅ UPDATED: CSV now consumes 1 export credit too
                 st.download_button(
                     "📥 Download CSV" + ("" if pro_mode else " (uses 1 export credit)"),
                     data=df_findings.to_csv(index=False),
