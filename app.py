@@ -32,24 +32,7 @@ ZENDESK_PER_PAGE = 100
 st.set_page_config(page_title=f"{APP_TITLE} Pro", page_icon=APP_ICON, layout="wide")
 
 # =========================
-# Google Tag Manager (GTM)
-# =========================
-components.html(
-    """
-<!-- Google Tag Manager -->
-<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-})(window,document,'script','dataLayer','GTM-TJBBWTR2');</script>
-<!-- End Google Tag Manager -->
-""",
-    height=0,
-    width=0,
-)
-
-# =========================
-# Google Ads tag (gtag.js)
+# Google Ads base tag (gtag.js)
 # =========================
 components.html(
     """
@@ -67,8 +50,36 @@ components.html(
     width=0,
 )
 
+spell = SpellChecker()
+
 # =========================
-# Google Ads custom event helper (Option 1)
+# ✅ Google Ads Conversion (Scan completed)
+# =========================
+SCAN_COMPLETED_SEND_TO = "AW-17940611899/dMRbCKWIwvYbELuG4OpC"
+
+def ads_conversion(send_to: str, transaction_id: str = ""):
+    """
+    Fires a Google Ads conversion event using gtag.
+    transaction_id helps dedupe if Streamlit reruns.
+    """
+    payload = {"send_to": send_to}
+    if transaction_id:
+        payload["transaction_id"] = transaction_id
+
+    components.html(
+        f"""
+<script>
+  if (window.gtag) {{
+    gtag('event', 'conversion', {json.dumps(payload)});
+  }}
+</script>
+""",
+        height=0,
+        width=0,
+    )
+
+# =========================
+# Optional: custom event helper (kept)
 # =========================
 def gads_event(event_name: str, scan_id: str = "", **params):
     """
@@ -95,8 +106,6 @@ def gads_event(event_name: str, scan_id: str = "", **params):
         width=0,
     )
 
-
-spell = SpellChecker()
 
 # =========================
 # 2) STYLE
@@ -125,7 +134,7 @@ section[data-testid="stSidebar"] {
     margin-right: 6px;
 }
 
-/* ✅ New: Sidebar tagline */
+/* Sidebar tagline */
 .za-tagline {
     color: #9FB1CC;
     font-size: 0.88rem;
@@ -165,24 +174,6 @@ div[data-testid="metric-container"] {
     border: 1px solid #1F2A44;
     padding: 10px 12px;
     border-radius: 12px;
-}
-
-/* Buy button (link styled as button) */
-a.za-linkbtn {
-    display: inline-block;
-    width: 100%;
-    min-width: 0;
-    text-align: center;
-    padding: 8px 14px;
-    border-radius: 10px;
-    font-weight: 850;
-    font-size: 0.85rem;
-    text-decoration: none !important;
-    color: #081221 !important;
-    background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%);
-    box-shadow:
-        0 10px 24px rgba(56,189,248,0.18),
-        0 6px 14px rgba(34,197,94,0.12);
 }
 
 /* Status pills */
@@ -241,11 +232,6 @@ a.za-linkbtn {
     font-size: 0.85rem;
 }
 
-/* Align buy button with email field */
-.za-btnrow {
-    padding-top: 26px;
-}
-
 /* Pricing explainer */
 .za-pricing {
     margin: 10px 0 16px 0;
@@ -284,7 +270,7 @@ a.za-linkbtn {
     color: #E6EEF8;
 }
 
-/* Custom table (no Streamlit toolbar) */
+/* Custom table */
 .za-tablewrap {
     border: 1px solid #1F2A44;
     border-radius: 12px;
@@ -346,7 +332,7 @@ def ss_init():
     st.session_state.setdefault("last_scanned_title", "")
     st.session_state.setdefault("connected_ok", False)
 
-    # ✅ Logging / diagnostics
+    # Diagnostics
     st.session_state.setdefault("scan_id", "")
     st.session_state.setdefault("scan_started_at", None)
 
@@ -359,7 +345,7 @@ def ss_init():
     # Local/session guard to prevent double-consume via Streamlit reruns
     st.session_state.setdefault("xlsx_consumed_local", False)
 
-    # Store creds safely so Run Scan doesn't depend on sidebar keystrokes
+    # Store creds
     st.session_state.setdefault("zd_subdomain", "")
     st.session_state.setdefault("zd_email", "")
     st.session_state.setdefault("zd_token", "")
@@ -436,8 +422,7 @@ class timed_phase:
 # =========================
 def link_cta(label: str, url: str):
     """
-    ✅ FIX: Use Streamlit's native link button so no HTML/JS ever renders as text.
-    Track Stripe clicks in GTM (Just Links trigger with Click URL contains buy.stripe.com).
+    Safe CTA: native Streamlit link button (won't expose HTML).
     """
     if not url:
         st.button(label, disabled=True)
@@ -772,7 +757,7 @@ def run_scan(
         max_articles=int(max_articles or 0),
     )
 
-    # ✅ Google Ads event: scan start
+    # Optional custom event
     gads_event(
         "zenaudit_scan_start",
         scan_id=scan_id,
@@ -932,7 +917,10 @@ def run_scan(
             findings=len(st.session_state.findings),
         )
 
-        # ✅ Google Ads event: scan success
+        # ✅ Google Ads conversion: Scan completed
+        ads_conversion(SCAN_COMPLETED_SEND_TO, transaction_id=scan_id)
+
+        # Optional custom event (keep if you want)
         gads_event(
             "zenaudit_scan_success",
             scan_id=scan_id,
@@ -955,7 +943,6 @@ def run_scan(
             traceback=traceback.format_exc()[:4000],
         )
 
-        # ✅ Google Ads event: scan failed
         gads_event(
             "zenaudit_scan_failed",
             scan_id=scan_id,
@@ -1247,7 +1234,6 @@ with tab_audit:
 
     refresh_metrics()
 
-    # ✅ ALWAYS show Findings + Export section
     st.divider()
 
     if st.session_state.scan_results:
