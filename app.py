@@ -60,6 +60,7 @@ SCAN_COMPLETED_SEND_TO = "AW-17940611899/dMRbCKWIwvYbELuG4OpC"
 def ads_conversion(send_to: str, transaction_id: str = ""):
     """
     Fires a Google Ads conversion event using gtag.
+    Uses a retry loop to ensure gtag is loaded (Streamlit can execute before gtag is ready).
     transaction_id helps dedupe if Streamlit reruns.
     """
     payload = {"send_to": send_to}
@@ -69,9 +70,17 @@ def ads_conversion(send_to: str, transaction_id: str = ""):
     components.html(
         f"""
 <script>
-  if (window.gtag) {{
-    gtag('event', 'conversion', {json.dumps(payload)});
+(function() {{
+  var payload = {json.dumps(payload)};
+  function fire() {{
+    if (window.gtag) {{
+      gtag('event', 'conversion', payload);
+    }} else {{
+      setTimeout(fire, 200);
+    }}
   }}
+  fire();
+}})();
 </script>
 """,
         height=0,
@@ -1495,3 +1504,4 @@ with tab_pro:
 
     st.divider()
     st.caption("Flow: Run scan → review preview → buy only if you want the full export.")
+::contentReference[oaicite:0]{index=0}
