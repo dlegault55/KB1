@@ -1504,4 +1504,4 @@ with tab_pro:
 
     st.divider()
     st.caption("Flow: Run scan → review preview → buy only if you want the full export.")
-::contentReference[oaicite:0]{index=0}
+
