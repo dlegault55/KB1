@@ -57,6 +57,7 @@ spell = SpellChecker()
 # =========================
 SCAN_COMPLETED_SEND_TO = "AW-17940611899/dMRbCKWIwvYbELuG4OpC"
 
+
 def ads_conversion(send_to: str, transaction_id: str = ""):
     """
     Fires a Google Ads conversion event using gtag.
@@ -86,6 +87,7 @@ def ads_conversion(send_to: str, transaction_id: str = ""):
         height=0,
         width=0,
     )
+
 
 # =========================
 # Optional: custom event helper (kept)
@@ -117,212 +119,238 @@ def gads_event(event_name: str, scan_id: str = "", **params):
 
 
 # =========================
-# 2) STYLE
+# 2) STYLE (SupportZen look & feel)
 # =========================
 st.markdown(
     """
 <style>
-.stApp {
-    background: #0B1220;
-    color: #E6EEF8;
+/* =========================
+   SupportZen tokens (ported vibe)
+   ========================= */
+:root{
+  --sz-dark: #264653;     /* deep green */
+  --sz-teal: #2A9D8F;     /* teal */
+  --sz-sand: #E9C46A;     /* sand */
+  --sz-orange:#F4A261;
+  --sz-coral:#E76F51;
+
+  --sz-bg: #07121a;
+  --sz-surface: #0B1A24;
+  --sz-surface-2:#0F2230;
+  --sz-border: rgba(233,196,106,.22);
+  --sz-text: #EAF2FA;
+  --sz-muted:#A9B8D0;
 }
 
-section[data-testid="stSidebar"] {
-    background: #0F1A2E !important;
-    border-right: 1px solid #1F2A44;
+/* Base app */
+.stApp{
+  background: var(--sz-bg);
+  color: var(--sz-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-.za-chip {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 999px;
-    border: 1px solid #1F2A44;
-    font-size: 0.8rem;
-    color: #BBD2F3;
-    background: rgba(56,189,248,0.08);
-    margin-right: 6px;
+/* Tidy default Streamlit padding a bit */
+.block-container{
+  padding-top: 1.25rem;
+  padding-bottom: 2rem;
+}
+
+/* Hide Streamlit chrome */
+#MainMenu{visibility:hidden;}
+footer{visibility:hidden;}
+header{visibility:hidden;}
+
+/* Sidebar */
+section[data-testid="stSidebar"]{
+  background: var(--sz-surface-2) !important;
+  border-right: 1px solid var(--sz-border);
 }
 
 /* Sidebar tagline */
-.za-tagline {
-    color: #9FB1CC;
-    font-size: 0.88rem;
-    line-height: 1.25rem;
-    margin-top: 6px;
-    margin-bottom: 10px;
+.za-tagline{
+  color: var(--sz-muted);
+  font-size: 0.88rem;
+  line-height: 1.25rem;
+  margin-top: 6px;
+  margin-bottom: 10px;
 }
 
-/* Primary button (Run scan) */
-button[kind="primary"] {
-    background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%) !important;
-    color: #081221 !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.5px !important;
-    border: 0 !important;
-    border-radius: 12px !important;
-    height: 52px !important;
-    box-shadow:
-        0 10px 30px rgba(56,189,248,0.25),
-        0 6px 18px rgba(34,197,94,0.18) !important;
+/* Chips */
+.za-chip{
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(233,196,106,.22);
+  font-size: 0.8rem;
+  color: rgba(233,196,106,.95);
+  background: rgba(42,157,143,0.10);
+  margin-right: 6px;
 }
 
-button[kind="primary"]:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.05);
+/* Primary button */
+button[kind="primary"]{
+  background: linear-gradient(90deg, rgba(38,70,83,.97), rgba(42,157,143,.94)) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  letter-spacing: .3px !important;
+  border: 1px solid rgba(233,196,106,.35) !important;
+  border-radius: 12px !important;
+  height: 52px !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,.28) !important;
+}
+button[kind="primary"]:hover{
+  transform: translateY(-1px);
+  filter: brightness(1.05);
 }
 
-button[kind="secondary"] {
-    border-radius: 12px !important;
-    height: 46px !important;
-    font-weight: 700 !important;
+/* Secondary button */
+button[kind="secondary"]{
+  border-radius: 12px !important;
+  height: 46px !important;
+  font-weight: 750 !important;
+  border: 1px solid rgba(233,196,106,.25) !important;
 }
 
 /* Metric cards */
-div[data-testid="metric-container"] {
-    background: #0F1A2E;
-    border: 1px solid #1F2A44;
-    padding: 10px 12px;
-    border-radius: 12px;
+div[data-testid="metric-container"]{
+  background: var(--sz-surface);
+  border: 1px solid rgba(233,196,106,.18);
+  border-top: 6px solid var(--sz-teal);
+  border-radius: 0 0 12px 12px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.18);
+}
+
+/* Tabs */
+div[data-baseweb="tab-list"]{ gap: .35rem; }
+button[data-baseweb="tab"]{
+  border-radius: 999px !important;
+  border: 1px solid rgba(233,196,106,.18) !important;
+}
+button[data-baseweb="tab"][aria-selected="true"]{
+  background: rgba(42,157,143,.18) !important;
+  border-color: rgba(233,196,106,.35) !important;
 }
 
 /* Status pills */
-.za-pill-ok {
-    margin-top: 8px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(34,197,94,0.12);
-    border: 1px solid rgba(34,197,94,0.30);
-    color: #BFF7D0;
-    font-weight: 750;
+.za-pill-ok{
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(42,157,143,.18);
+  border: 1px solid rgba(42,157,143,.35);
+  color: var(--sz-text);
+  font-weight: 750;
+}
+.za-pill-info{
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(38,70,83,.20);
+  border: 1px solid rgba(233,196,106,.18);
+  color: var(--sz-text);
+  font-weight: 650;
+}
+.za-pill-warn{
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(233,196,106,.14);
+  border: 1px solid rgba(233,196,106,.28);
+  color: var(--sz-text);
+  font-weight: 650;
 }
 
-.za-pill-info {
-    margin-top: 8px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(56,189,248,0.08);
-    border: 1px solid rgba(56,189,248,0.20);
-    color: #BBD2F3;
-    font-weight: 650;
+/* Next step callout */
+.za-next{
+  margin: 14px 0 10px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(42,157,143,.18), rgba(38,70,83,.22));
+  border: 1px solid rgba(233,196,106,.22);
+  color: var(--sz-text);
+  font-weight: 650;
 }
-
-.za-pill-warn {
-    margin-top: 8px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(251,191,36,0.10);
-    border: 1px solid rgba(251,191,36,0.25);
-    color: #FDE68A;
-    font-weight: 650;
+.za-next span{
+  color: var(--sz-muted);
+  font-weight: 500;
 }
-
-/* “Next step” callout */
-.za-next {
-    margin: 14px 0 10px 0;
-    padding: 12px 14px;
-    border-radius: 12px;
-    background: linear-gradient(
-        90deg,
-        rgba(56,189,248,0.10) 0%,
-        rgba(34,197,94,0.10) 100%
-    );
-    border: 1px solid rgba(56,189,248,0.25);
-    color: #E6EEF8;
-    font-weight: 650;
-}
-
-.za-next span {
-    color: #9FB1CC;
-    font-weight: 500;
-}
-
-.za-subtle {
-    color: #9FB1CC;
-    font-size: 0.85rem;
+.za-subtle{
+  color: var(--sz-muted);
+  font-size: 0.85rem;
 }
 
 /* Pricing explainer */
-.za-pricing {
-    margin: 10px 0 16px 0;
-    padding: 14px 14px;
-    border-radius: 14px;
-    background: rgba(56,189,248,0.06);
-    border: 1px solid rgba(56,189,248,0.22);
+.za-pricing{
+  margin: 10px 0 16px 0;
+  padding: 14px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(42,157,143,.18), rgba(38,70,83,.22));
+  border: 1px solid rgba(233,196,106,.22);
 }
-
-.za-pricing .za-badge {
-    display: inline-block;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-weight: 850;
-    font-size: 0.78rem;
-    letter-spacing: 0.4px;
-    color: #081221;
-    background: linear-gradient(90deg, rgba(56,189,248,1) 0%, rgba(34,197,94,1) 100%);
-    margin-bottom: 8px;
+.za-pricing .za-badge{
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 850;
+  font-size: 0.78rem;
+  letter-spacing: 0.4px;
+  color: #0b1a24;
+  background: linear-gradient(90deg, rgba(233,196,106,.95), rgba(42,157,143,.75));
+  margin-bottom: 8px;
 }
-
-.za-pricing .za-title {
-    font-weight: 900;
-    font-size: 1.05rem;
-    margin: 2px 0 4px 0;
-    color: #E6EEF8;
+.za-pricing .za-title{
+  font-weight: 900;
+  font-size: 1.05rem;
+  margin: 2px 0 4px 0;
+  color: var(--sz-text);
 }
-
-.za-pricing .za-line {
-    color: #BBD2F3;
-    font-size: 0.92rem;
-    line-height: 1.35rem;
+.za-pricing .za-line{
+  color: rgba(234,242,250,.88);
+  font-size: 0.92rem;
+  line-height: 1.35rem;
 }
-
-.za-pricing b {
-    color: #E6EEF8;
-}
+.za-pricing b{ color: var(--sz-text); }
 
 /* Custom table */
-.za-tablewrap {
-    border: 1px solid #1F2A44;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #0F1A2E;
+.za-tablewrap{
+  border: 1px solid rgba(233,196,106,.18);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--sz-surface);
+  box-shadow: 0 6px 24px rgba(0,0,0,.18);
 }
-
-.za-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.9rem;
+.za-table{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
 }
-
-.za-table th {
-    text-align: left;
-    padding: 10px 10px;
-    background: #0B1220;
-    color: #E6EEF8;
-    border-bottom: 1px solid #1F2A44;
-    position: sticky;
-    top: 0;
-    z-index: 1;
+.za-table th{
+  text-align: left;
+  padding: 10px 10px;
+  background: linear-gradient(90deg, rgba(38,70,83,.55), rgba(42,157,143,.35));
+  color: var(--sz-text);
+  border-bottom: 1px solid rgba(233,196,106,.18);
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
-
-.za-table td {
-    padding: 10px 10px;
-    border-bottom: 1px solid rgba(31,42,68,0.55);
-    color: #BBD2F3;
-    vertical-align: top;
+.za-table td{
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(233,196,106,.10);
+  color: rgba(234,242,250,.88);
+  vertical-align: top;
 }
-
-.za-table tr:hover td {
-    background: rgba(56,189,248,0.05);
+.za-table tr:hover td{
+  background: rgba(42,157,143,.08);
 }
-
-.za-scroll {
-    max-height: 520px;
-    overflow: auto;
+.za-scroll{
+  max-height: 520px;
+  overflow: auto;
 }
-
-.za-table a {
-    color: #BBD2F3;
-    text-decoration: underline;
+.za-table a{
+  color: rgba(233,196,106,.95);
+  text-decoration: underline;
 }
 </style>
 """,
@@ -359,6 +387,7 @@ def ss_init():
     st.session_state.setdefault("zd_email", "")
     st.session_state.setdefault("zd_token", "")
 
+
 ss_init()
 
 SHOW_DEV_CONTROLS = bool(st.secrets.get("SHOW_DEV_CONTROLS", False))
@@ -374,10 +403,12 @@ if not logger.handlers:
     _h.setLevel(logging.INFO)
     logger.addHandler(_h)
 
+
 def _hash_email(email: str) -> str:
     if not email:
         return ""
     return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()[:16]
+
 
 def _safe_domain(email: str) -> str:
     try:
@@ -388,6 +419,7 @@ def _safe_domain(email: str) -> str:
         pass
     return ""
 
+
 def log_event(event: str, scan_id: str, **fields):
     payload = {
         "event": event,
@@ -397,6 +429,7 @@ def log_event(event: str, scan_id: str, **fields):
         **fields,
     }
     logger.info(json.dumps(payload, default=str))
+
 
 class timed_phase:
     def __init__(self, scan_id: str, phase: str, **base_fields):
@@ -426,6 +459,7 @@ class timed_phase:
             log_event("scan_phase_ok", self.scan_id, phase=self.phase, elapsed_ms=elapsed_ms, **self.base_fields)
         return False
 
+
 # =========================
 # 4) INPUT + UI HELPERS
 # =========================
@@ -438,12 +472,14 @@ def link_cta(label: str, url: str):
         return
     st.link_button(label, url, use_container_width=True)
 
+
 def render_obfuscated_email(email_user: str, email_domain: str, label: str = "Support"):
     safe = f"{email_user} [at] {email_domain.replace('.', ' [dot] ')}"
     st.markdown(
         f"<div class='za-subtle'>{label}: <span style='unicode-bidi:bidi-override; direction:ltr;'>{safe}</span></div>",
         unsafe_allow_html=True,
     )
+
 
 def normalize_subdomain_input(raw: str) -> Tuple[Optional[str], Optional[str]]:
     s = (raw or "").strip().lower()
@@ -463,9 +499,11 @@ def normalize_subdomain_input(raw: str) -> Tuple[Optional[str], Optional[str]]:
 
     return s, None
 
+
 def is_valid_email_format(raw: str) -> bool:
     e = (raw or "").strip()
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", e))
+
 
 def verify_zendesk_connection(subdomain: str, email: str, token: str) -> Tuple[bool, str]:
     if not subdomain or not email or not token:
@@ -495,6 +533,7 @@ def verify_zendesk_connection(subdomain: str, email: str, token: str) -> Tuple[b
     except Exception as e:
         return False, f"Connection error: {str(e)[:200]}"
 
+
 # =========================
 # 4) SCAN HELPERS
 # =========================
@@ -503,6 +542,7 @@ def safe_parse_updated_at(s: str) -> Optional[datetime]:
         return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
     except Exception:
         return None
+
 
 def normalize_url(base_url: str, raw: Optional[str]) -> Optional[str]:
     if not raw:
@@ -513,6 +553,7 @@ def normalize_url(base_url: str, raw: Optional[str]) -> Optional[str]:
     if raw.startswith("#"):
         return None
     return urljoin(base_url, raw)
+
 
 def extract_links_images(html: str, base_url: str) -> Tuple[BeautifulSoup, str, List[str], List[Dict[str, Any]]]:
     soup = BeautifulSoup(html or "", "html.parser")
@@ -531,6 +572,7 @@ def extract_links_images(html: str, base_url: str) -> Tuple[BeautifulSoup, str, 
 
     text = soup.get_text(" ", strip=True)
     return soup, text, links, images
+
 
 def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
     cache = st.session_state.url_cache
@@ -573,16 +615,20 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
     cache[url] = result
     return result
 
+
 def severity_rank(sev: str) -> int:
     return {"critical": 0, "warning": 1, "info": 2}.get(str(sev), 2)
+
 
 def push_log(msg: str, limit: int = 14):
     st.session_state.last_logs.insert(0, msg)
     st.session_state.last_logs = st.session_state.last_logs[:limit]
 
+
 def log_connection_established():
     st.session_state.connected_ok = True
     push_log("✅ Connected to Zendesk")
+
 
 def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str]]:
     try:
@@ -594,11 +640,13 @@ def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str
         df.to_excel(writer, index=False, sheet_name="Findings")
     return bio.getvalue(), None
 
+
 def _make_clickable(v: Any) -> str:
     s = "" if v is None else str(v)
     if s.startswith("http://") or s.startswith("https://"):
         return f'<a href="{s}" target="_blank" rel="noopener">{s}</a>'
     return s
+
 
 def render_table_no_toolbar(df: pd.DataFrame) -> None:
     if df is None or df.empty:
@@ -622,6 +670,7 @@ def render_table_no_toolbar(df: pd.DataFrame) -> None:
         unsafe_allow_html=True,
     )
 
+
 # =========================
 # 4b) PAYWALL / WORKER
 # =========================
@@ -631,6 +680,7 @@ def _worker_cfg() -> Tuple[Optional[str], str]:
     if not base:
         return None, str(pay)
     return str(base).rstrip("/"), str(pay)
+
 
 def worker_get_status(email: str) -> Tuple[bool, int, str]:
     base, _pay = _worker_cfg()
@@ -659,6 +709,7 @@ def worker_get_status(email: str) -> Tuple[bool, int, str]:
             error_message_short=str(e)[:300],
         )
         return False, 0, f"Status check error: {e}"
+
 
 def worker_consume(email: str) -> Tuple[bool, int, str]:
     base, _pay = _worker_cfg()
@@ -690,10 +741,12 @@ def worker_consume(email: str) -> Tuple[bool, int, str]:
         )
         return False, 0, f"Consume error: {e}"
 
+
 def pro_access_active(pro_mode: bool) -> bool:
     if pro_mode:
         return True
     return bool(st.session_state.pro_unlocked) and (not st.session_state.xlsx_consumed_local)
+
 
 def try_unlock_from_status(email: str) -> None:
     email = (email or "").strip().lower()
@@ -712,6 +765,7 @@ def try_unlock_from_status(email: str) -> None:
     st.session_state.pro_last_status_error = err or ""
     if ok:
         st.session_state.xlsx_consumed_local = False
+
 
 # =========================
 # 5) SCAN ENGINE
@@ -961,6 +1015,7 @@ def run_scan(
 
         raise
 
+
 # =========================
 # 6) SIDEBAR
 # =========================
@@ -1036,9 +1091,43 @@ with st.sidebar:
     st.divider()
     render_obfuscated_email("support", "yourdomain.com", label="Need help?")
 
+
 # =========================
 # 7) TOP-LEVEL UI
 # =========================
+st.markdown(
+    """
+<div style="
+  position: sticky; top: 0; z-index: 999;
+  margin: -1.25rem -1rem 1rem -1rem;
+  padding: .75rem 1rem;
+  background: linear-gradient(90deg, rgba(38,70,83,.97), rgba(42,157,143,.94));
+  border-bottom: 1px solid rgba(233,196,106,.55);
+  box-shadow: 0 4px 20px rgba(0,0,0,.28);
+">
+  <div style="max-width: 1200px; margin: 0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="
+        width:34px; height:34px; border-radius:10px;
+        background: rgba(233,196,106,.18);
+        border: 1px solid rgba(233,196,106,.35);
+        display:flex; align-items:center; justify-content:center;
+        font-weight:900; color:#fff;
+      ">SZ</div>
+      <div>
+        <div style="font-weight:850; letter-spacing:.06em; text-transform:uppercase; font-size:.9rem; color:#fff;">SupportZen</div>
+        <div style="font-size:.78rem; color: rgba(255,255,255,.78); font-weight:650;">ZenAudit</div>
+      </div>
+    </div>
+    <div style="font-size:.8rem; color: rgba(255,255,255,.78); font-weight:600;">
+      Zendesk® Help Center Audit
+    </div>
+  </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
 st.markdown("## Zendesk® Knowledge Base Intelligence")
 st.caption("Scan your Help Center for broken links, broken images, missing alt text, typos, and stale content.")
 
@@ -1068,15 +1157,15 @@ with tab_audit:
         Enter a valid <b>API token</b>
         (required to securely access your Help Center content via the Zendesk API)
         <br>
-        <span style="color:#9FB1CC;">
+        <span style="color:#A9B8D0;">
           Admin Center → Apps and integrations → APIs → Zendesk API → Add API token
         </span>
       </li>
       <li>Click <b>Connect to Zendesk</b> to verify access</li>
       <li>Click <b>Run scan</b> to start the audit</li>
     </ol>
-<div style="margin-top:6px; color:#9FB1CC;">
-  We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.<br>
+<div style="margin-top:6px; color:#A9B8D0;">
+  We use the token only to fetch articles during the scan. It isn’t stored and it isn’t included in exports.<br>
 </div>
   </div>
 
@@ -1089,7 +1178,7 @@ with tab_audit:
   </div>
 
   <div class="za-line" style="margin-top:8px;">
-    <span style="color:#9FB1CC;">
+    <span style="color:#A9B8D0;">
       Tip: If you just want a quick check, disable Broken Links / Images for a faster first pass.
     </span>
   </div>
@@ -1382,7 +1471,7 @@ with tab_audit:
         if st.session_state.pro_unlocked:
             st.markdown(
                 f"<div class='za-pill-ok'>✅ Export credit available • Credits remaining: {st.session_state.pro_available_scans}"
-                f"<br><span style='color:#9FB1CC; font-weight:600;'>Downloading uses 1 export credit. Save the file after downloading.</span></div>",
+                f"<br><span style='color:#A9B8D0; font-weight:600;'>Downloading uses 1 export credit. Save the file after downloading.</span></div>",
                 unsafe_allow_html=True,
             )
         else:
@@ -1504,4 +1593,3 @@ with tab_pro:
 
     st.divider()
     st.caption("Flow: Run scan → review preview → buy only if you want the full export.")
-
