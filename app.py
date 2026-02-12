@@ -119,238 +119,274 @@ def gads_event(event_name: str, scan_id: str = "", **params):
 
 
 # =========================
-# 2) STYLE (SupportZen look & feel)
+# 2) STYLE  (SupportZen look & feel)  ✅ UPDATED
 # =========================
 st.markdown(
     """
 <style>
-/* =========================
-   SupportZen tokens (ported vibe)
-   ========================= */
+/* --- SupportZen palette --- */
 :root{
-  --sz-dark: #264653;     /* deep green */
-  --sz-teal: #2A9D8F;     /* teal */
-  --sz-sand: #E9C46A;     /* sand */
-  --sz-orange:#F4A261;
-  --sz-coral:#E76F51;
+  --sz-dark: #264653;
+  --sz-teal: #2A9D8F;
+  --sz-sand: #E9C46A;
+  --sz-orange: #F4A261;
+  --sz-coral: #E76F51;
 
-  --sz-bg: #07121a;
-  --sz-surface: #0B1A24;
-  --sz-surface-2:#0F2230;
-  --sz-border: rgba(233,196,106,.22);
-  --sz-text: #EAF2FA;
-  --sz-muted:#A9B8D0;
+  --bg: #f6f8fb;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted: rgba(31,41,55,.75);
+  --border: rgba(38,70,83,.16);
+  --shadow: 0 10px 30px rgba(0,0,0,.08);
 }
 
-/* Base app */
-.stApp{
-  background: var(--sz-bg);
-  color: var(--sz-text);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+/* --- App background / typography --- */
+.stApp {
+  background: radial-gradient(1200px 500px at 10% 0%, rgba(42,157,143,.10), transparent 60%),
+              radial-gradient(1000px 400px at 90% 0%, rgba(233,196,106,.14), transparent 55%),
+              var(--bg);
+  color: var(--text);
 }
 
-/* Tidy default Streamlit padding a bit */
 .block-container{
-  padding-top: 1.25rem;
-  padding-bottom: 2rem;
+  padding-top: 1.4rem !important;
+  padding-bottom: 2.5rem !important;
 }
 
-/* Hide Streamlit chrome */
-#MainMenu{visibility:hidden;}
-footer{visibility:hidden;}
-header{visibility:hidden;}
+[data-testid="stHeader"]{
+  background: transparent !important;
+}
 
-/* Sidebar */
-section[data-testid="stSidebar"]{
-  background: var(--sz-surface-2) !important;
-  border-right: 1px solid var(--sz-border);
+/* --- Sidebar (echo SupportZen navbar gradient) --- */
+section[data-testid="stSidebar"] {
+  background: linear-gradient(90deg,
+    rgba(38,70,83,.97),
+    rgba(42,157,143,.94)
+  ) !important;
+  border-right: 1px solid rgba(233,196,106,.55) !important;
+}
+
+section[data-testid="stSidebar"] *{
+  color: rgba(255,255,255,.92) !important;
+}
+
+section[data-testid="stSidebar"] a{
+  color: rgba(233,196,106,.95) !important;
+}
+
+section[data-testid="stSidebar"] .stTextInput label,
+section[data-testid="stSidebar"] .stNumberInput label,
+section[data-testid="stSidebar"] .stCheckbox label{
+  color: rgba(255,255,255,.85) !important;
+  font-weight: 600;
+}
+
+/* Sidebar input boxes */
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] textarea{
+  background: rgba(0,0,0,.18) !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+  color: #fff !important;
+}
+section[data-testid="stSidebar"] input::placeholder{
+  color: rgba(255,255,255,.55) !important;
 }
 
 /* Sidebar tagline */
-.za-tagline{
-  color: var(--sz-muted);
+.za-tagline {
+  color: rgba(255,255,255,.78) !important;
   font-size: 0.88rem;
   line-height: 1.25rem;
   margin-top: 6px;
   margin-bottom: 10px;
 }
 
-/* Chips */
-.za-chip{
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(233,196,106,.22);
-  font-size: 0.8rem;
-  color: rgba(233,196,106,.95);
-  background: rgba(42,157,143,0.10);
-  margin-right: 6px;
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--sz-dark) !important;
+  letter-spacing: -0.2px;
 }
 
-/* Primary button */
+.stCaption, .stMarkdown p, .stMarkdown li {
+  color: var(--text);
+}
+
+/* --- Buttons --- */
 button[kind="primary"]{
-  background: linear-gradient(90deg, rgba(38,70,83,.97), rgba(42,157,143,.94)) !important;
-  color: #ffffff !important;
+  background: var(--sz-teal) !important;
+  color: #fff !important;
   font-weight: 800 !important;
-  letter-spacing: .3px !important;
-  border: 1px solid rgba(233,196,106,.35) !important;
+  border: 0 !important;
   border-radius: 12px !important;
-  height: 52px !important;
-  box-shadow: 0 10px 30px rgba(0,0,0,.28) !important;
+  height: 50px !important;
+  box-shadow: 0 10px 22px rgba(42,157,143,.28) !important;
 }
 button[kind="primary"]:hover{
+  filter: brightness(1.03);
   transform: translateY(-1px);
-  filter: brightness(1.05);
 }
 
-/* Secondary button */
+/* Secondary button = outline teal */
 button[kind="secondary"]{
+  background: #fff !important;
+  color: var(--sz-teal) !important;
+  border: 2px solid rgba(42,157,143,.55) !important;
   border-radius: 12px !important;
   height: 46px !important;
-  font-weight: 750 !important;
-  border: 1px solid rgba(233,196,106,.25) !important;
+  font-weight: 800 !important;
+}
+button[kind="secondary"]:hover{
+  background: rgba(42,157,143,.06) !important;
 }
 
-/* Metric cards */
+/* Link buttons (st.link_button) */
+a[data-testid="stLinkButton"] > div{
+  border-radius: 12px !important;
+}
+
+/* --- Metric cards --- */
 div[data-testid="metric-container"]{
-  background: var(--sz-surface);
-  border: 1px solid rgba(233,196,106,.18);
+  background: var(--card);
+  border: 1px solid var(--border);
   border-top: 6px solid var(--sz-teal);
   border-radius: 0 0 12px 12px;
   padding: 12px 14px;
-  box-shadow: 0 6px 24px rgba(0,0,0,.18);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.06);
 }
 
-/* Tabs */
-div[data-baseweb="tab-list"]{ gap: .35rem; }
-button[data-baseweb="tab"]{
-  border-radius: 999px !important;
-  border: 1px solid rgba(233,196,106,.18) !important;
-}
-button[data-baseweb="tab"][aria-selected="true"]{
-  background: rgba(42,157,143,.18) !important;
-  border-color: rgba(233,196,106,.35) !important;
+/* --- Chips / pills --- */
+.za-chip{
+  display:inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(233,196,106,.55);
+  font-size: .8rem;
+  color: var(--sz-dark);
+  background: rgba(233,196,106,.20);
+  margin-right: 6px;
 }
 
 /* Status pills */
 .za-pill-ok{
-  margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(42,157,143,.18);
-  border: 1px solid rgba(42,157,143,.35);
-  color: var(--sz-text);
-  font-weight: 750;
-}
-.za-pill-info{
-  margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(38,70,83,.20);
-  border: 1px solid rgba(233,196,106,.18);
-  color: var(--sz-text);
-  font-weight: 650;
-}
-.za-pill-warn{
-  margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(233,196,106,.14);
-  border: 1px solid rgba(233,196,106,.28);
-  color: var(--sz-text);
-  font-weight: 650;
-}
-
-/* Next step callout */
-.za-next{
-  margin: 14px 0 10px 0;
+  margin-top: 10px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(42,157,143,.18), rgba(38,70,83,.22));
-  border: 1px solid rgba(233,196,106,.22);
-  color: var(--sz-text);
-  font-weight: 650;
+  background: rgba(42,157,143,.10);
+  border: 1px solid rgba(42,157,143,.25);
+  color: var(--sz-dark);
+  font-weight: 800;
+}
+.za-pill-info{
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(38,70,83,.06);
+  border: 1px solid rgba(38,70,83,.14);
+  color: var(--sz-dark);
+  font-weight: 700;
+}
+.za-pill-warn{
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(231,111,81,.10);
+  border: 1px solid rgba(231,111,81,.28);
+  color: var(--sz-dark);
+  font-weight: 800;
+}
+
+/* “Next step” callout */
+.za-next{
+  margin: 14px 0 10px 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--sz-teal), var(--sz-dark));
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(0,0,0,.18);
+  border: 0;
 }
 .za-next span{
-  color: var(--sz-muted);
-  font-weight: 500;
+  color: rgba(255,255,255,.85);
+  font-weight: 600;
 }
 .za-subtle{
-  color: var(--sz-muted);
-  font-size: 0.85rem;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 
 /* Pricing explainer */
 .za-pricing{
   margin: 10px 0 16px 0;
-  padding: 14px 14px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(42,157,143,.18), rgba(38,70,83,.22));
-  border: 1px solid rgba(233,196,106,.22);
+  padding: 16px 16px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.86);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
 }
 .za-pricing .za-badge{
-  display: inline-block;
-  padding: 4px 10px;
+  display:inline-block;
+  padding: 5px 10px;
   border-radius: 999px;
-  font-weight: 850;
-  font-size: 0.78rem;
-  letter-spacing: 0.4px;
-  color: #0b1a24;
-  background: linear-gradient(90deg, rgba(233,196,106,.95), rgba(42,157,143,.75));
-  margin-bottom: 8px;
+  font-weight: 900;
+  font-size: .78rem;
+  letter-spacing: .4px;
+  color: var(--sz-dark);
+  background: rgba(233,196,106,.35);
+  border: 1px solid rgba(233,196,106,.55);
+  margin-bottom: 10px;
 }
 .za-pricing .za-title{
   font-weight: 900;
   font-size: 1.05rem;
-  margin: 2px 0 4px 0;
-  color: var(--sz-text);
+  margin: 2px 0 6px 0;
+  color: var(--sz-dark);
 }
 .za-pricing .za-line{
-  color: rgba(234,242,250,.88);
-  font-size: 0.92rem;
-  line-height: 1.35rem;
+  color: var(--text);
+  font-size: .95rem;
+  line-height: 1.45rem;
 }
-.za-pricing b{ color: var(--sz-text); }
 
-/* Custom table */
+/* --- Table wrapper --- */
 .za-tablewrap{
-  border: 1px solid rgba(233,196,106,.18);
-  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
   overflow: hidden;
-  background: var(--sz-surface);
-  box-shadow: 0 6px 24px rgba(0,0,0,.18);
-}
-.za-table{
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-.za-table th{
-  text-align: left;
-  padding: 10px 10px;
-  background: linear-gradient(90deg, rgba(38,70,83,.55), rgba(42,157,143,.35));
-  color: var(--sz-text);
-  border-bottom: 1px solid rgba(233,196,106,.18);
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-.za-table td{
-  padding: 10px 10px;
-  border-bottom: 1px solid rgba(233,196,106,.10);
-  color: rgba(234,242,250,.88);
-  vertical-align: top;
-}
-.za-table tr:hover td{
-  background: rgba(42,157,143,.08);
+  background: var(--card);
+  box-shadow: 0 8px 22px rgba(0,0,0,.06);
 }
 .za-scroll{
   max-height: 520px;
   overflow: auto;
 }
+.za-table{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .92rem;
+}
+.za-table th{
+  text-align: left;
+  padding: 11px 10px;
+  background: rgba(38,70,83,.06);
+  color: var(--sz-dark);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.za-table td{
+  padding: 11px 10px;
+  border-bottom: 1px solid rgba(38,70,83,.10);
+  color: var(--text);
+  vertical-align: top;
+}
+.za-table tr:hover td{
+  background: rgba(42,157,143,.06);
+}
 .za-table a{
-  color: rgba(233,196,106,.95);
+  color: var(--sz-teal);
   text-decoration: underline;
+  font-weight: 650;
 }
 </style>
 """,
@@ -387,7 +423,6 @@ def ss_init():
     st.session_state.setdefault("zd_email", "")
     st.session_state.setdefault("zd_token", "")
 
-
 ss_init()
 
 SHOW_DEV_CONTROLS = bool(st.secrets.get("SHOW_DEV_CONTROLS", False))
@@ -403,12 +438,10 @@ if not logger.handlers:
     _h.setLevel(logging.INFO)
     logger.addHandler(_h)
 
-
 def _hash_email(email: str) -> str:
     if not email:
         return ""
     return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()[:16]
-
 
 def _safe_domain(email: str) -> str:
     try:
@@ -419,7 +452,6 @@ def _safe_domain(email: str) -> str:
         pass
     return ""
 
-
 def log_event(event: str, scan_id: str, **fields):
     payload = {
         "event": event,
@@ -429,7 +461,6 @@ def log_event(event: str, scan_id: str, **fields):
         **fields,
     }
     logger.info(json.dumps(payload, default=str))
-
 
 class timed_phase:
     def __init__(self, scan_id: str, phase: str, **base_fields):
@@ -459,7 +490,6 @@ class timed_phase:
             log_event("scan_phase_ok", self.scan_id, phase=self.phase, elapsed_ms=elapsed_ms, **self.base_fields)
         return False
 
-
 # =========================
 # 4) INPUT + UI HELPERS
 # =========================
@@ -472,14 +502,12 @@ def link_cta(label: str, url: str):
         return
     st.link_button(label, url, use_container_width=True)
 
-
 def render_obfuscated_email(email_user: str, email_domain: str, label: str = "Support"):
     safe = f"{email_user} [at] {email_domain.replace('.', ' [dot] ')}"
     st.markdown(
         f"<div class='za-subtle'>{label}: <span style='unicode-bidi:bidi-override; direction:ltr;'>{safe}</span></div>",
         unsafe_allow_html=True,
     )
-
 
 def normalize_subdomain_input(raw: str) -> Tuple[Optional[str], Optional[str]]:
     s = (raw or "").strip().lower()
@@ -499,11 +527,9 @@ def normalize_subdomain_input(raw: str) -> Tuple[Optional[str], Optional[str]]:
 
     return s, None
 
-
 def is_valid_email_format(raw: str) -> bool:
     e = (raw or "").strip()
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", e))
-
 
 def verify_zendesk_connection(subdomain: str, email: str, token: str) -> Tuple[bool, str]:
     if not subdomain or not email or not token:
@@ -533,7 +559,6 @@ def verify_zendesk_connection(subdomain: str, email: str, token: str) -> Tuple[b
     except Exception as e:
         return False, f"Connection error: {str(e)[:200]}"
 
-
 # =========================
 # 4) SCAN HELPERS
 # =========================
@@ -542,7 +567,6 @@ def safe_parse_updated_at(s: str) -> Optional[datetime]:
         return datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
     except Exception:
         return None
-
 
 def normalize_url(base_url: str, raw: Optional[str]) -> Optional[str]:
     if not raw:
@@ -553,7 +577,6 @@ def normalize_url(base_url: str, raw: Optional[str]) -> Optional[str]:
     if raw.startswith("#"):
         return None
     return urljoin(base_url, raw)
-
 
 def extract_links_images(html: str, base_url: str) -> Tuple[BeautifulSoup, str, List[str], List[Dict[str, Any]]]:
     soup = BeautifulSoup(html or "", "html.parser")
@@ -572,7 +595,6 @@ def extract_links_images(html: str, base_url: str) -> Tuple[BeautifulSoup, str, 
 
     text = soup.get_text(" ", strip=True)
     return soup, text, links, images
-
 
 def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
     cache = st.session_state.url_cache
@@ -615,20 +637,16 @@ def check_url_status(url: str, timeout: int = 8) -> Dict[str, Any]:
     cache[url] = result
     return result
 
-
 def severity_rank(sev: str) -> int:
     return {"critical": 0, "warning": 1, "info": 2}.get(str(sev), 2)
-
 
 def push_log(msg: str, limit: int = 14):
     st.session_state.last_logs.insert(0, msg)
     st.session_state.last_logs = st.session_state.last_logs[:limit]
 
-
 def log_connection_established():
     st.session_state.connected_ok = True
     push_log("✅ Connected to Zendesk")
-
 
 def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str]]:
     try:
@@ -640,13 +658,11 @@ def get_xlsx_bytes_safe(df: pd.DataFrame) -> Tuple[Optional[bytes], Optional[str
         df.to_excel(writer, index=False, sheet_name="Findings")
     return bio.getvalue(), None
 
-
 def _make_clickable(v: Any) -> str:
     s = "" if v is None else str(v)
     if s.startswith("http://") or s.startswith("https://"):
         return f'<a href="{s}" target="_blank" rel="noopener">{s}</a>'
     return s
-
 
 def render_table_no_toolbar(df: pd.DataFrame) -> None:
     if df is None or df.empty:
@@ -670,7 +686,6 @@ def render_table_no_toolbar(df: pd.DataFrame) -> None:
         unsafe_allow_html=True,
     )
 
-
 # =========================
 # 4b) PAYWALL / WORKER
 # =========================
@@ -680,7 +695,6 @@ def _worker_cfg() -> Tuple[Optional[str], str]:
     if not base:
         return None, str(pay)
     return str(base).rstrip("/"), str(pay)
-
 
 def worker_get_status(email: str) -> Tuple[bool, int, str]:
     base, _pay = _worker_cfg()
@@ -709,7 +723,6 @@ def worker_get_status(email: str) -> Tuple[bool, int, str]:
             error_message_short=str(e)[:300],
         )
         return False, 0, f"Status check error: {e}"
-
 
 def worker_consume(email: str) -> Tuple[bool, int, str]:
     base, _pay = _worker_cfg()
@@ -741,12 +754,10 @@ def worker_consume(email: str) -> Tuple[bool, int, str]:
         )
         return False, 0, f"Consume error: {e}"
 
-
 def pro_access_active(pro_mode: bool) -> bool:
     if pro_mode:
         return True
     return bool(st.session_state.pro_unlocked) and (not st.session_state.xlsx_consumed_local)
-
 
 def try_unlock_from_status(email: str) -> None:
     email = (email or "").strip().lower()
@@ -765,7 +776,6 @@ def try_unlock_from_status(email: str) -> None:
     st.session_state.pro_last_status_error = err or ""
     if ok:
         st.session_state.xlsx_consumed_local = False
-
 
 # =========================
 # 5) SCAN ENGINE
@@ -820,7 +830,6 @@ def run_scan(
         max_articles=int(max_articles or 0),
     )
 
-    # Optional custom event
     gads_event(
         "zenaudit_scan_start",
         scan_id=scan_id,
@@ -980,10 +989,8 @@ def run_scan(
             findings=len(st.session_state.findings),
         )
 
-        # ✅ Google Ads conversion: Scan completed
         ads_conversion(SCAN_COMPLETED_SEND_TO, transaction_id=scan_id)
 
-        # Optional custom event (keep if you want)
         gads_event(
             "zenaudit_scan_success",
             scan_id=scan_id,
@@ -1014,7 +1021,6 @@ def run_scan(
         )
 
         raise
-
 
 # =========================
 # 6) SIDEBAR
@@ -1091,43 +1097,9 @@ with st.sidebar:
     st.divider()
     render_obfuscated_email("support", "yourdomain.com", label="Need help?")
 
-
 # =========================
 # 7) TOP-LEVEL UI
 # =========================
-st.markdown(
-    """
-<div style="
-  position: sticky; top: 0; z-index: 999;
-  margin: -1.25rem -1rem 1rem -1rem;
-  padding: .75rem 1rem;
-  background: linear-gradient(90deg, rgba(38,70,83,.97), rgba(42,157,143,.94));
-  border-bottom: 1px solid rgba(233,196,106,.55);
-  box-shadow: 0 4px 20px rgba(0,0,0,.28);
-">
-  <div style="max-width: 1200px; margin: 0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-    <div style="display:flex; align-items:center; gap:10px;">
-      <div style="
-        width:34px; height:34px; border-radius:10px;
-        background: rgba(233,196,106,.18);
-        border: 1px solid rgba(233,196,106,.35);
-        display:flex; align-items:center; justify-content:center;
-        font-weight:900; color:#fff;
-      ">SZ</div>
-      <div>
-        <div style="font-weight:850; letter-spacing:.06em; text-transform:uppercase; font-size:.9rem; color:#fff;">SupportZen</div>
-        <div style="font-size:.78rem; color: rgba(255,255,255,.78); font-weight:650;">ZenAudit</div>
-      </div>
-    </div>
-    <div style="font-size:.8rem; color: rgba(255,255,255,.78); font-weight:600;">
-      Zendesk® Help Center Audit
-    </div>
-  </div>
-</div>
-""",
-    unsafe_allow_html=True,
-)
-
 st.markdown("## Zendesk® Knowledge Base Intelligence")
 st.caption("Scan your Help Center for broken links, broken images, missing alt text, typos, and stale content.")
 
@@ -1157,15 +1129,15 @@ with tab_audit:
         Enter a valid <b>API token</b>
         (required to securely access your Help Center content via the Zendesk API)
         <br>
-        <span style="color:#A9B8D0;">
+        <span style="color:rgba(31,41,55,.75);">
           Admin Center → Apps and integrations → APIs → Zendesk API → Add API token
         </span>
       </li>
       <li>Click <b>Connect to Zendesk</b> to verify access</li>
       <li>Click <b>Run scan</b> to start the audit</li>
     </ol>
-<div style="margin-top:6px; color:#A9B8D0;">
-  We use the token only to fetch articles during the scan. It isn’t stored and it isn’t included in exports.<br>
+<div style="margin-top:6px; color:rgba(31,41,55,.75);">
+  We use the token only to fetch articles during the scan. It isn’t stored and isn’t included in exports.<br>
 </div>
   </div>
 
@@ -1178,7 +1150,7 @@ with tab_audit:
   </div>
 
   <div class="za-line" style="margin-top:8px;">
-    <span style="color:#A9B8D0;">
+    <span style="color:rgba(31,41,55,.75);">
       Tip: If you just want a quick check, disable Broken Links / Images for a faster first pass.
     </span>
   </div>
@@ -1471,7 +1443,7 @@ with tab_audit:
         if st.session_state.pro_unlocked:
             st.markdown(
                 f"<div class='za-pill-ok'>✅ Export credit available • Credits remaining: {st.session_state.pro_available_scans}"
-                f"<br><span style='color:#A9B8D0; font-weight:600;'>Downloading uses 1 export credit. Save the file after downloading.</span></div>",
+                f"<br><span style='color: rgba(255,255,255,.85); font-weight:600;'>Downloading uses 1 export credit. Save the file after downloading.</span></div>",
                 unsafe_allow_html=True,
             )
         else:
